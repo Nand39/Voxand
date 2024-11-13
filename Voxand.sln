@@ -1,0 +1,53 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.10.35004.147
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Voxand", "src\Voxand\Voxand.csproj", "{42B988A6-262D-49A6-A264-42E03C408D81}"
+	ProjectSection(ProjectDependencies) = postProject
+		{12C8A38A-AA8D-4972-BB62-79107E68DDA5} = {12C8A38A-AA8D-4972-BB62-79107E68DDA5}
+		{FC7A7E50-DAC9-4C38-AA49-19B047D9089E} = {FC7A7E50-DAC9-4C38-AA49-19B047D9089E}
+	EndProjectSection
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GLAV", "packages\GLAV\GLAV.csproj", "{12C8A38A-AA8D-4972-BB62-79107E68DDA5}"
+	ProjectSection(ProjectDependencies) = postProject
+		{FC7A7E50-DAC9-4C38-AA49-19B047D9089E} = {FC7A7E50-DAC9-4C38-AA49-19B047D9089E}
+	EndProjectSection
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DisposeExt", "packages\DisposeExt\DisposeExt.csproj", "{FC7A7E50-DAC9-4C38-AA49-19B047D9089E}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{A3F700CC-4728-41B6-927E-F437F993AD52}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "packages", "packages", "{1537D9D7-9A90-4643-9655-2D6095B33D10}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{42B988A6-262D-49A6-A264-42E03C408D81}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{42B988A6-262D-49A6-A264-42E03C408D81}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{42B988A6-262D-49A6-A264-42E03C408D81}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{42B988A6-262D-49A6-A264-42E03C408D81}.Release|Any CPU.Build.0 = Release|Any CPU
+		{12C8A38A-AA8D-4972-BB62-79107E68DDA5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{12C8A38A-AA8D-4972-BB62-79107E68DDA5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{12C8A38A-AA8D-4972-BB62-79107E68DDA5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{12C8A38A-AA8D-4972-BB62-79107E68DDA5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FC7A7E50-DAC9-4C38-AA49-19B047D9089E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FC7A7E50-DAC9-4C38-AA49-19B047D9089E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FC7A7E50-DAC9-4C38-AA49-19B047D9089E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FC7A7E50-DAC9-4C38-AA49-19B047D9089E}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{42B988A6-262D-49A6-A264-42E03C408D81} = {A3F700CC-4728-41B6-927E-F437F993AD52}
+		{12C8A38A-AA8D-4972-BB62-79107E68DDA5} = {1537D9D7-9A90-4643-9655-2D6095B33D10}
+		{FC7A7E50-DAC9-4C38-AA49-19B047D9089E} = {1537D9D7-9A90-4643-9655-2D6095B33D10}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {5AF7FD29-6659-4B54-97C8-BC9CFAEA1644}
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <PackageId />
+    <Title>GLAV</Title>
+    <Authors>Tile37</Authors>
+    <Description>A thin object-oriented abstraction over the OpenTK's OpenGL API.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DisposeExt" Version="1.0.0" />
+    <PackageReference Include="OpenTK" Version="4.8.2" />
+  </ItemGroup>
+
+</Project>

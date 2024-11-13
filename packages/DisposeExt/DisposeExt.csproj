@@ -1,0 +1,14 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <PackageId>DisposeExt</PackageId>
+    <Title>DisposeExt</Title>
+    <Authors>Tile37</Authors>
+    <Description>A convenient way to dispose objects.</Description>
+  </PropertyGroup>
+
+</Project>
