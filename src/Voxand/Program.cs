@@ -1,13 +1,10 @@
 ﻿using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
 
-using Voxand;
-using Voxand.Helpers.Interop;
-
-Voxand.Voxand game;
+Voxand.Window game;
 game = new(GameWindowSettings.Default, new NativeWindowSettings()
 {
-    Title = "Voxand",
+    Title = "Voxand Renderer",
     ClientSize = new OpenTK.Mathematics.Vector2i(780, 780),
     WindowBorder = WindowBorder.Resizable,
     StartVisible = false,

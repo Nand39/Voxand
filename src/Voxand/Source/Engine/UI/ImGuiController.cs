@@ -175,11 +175,10 @@ void main()
         int mips = (int)Math.Floor(Math.Log(Math.Max(width, height), 2));
 
         int prevActiveTexture = GL.GetInteger(GetPName.ActiveTexture);
-        GL.ActiveTexture(TextureUnit.Texture0);
-        int prevTexture2D = GL.GetInteger(GetPName.TextureBinding2D);
+        int prevTexture2D = GL.GetInteger(GetPName.TextureBinding2D) - (int)TextureUnit.Texture0;
 
         _fontTexture = GL.GenTexture();
-        GLRegistry.BindTexture(TextureTarget.Texture2D, _fontTexture);
+        GLRegistry.BindTextureRaw(_fontTexture, 0, TextureTarget.Texture2D);
         GL.TexStorage2D(TextureTarget2d.Texture2D, mips, SizedInternalFormat.Rgba8, width, height);
         LabelObject(ObjectLabelIdentifier.Texture, _fontTexture, "ImGui Text Atlas");
 
@@ -196,8 +195,8 @@ void main()
         GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
 
         // Restore state
-        GLRegistry.BindTexture(TextureTarget.Texture2D, prevTexture2D);
-        GL.ActiveTexture((TextureUnit)prevActiveTexture);
+        GLRegistry.BindTextureRaw(prevTexture2D, 0, TextureTarget.Texture2D);
+        GLRegistry.SelectTextureUnit(prevActiveTexture);
 
         io.Fonts.SetTexID((IntPtr)_fontTexture);
 
@@ -253,7 +252,6 @@ void main()
     private void UpdateImGuiInput(GameWindow wnd)
     {
         ImGuiIOPtr io = ImGui.GetIO();
-
         MouseState MouseState = wnd.MouseState;
         KeyboardState KeyboardState = wnd.KeyboardState;
 
@@ -346,7 +344,7 @@ void main()
         int prevBlendFuncDstAlpha = GL.GetInteger(GetPName.BlendDstAlpha);
         bool prevCullFaceEnabled = GL.GetBoolean(GetPName.CullFace);
         bool prevDepthTestEnabled = GL.GetBoolean(GetPName.DepthTest);
-        int prevActiveTexture = GL.GetInteger(GetPName.ActiveTexture);
+        int prevActiveTexture = GL.GetInteger(GetPName.ActiveTexture) - (int)TextureUnit.Texture0;
         GL.ActiveTexture(TextureUnit.Texture0);
         int prevTexture2D = GL.GetInteger(GetPName.TextureBinding2D);
         Span<int> prevScissorBox = stackalloc int[4];
@@ -453,8 +451,7 @@ void main()
                 }
                 else
                 {
-                    GL.ActiveTexture(TextureUnit.Texture0);
-                    GLRegistry.BindTexture(TextureTarget.Texture2D, (int)pcmd.TextureId);
+                    GLRegistry.BindTextureRaw((int)pcmd.TextureId, 0, TextureTarget.Texture2D);
                     CheckGLError("Texture");
 
                     // We do _windowHeight - (int)clip.W instead of (int)clip.Y because gl has flipped Y when it comes to these coordinates
@@ -479,8 +476,7 @@ void main()
         GL.Disable(EnableCap.ScissorTest);
 
         // Reset state
-        GLRegistry.BindTexture(TextureTarget.Texture2D, prevTexture2D);
-        GL.ActiveTexture((TextureUnit)prevActiveTexture);
+        GLRegistry.BindTextureRaw(prevTexture2D, prevActiveTexture, TextureTarget.Texture2D);
         GLRegistry.UseProgram(prevProgram);
         GL.BindVertexArray(prevVAO);
         GL.Scissor(prevScissorBox[0], prevScissorBox[1], prevScissorBox[2], prevScissorBox[3]);

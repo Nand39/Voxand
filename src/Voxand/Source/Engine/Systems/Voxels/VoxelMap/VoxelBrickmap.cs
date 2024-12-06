@@ -31,7 +31,9 @@ public class VoxelBrickmap : VoxelMap
     DDAUnit DDAVoxel;
 
     const int VOXEL_PACK_ARRAY_OFFSET = 2 * sizeof(uint);
-    [StructLayout(LayoutKind.Sequential)] unsafe struct VoxelBrick
+
+    [StructLayout(LayoutKind.Sequential)] 
+    unsafe struct VoxelBrick
     {
         fixed uint bitmask[2];
         fixed uint packs[16];
@@ -119,9 +121,9 @@ public class VoxelBrickmap : VoxelMap
         unsafe
         {
             fixed (int* initBrickmapPtr = C_brickmap)
-                G_brickmap.Store((nint)initBrickmapPtr, 0, C_brickmap.Length * sizeof(int));
+                G_brickmap.Store(0, (nint)initBrickmapPtr, C_brickmap.Length * sizeof(int));
         }
-        G_brickmap.Lable = "*** Brickmap";
+        G_brickmap.GLLable = "*** Brickmap";
 
         DDABrick = new();
         DDAVoxel = new();

@@ -3,9 +3,9 @@ using Voxand.Engine.Graphics;
 using Voxand.UI;
 
 namespace Voxand.Engine.GameStates;
-public abstract class GameState(Voxand game)
+public abstract class GameState(Window game)
 {
-    protected Voxand main = game;
+    protected Window main = game;
 
     public abstract void Load();
     public abstract void Update(FrameEventArgs args);

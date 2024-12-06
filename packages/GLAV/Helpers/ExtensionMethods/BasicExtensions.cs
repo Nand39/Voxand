@@ -1,4 +1,5 @@
-﻿namespace GLAV.Helpers.ExtensionMethods;
+﻿
+namespace GLAV.Helpers.ExtensionMethods;
 public static class BasicExtensions
 {
     public static void ReplaceFirst<T>(this T[] array, T target, T replacement)

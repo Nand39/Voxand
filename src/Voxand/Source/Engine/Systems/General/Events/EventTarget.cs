@@ -2,14 +2,25 @@
 
 
 namespace Voxand.Engine.Systems.General.Events;
-public class EventTarget
+
+public interface IEventSubscribable
 {
-    Dictionary<string, List<Action<object>>> events = [];
+    public void Subscribe(string eventName, Action<object> action);
+} 
+public class EventTarget : IEventSubscribable
+{
+    protected Dictionary<string, List<Action<object>>> events = [];
     public void AddEvent(string eventName)
     {
         if (HasEvent(eventName))
-            throw new ArgumentException($"Cannot add an event. Event {eventName} already exists");
+            throw new ArgumentException($"Cannot add an event. Event {eventName} already exists.");
         events[eventName] = new();
+    }
+    public void RemoveEvent(string eventName)
+    {
+        if (!HasEvent(eventName))
+            throw new ArgumentException($"Cannot remove an event. Event {eventName} does not exist.");
+        events.Remove(eventName);
     }
     public void AddEvent(object target, EventInfo eventInfo, string eventName)
     {
@@ -27,19 +38,19 @@ public class EventTarget
     public void Subscribe(string eventName, Action<object> action)
     {
         if (!HasEvent(eventName))
-            throw new ArgumentException($"Cannot subscribe to an event. Event {eventName} does not exists");
+            throw new ArgumentException($"Cannot subscribe to an event. Event {eventName} does not exist.");
         events[eventName].Add(action);
     }
     public void Unsubscribe(string eventName, Action<object> action)
     {
         if (!HasEvent(eventName))
-            throw new ArgumentException($"Cannot subscribe to an event. Event {eventName} does not exists");
+            throw new ArgumentException($"Cannot subscribe to an event. Event {eventName} does not exist.");
         events[eventName].Remove(action);
     }
     public void Invoke(string eventName, EventArgs args)
     {
         if (!HasEvent(eventName))
-            throw new ArgumentOutOfRangeException($"Cannot invoke an event. Event {eventName} does not exists");
+            throw new ArgumentOutOfRangeException($"Cannot invoke an event. Event {eventName} does not exist.");
 
         var subscribers = events[eventName];
         foreach (Action<EventArgs> subscriberAction in subscribers)

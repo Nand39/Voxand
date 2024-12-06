@@ -18,8 +18,5 @@ public class ShaderPart : GLResource
             throw new Exception(infoLog);
         }
     }
-    public override void Free()
-    {
-        GL.DeleteShader(Handle.id);
-    }
+    protected override void Free() => GL.DeleteShader(Handle.id);
 }

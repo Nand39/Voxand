@@ -3,7 +3,6 @@
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
-using OpenTK.Mathematics;
 
 using Voxand.Content;
 using Voxand.Engine.GameStates;
@@ -14,7 +13,7 @@ using Voxand.UI;
 using Voxand.Helpers.Interop;
 
 namespace Voxand;
-public class Voxand(GameWindowSettings gameWindowSettings, NativeWindowSettings nativeWindowSettings) 
+public class Window(GameWindowSettings gameWindowSettings, NativeWindowSettings nativeWindowSettings) 
     : GameWindow(gameWindowSettings, nativeWindowSettings)
 {
     GameState gameState;
@@ -40,7 +39,6 @@ public class Voxand(GameWindowSettings gameWindowSettings, NativeWindowSettings 
         imGui = new ImGuiController(ClientSize.X, ClientSize.Y);
 
         SetGameState(new ActiveState(this));
-
 
         MouseWheel += (args) =>
         {
@@ -89,6 +87,7 @@ public class Voxand(GameWindowSettings gameWindowSettings, NativeWindowSettings 
         Exception ex = (args.ExceptionObject as Exception)!;
         NativeFuncs.Win.MessageBox(0, $"Voxand has crashed lmao\n{ex.Message}\nStack trace:\n{ex.StackTrace ?? "! bad luck"}", "oops", 0x00000000u);
         Close();
+        Environment.Exit(ex.HResult);
     }
     protected override void OnResize(ResizeEventArgs args)
     {

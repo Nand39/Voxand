@@ -2,47 +2,37 @@
 using OpenTK.Mathematics;
 using OpenTK.Windowing.Common;
 
+using DisposableExt;
 using GLAV.Types;
 using GLAV.Systems;
-using GLAV.Helpers;
-using DisposableExt;
 
 using Voxand.Content;
 using Voxand.Engine.Graphics.GLUtil;
 using Voxand.Helpers;
-using Voxand.Helpers.ExtensionMethods.GLAVExtensions;
 
 using Buffer = GLAV.Types.Buffer;
-using GLAVUtils = GLAV.Helpers.Util.Util;
+
 namespace Voxand.Engine.Graphics;
+using Voxand.Engine.Graphics.Tools.ShaderServices;
 public class VoxandRendererActive : IDisposable
 {
-    public ShaderInfo<VoxelShaderUniforms> voxelShaderInfo;
-    public ShaderInfo<CompositeShaderUniforms> compositeShaderInfo;
-    public ShaderInfo<PostprocessingShaderUniforms> postprocessingShaderInfo;
-    public ShaderInfo<TAAShaderUniforms> TAAShaderInfo;
-    public ShaderInfo<FlatShaderUniforms> flatShaderInfo;
+    public ShaderController voxelRenderComputeShader;
+    public ShaderController compositeShaderInfo;
+    public ShaderController postprocessingShaderInfo;
+    public ShaderController TAAShaderInfo;
 
     VertexArray screenRectVAO;
     public RendererActiveSettings settings;
-    DrawBuffersEnum[] voxelRenderAttachments = 
-        [
-        DrawBuffersEnum.ColorAttachment0,
-        DrawBuffersEnum.ColorAttachment1,
-        DrawBuffersEnum.ColorAttachment2,
-        DrawBuffersEnum.ColorAttachment3
-        ];
     Vector2 renderScale;
     public Vector2i renderResolution;
     bool disposed = false;
 
-    Shader voxelRenderComputeShader;
     Buffer computeInputSSBO;
     Buffer directionalLights;
 
     public bool agressiveTAA = false;
 
-    float renderResolutionScaler = 0.5f;
+    float renderResolutionScaler = 0.8f;
 
     ComputeRenderInputStd140 computeInput;
 
@@ -50,57 +40,46 @@ public class VoxandRendererActive : IDisposable
 
     Vector2i computeWorkGroupSize = (8, 8);
 
-    Texture2D skyboxTex;
+    public Texture2D skyLightTex;
+
+    public Camera camera;
     public VoxandRendererActive(ContentManager content) : base()
     {
         settings = new();
         InitializeSettings(Vector2i.One);
 
-        Shader voxelRenderShader = new Shader();
-        voxelRenderShader.Create(content, true, 
-            "Graphics.Shaders.VoxelRender.voxelRender.vert",
-            "Graphics.Shaders.VoxelRender.voxelRender.frag");
-
-        Shader compositingShader = new Shader();
-        compositingShader.Create(content, true,
+        compositeShaderInfo = new(content, true,
             "Graphics.Shaders.voxelCompositing.vert",
             "Graphics.Shaders.voxelCompositing.frag");
+        compositeShaderInfo.Shader.GLLable = "compositing shader";
+        compositeShaderInfo.Shader.Lable = "compositing shader";
 
-        Shader postprocessingShader = new Shader();
-        postprocessingShader.Create(content, true,
+        postprocessingShaderInfo = new(content, true,
             "Graphics.Shaders.voxelPostprocessingShader.vert",
             "Graphics.Shaders.voxelPostprocessingShader.frag");
+        postprocessingShaderInfo.Shader.GLLable = "postprocessing shader";
+        compositeShaderInfo.Shader.Lable = "postprocessing shader";
 
-        Shader tempAntiAliasingShader = new Shader();
-        tempAntiAliasingShader.Create(content, true,
+        TAAShaderInfo = new(content, true,
             "Graphics.Shaders.tempAntiAliasingShader.vert",
             "Graphics.Shaders.tempAntiAliasingShader.frag");
+        TAAShaderInfo.Shader.GLLable = "anti-aliasing shader";
+        compositeShaderInfo.Shader.Lable = "anti-aliasing shader";
 
-        Shader flatRenderShader = new Shader();
-        flatRenderShader.Create(content, true,
-            "Graphics.Shaders.VoxelRender.voxelRender.vert",
-            "Graphics.Shaders.VoxelRender.voxelRenderFlat.frag");
+        voxelRenderComputeShader = new(content, true, 
+            "Graphics.Shaders.VoxelRender.voxelRenderComputeBrickmap.comp");
+        voxelRenderComputeShader.Shader.GLLable = "compute render shader";
+        compositeShaderInfo.Shader.Lable = "compute render shader";
 
-        voxelShaderInfo = new(voxelRenderShader);
-        compositeShaderInfo = new(compositingShader);
-        postprocessingShaderInfo = new(postprocessingShader);
-        TAAShaderInfo = new(tempAntiAliasingShader);
-        flatShaderInfo = new(flatRenderShader);
+        TAAShaderInfo.SetUniform("intensity", 0.4f);
 
-        voxelShaderInfo.SetUniform(VoxelShaderUniforms.ambientLighting, new Vector3(0.6f, 0.8f, 0.9f));
-        TAAShaderInfo.SetUniform(TAAShaderUniforms.intensity, 0.36f);
+        computeInput = new ComputeRenderInputStd140();
 
-        voxelRenderComputeShader = new Shader();
-        voxelRenderComputeShader.Create(content, true, "Graphics.Shaders.VoxelRender.voxelRenderComputeBrickmap.comp");
-        computeInput = new ComputeRenderInputStd140()
-        {
-            ambientLighting = new Vector3(0.6f, 0.8f, 0.9f),
-        };
         computeInputSSBO = new Buffer();
         computeInputSSBO.Alloc(BufferTarget.ShaderStorageBuffer, ref computeInput, ComputeRenderInputStd140.sizeInBytes, BufferUsageHint.StreamDraw);
         computeInputSSBO.BindBufferBase(new(BufferRangeTarget.ShaderStorageBuffer, 3));
-        GLAVUtils.LabelResource(computeInputSSBO.Handle, "compute input");
-        
+        computeInputSSBO.GLLable = "compute input";
+
 
         V_PositionUV[] viewRectVertices = [
             new(new(-1, -1, 0), new(0, 0)),
@@ -112,31 +91,8 @@ public class VoxandRendererActive : IDisposable
         ];
         screenRectVAO = new VertexArray();
         screenRectVAO.Alloc(ref viewRectVertices, V_PositionUV.vertexInfo, BufferUsageHint.StaticDraw);
-    }
-    public void RenderVoxels(float deltaTime)
-    {
-        switch(technique)
-        {
-            case RenderTechniques.PathTracingFragment: RenderVoxelsFragment(); break;
-            case RenderTechniques.PathTracingCompute: RenderVoxelsCompute(deltaTime); break;
-        }
-    }
-    void RenderVoxelsFragment()
-    {
-        settings.VoxelRenderFramebuffer.BindFramebuffer(FramebufferTarget.Framebuffer);
-        GL.Clear(ClearBufferMask.ColorBufferBit);
 
-        voxelShaderInfo.Shader.Use();
-
-        Matrix4 cameraMat = Matrix4.Invert(Camera.CreateCameraMatrix());
-        GL.Uniform3(voxelShaderInfo.GetUniformLocation(VoxelShaderUniforms.cameraPosition), Camera.position);
-        GL.Uniform1(voxelShaderInfo.GetUniformLocation(VoxelShaderUniforms.randSalt), Util.Random.NextSingle() + 1);
-        GL.UniformMatrix4(voxelShaderInfo.GetUniformLocation(VoxelShaderUniforms.inverseCameraMatrix), true, ref cameraMat);
-
-        GL.DrawBuffers(voxelRenderAttachments.Length, voxelRenderAttachments);
-
-        screenRectVAO.Bind();
-        GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
+        skyLightTex = content.LoadTexture("Graphics/Textures/env.hdr", false);
     }
     public void Composite()
     {
@@ -144,14 +100,15 @@ public class VoxandRendererActive : IDisposable
         settings.TAAFramebuffer.BindFramebuffer(FramebufferTarget.Framebuffer);
 
         TAAShaderInfo.Shader.Use();
-        GL.Uniform1(TAAShaderInfo.GetUniformLocation(TAAShaderUniforms.tex1), 0);
-        GL.Uniform1(TAAShaderInfo.GetUniformLocation(TAAShaderUniforms.tex2), 1);
-        settings.VoxelLuminanceTexture.BindToUnit(TextureUnit.Texture0);
-        settings.TAALuminanceTexture.BindToUnit(TextureUnit.Texture1);
-        if (agressiveTAA) 
-            GL.Uniform1(TAAShaderInfo.GetUniformLocation(TAAShaderUniforms.intensity), 0.95f);
-        else 
-            GL.Uniform1(TAAShaderInfo.GetUniformLocation(TAAShaderUniforms.intensity), 0.4f);
+        TAAShaderInfo.SetUniform("tex1", 0);
+        TAAShaderInfo.SetUniform("tex2", 1);
+        settings.VoxelLuminanceTexture.BindTex(0);
+        settings.TAALuminanceTexture.BindTex(1);
+
+        if (agressiveTAA)
+            TAAShaderInfo.SetUniform("intensity", 0.99f);
+        else
+            TAAShaderInfo.SetUniform("intensity", 0.4f);
 
 
         screenRectVAO.Bind();
@@ -163,14 +120,13 @@ public class VoxandRendererActive : IDisposable
 
         compositeShaderInfo.Shader.Use();
 
-        GL.Uniform1(compositeShaderInfo.GetUniformLocation(CompositeShaderUniforms.albedo), 0);
-        GL.Uniform1(compositeShaderInfo.GetUniformLocation(CompositeShaderUniforms.luminance), 1);
-        GL.Uniform1(compositeShaderInfo.GetUniformLocation(CompositeShaderUniforms.normal), 2);
-        GL.Uniform1(compositeShaderInfo.GetUniformLocation(CompositeShaderUniforms.depth), 3);
-        settings.VoxelAlbedoTexture.BindToUnit(TextureUnit.Texture0);
-        settings.TAALuminanceTexture.BindToUnit(TextureUnit.Texture1);
-        settings.VoxelNormalTexture.BindToUnit(TextureUnit.Texture2);
-        settings.VoxelDepthTexture.BindToUnit(TextureUnit.Texture3);
+        compositeShaderInfo.SetUniform("luminance", 0);
+        compositeShaderInfo.SetUniform("normal", 1);
+        compositeShaderInfo.SetUniform("depth", 2);
+
+        settings.TAALuminanceTexture.BindTex(0);
+        settings.VoxelNormalTexture.BindTex(1);
+        settings.VoxelDepthTexture.BindTex(2);
 
         screenRectVAO.Bind();
         GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
@@ -182,79 +138,33 @@ public class VoxandRendererActive : IDisposable
         GL.Clear(ClearBufferMask.ColorBufferBit);
 
         postprocessingShaderInfo.Shader.Use();
-        GL.Uniform1(postprocessingShaderInfo.GetUniformLocation(PostprocessingShaderUniforms.tex), 0);
-        textureToDisplay.BindToUnit(TextureUnit.Texture0);
+        postprocessingShaderInfo.SetUniform("tex", 0);
 
-        screenRectVAO.Bind();
-        GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
-    }
-    public void RenderFlat()
-    {
-        GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
-        GL.Clear(ClearBufferMask.ColorBufferBit);
-
-        flatShaderInfo.Shader.Use();
-
-        Matrix4 cameraMat = Matrix4.Invert(Camera.CreateCameraMatrix());
-        GL.Uniform3(flatShaderInfo.GetUniformLocation(FlatShaderUniforms.cameraPosition), Camera.position);
-        GL.UniformMatrix4(flatShaderInfo.GetUniformLocation(FlatShaderUniforms.inverseCameraMatrix), true, ref cameraMat);
+        textureToDisplay.BindTex(0);
 
         screenRectVAO.Bind();
         GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
     }
 
-    unsafe void RenderVoxelsCompute(float deltaTime)
+    public unsafe void RenderVoxelsCompute()
     {
-        voxelRenderComputeShader.Use();
+        voxelRenderComputeShader.Shader.Use();
+        skyLightTex.BindTex(8);
+        voxelRenderComputeShader.SetUniform("skyTex", 8);
 
         fixed (ComputeRenderInputStd140* dataPtr = &computeInput)
         {
-            computeInput.cameraPosition = Camera.position;
-            computeInput.inverseCameraMatrix = Matrix4.Transpose(Matrix4.Invert(Camera.CreateCameraMatrix()));
+            computeInput.cameraPosition = camera.position;
+            computeInput.inverseCameraMatrix = Matrix4.Transpose(Matrix4.Invert(camera.CreateCameraMatrix(
+                settings.VoxelLuminanceTexture.Size.X / settings.VoxelLuminanceTexture.Size.Y)));
+
             computeInput.randSalt = Util.Random.NextSingle() + 1;
-            computeInput.time += deltaTime;
-            //computeInput.time %= MathF.Tau;
 
             computeInputSSBO.Bind();
             computeInputSSBO.Store(ref computeInput, 0);
         }
 
         GL.DispatchCompute(renderResolution.X / 8, renderResolution.Y / 8, 1);
-    }
-    public enum VoxelShaderUniforms
-    {
-        mapSize,
-        cameraPosition,
-        inverseCameraMatrix,
-        renderScale,
-        randSalt,
-        ambientLighting,
-    }
-    public enum TAAShaderUniforms
-    {
-        tex1,
-        tex2,
-        intensity,
-        renderScale,
-    }
-    public enum CompositeShaderUniforms
-    {
-        albedo,
-        luminance,
-        normal,
-        depth,
-        renderScale,
-    }
-    public enum PostprocessingShaderUniforms
-    {
-        tex
-    }
-    public enum FlatShaderUniforms
-    {
-        mapSize,
-        cameraPosition,
-        inverseCameraMatrix,
-        renderScale,
     }
     public void SetTechnique(RenderTechniques technique)
     {
@@ -293,15 +203,10 @@ public class VoxandRendererActive : IDisposable
 
         #region Voxel render textures
 
-        settings.VoxelAlbedoTexture = new Texture2D();
-        settings.VoxelAlbedoTexture.Alloc(resolution, format, nint.Zero);
-        settings.VoxelAlbedoTexture.SetParams(ref parameters);
-        settings.VoxelAlbedoTexture.BindToUnit(TextureUnit.Texture0);
-
         settings.VoxelLuminanceTexture = new Texture2D();
         settings.VoxelLuminanceTexture.Alloc(resolution, format, nint.Zero);
         settings.VoxelLuminanceTexture.SetParams(ref parameters);
-        settings.VoxelLuminanceTexture.BindToUnit(TextureUnit.Texture1);
+        settings.VoxelLuminanceTexture.BindTex(0);
 
         format.internalFormat = PixelInternalFormat.R32f;
         format.format = PixelFormat.Red;
@@ -309,7 +214,7 @@ public class VoxandRendererActive : IDisposable
         settings.VoxelDepthTexture = new Texture2D();
         settings.VoxelDepthTexture.Alloc(resolution, format, nint.Zero);
         settings.VoxelDepthTexture.SetParams(ref parameters);
-        settings.VoxelDepthTexture.BindToUnit(TextureUnit.Texture2);
+        settings.VoxelDepthTexture.BindTex(1);
 
         format.internalFormat = PixelInternalFormat.R32i;
         format.format = PixelFormat.RedInteger;
@@ -318,13 +223,12 @@ public class VoxandRendererActive : IDisposable
         settings.VoxelNormalTexture = new Texture2D();
         settings.VoxelNormalTexture.Alloc(resolution, format, nint.Zero);
         settings.VoxelNormalTexture.SetParams(ref parameters);
-        settings.VoxelNormalTexture.BindToUnit(TextureUnit.Texture3);
+        settings.VoxelNormalTexture.BindTex(2);
 
         // Bind new textures for compute shaders
-        settings.VoxelAlbedoTexture.BindAsImage(0, TextureAccess.WriteOnly, SizedInternalFormat.Rgba32f);
-        settings.VoxelLuminanceTexture.BindAsImage(1, TextureAccess.WriteOnly, SizedInternalFormat.Rgba32f);
-        settings.VoxelDepthTexture.BindAsImage(2, TextureAccess.WriteOnly, SizedInternalFormat.R32f);
-        settings.VoxelNormalTexture.BindAsImage(3, TextureAccess.WriteOnly, SizedInternalFormat.R32i);
+        settings.VoxelLuminanceTexture.BindAsImage(0, TextureAccess.WriteOnly, SizedInternalFormat.Rgba32f);
+        settings.VoxelDepthTexture.BindAsImage(1, TextureAccess.WriteOnly, SizedInternalFormat.R32f);
+        settings.VoxelNormalTexture.BindAsImage(2, TextureAccess.WriteOnly, SizedInternalFormat.R32i);
 
         #endregion
 
@@ -361,18 +265,6 @@ public class VoxandRendererActive : IDisposable
 
         FramebufferAttachmentInfo[] attachments;
 
-        // Path tracing framebuffer
-        attachments =
-            [
-            new(settings.VoxelAlbedoTexture, FramebufferAttachment.ColorAttachment0, TextureTarget.Texture2D),
-            new(settings.VoxelLuminanceTexture, FramebufferAttachment.ColorAttachment1, TextureTarget.Texture2D),
-            new(settings.VoxelDepthTexture, FramebufferAttachment.ColorAttachment2, TextureTarget.Texture2D),
-            new(settings.VoxelNormalTexture, FramebufferAttachment.ColorAttachment3, TextureTarget.Texture2D),
-            ];
-
-        settings.VoxelRenderFramebuffer = new Framebuffer();
-        settings.VoxelRenderFramebuffer.Create(ref attachments);
-
         // TAA framebuffer
         attachments =
             [new(settings.TAALuminanceTexture, FramebufferAttachment.ColorAttachment0, TextureTarget.Texture2D)];
@@ -401,11 +293,9 @@ public class VoxandRendererActive : IDisposable
         // Disposing old framebuffers and corresponding texture attachments
 
 
-        settings.VoxelAlbedoTexture.Dispose();
         settings.VoxelLuminanceTexture.Dispose();
         settings.VoxelDepthTexture.Dispose();
         settings.VoxelNormalTexture.Dispose();
-        settings.VoxelRenderFramebuffer.Dispose();
 
         settings.TAALuminanceTexture.Dispose();
         settings.TAAFramebuffer.Dispose();
@@ -419,15 +309,11 @@ public class VoxandRendererActive : IDisposable
 
         // Resend render scale uniforms
 
-
-        voxelShaderInfo.Shader.Use();
-        GL.Uniform2(voxelShaderInfo.GetUniformLocation(VoxelShaderUniforms.renderScale), renderScale);
-        flatShaderInfo.Shader.Use();
-        GL.Uniform2(flatShaderInfo.GetUniformLocation(FlatShaderUniforms.renderScale), renderScale);
-        TAAShaderInfo.Shader.Use();
-        GL.Uniform2(TAAShaderInfo.GetUniformLocation(TAAShaderUniforms.renderScale), renderScale);
-        compositeShaderInfo.Shader.Use();
-        GL.Uniform2(compositeShaderInfo.GetUniformLocation(CompositeShaderUniforms.renderScale), renderScale);
+        TAAShaderInfo.SetUniform("renderScale", renderScale);
+        //GL.Uniform2(TAAShaderInfo.GetUniformLocation(TAAShaderUniforms.renderScale), renderScale);
+        compositeShaderInfo.SetUniform("renderScale", renderScale);
+        //GL.Uniform2(compositeShaderInfo.GetUniformLocation(CompositeShaderUniforms.), renderScale);
+        
         GLRegistry.UseProgram(0);
 
         return true;
@@ -435,13 +321,8 @@ public class VoxandRendererActive : IDisposable
 
     public void SetMapSize(Vector3i size)
     {
-        voxelShaderInfo.Shader.Use();
-        GL.Uniform3(voxelShaderInfo.GetUniformLocation(VoxelShaderUniforms.mapSize), size);
-        flatShaderInfo.Shader.Use();
-        GL.Uniform3(flatShaderInfo.GetUniformLocation(FlatShaderUniforms.mapSize), size);
-
-        computeInput.mapSize = size;
-        computeInput.voxelBrickmapSize = new Vector3i(size.X >> 2, size.Y >> 2, size.Z >> 2);
+        voxelRenderComputeShader.SetUniform("mapSize", size);
+        voxelRenderComputeShader.SetUniform("voxelBrickmapSize", new Vector3i(size.X >> 2, size.Y >> 2, size.Z >> 2));
     }
 
     public void Dispose()

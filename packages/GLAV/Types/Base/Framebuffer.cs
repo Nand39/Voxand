@@ -1,4 +1,5 @@
-﻿using OpenTK.Graphics.OpenGL4;
+﻿using GLAV.Systems;
+using OpenTK.Graphics.OpenGL4;
 
 namespace GLAV.Types;
 public struct FramebufferAttachmentInfo(Texture2D texture, FramebufferAttachment attahcmentType, TextureTarget textureTarget)
@@ -20,7 +21,7 @@ public class Framebuffer : GLResource
         GL.BindFramebuffer(FramebufferTarget.Framebuffer, Handle.id);
 
         foreach (FramebufferAttachmentInfo attachment in attachments)
-            GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, attachment.attahcmentType, attachment.textureTarget, attachment.texture.Handle.id, 0);
+            Attach(attachment);
         
         FramebufferErrorCode status = GL.CheckFramebufferStatus(FramebufferTarget.Framebuffer);
         if (status != FramebufferErrorCode.FramebufferComplete)
@@ -30,9 +31,14 @@ public class Framebuffer : GLResource
     }
     public void BindFramebuffer(FramebufferTarget target)
     {
-        GL.BindFramebuffer(target, Handle.id);
+        GLRegistry.BindFramebuffer(target, Handle.id);
     }
-    public override void Free()
+    public void Attach(FramebufferAttachmentInfo attachment)
+    {
+        BindFramebuffer(FramebufferTarget.Framebuffer);
+        GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, attachment.attahcmentType, attachment.textureTarget, attachment.texture.Handle.id, 0);
+    }
+    protected override void Free()
     {
         GL.DeleteFramebuffer(Handle.id);
     }

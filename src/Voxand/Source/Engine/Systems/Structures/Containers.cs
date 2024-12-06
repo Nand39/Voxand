@@ -6,6 +6,7 @@ using OpenTK.Mathematics;
 
 using GLAV.Data;
 using GLAV.Types;
+using Voxand.Content;
 
 namespace Voxand.Engine.Systems.Voxels
 {
@@ -22,31 +23,26 @@ namespace Voxand.Engine.Systems.Voxels
 
 namespace Voxand.Engine.Graphics
 {
-    public class ShaderInfo<E> where E : Enum
+    public class ShaderUniformCacheEnum<E> where E : Enum
     {
-        protected int[] uLocs = new int[Enum.GetNames(typeof(E)).Length];
-        protected readonly Shader shader;
-        public Shader Shader
+        protected int[] uniformLocations = new int[Enum.GetNames(typeof(E)).Length];
+        public Shader Shader { get; }
+        public ShaderUniformCacheEnum(Shader shader)
         {
-            get => shader;
+            Shader = shader;
+            UpdateUniformLocations();
         }
-        public ShaderInfo(Shader shader)
+        void UpdateUniformLocations()
         {
-            this.shader = shader;
             string[] uniformNames = Enum.GetNames(typeof(E));
-            for (int i = 0; i < uLocs.Length; i++)
-                uLocs[i] = GL.GetUniformLocation(Shader.Handle.id, uniformNames[i]);
+            for (int i = 0; i < uniformLocations.Length; i++)
+                uniformLocations[i] = GL.GetUniformLocation(Shader.Handle.id, uniformNames[i]);
         }
-        public void SetUniform<T>(E uniformKey, T value) where T : struct
-        {
-            Shader.SetUniform(GetUniformLocation(uniformKey), value);
-        }
-        public int GetUniformLocation(E uniformKey) => uLocs[Convert.ToInt32(uniformKey)];
+        public int GetUniformLocation(E uniformKey) => uniformLocations[Convert.ToInt32(uniformKey)];
     }
+    
     public struct RendererActiveSettings()
     {
-        public Framebuffer VoxelRenderFramebuffer;
-        public Texture2D VoxelAlbedoTexture;
         public Texture2D VoxelLuminanceTexture;
         public Texture2D VoxelNormalTexture;
         public Texture2D VoxelDepthTexture;
@@ -56,42 +52,6 @@ namespace Voxand.Engine.Graphics
 
         public Framebuffer CompositingFramebuffer;
         public Texture2D CompositingResultTexture;
-    }
-    
-    public enum CommonVoxelShaderUniforms
-    {
-        mapSize,
-        cameraPosition,
-        inverseCameraMatrix,
-        renderScale,
-        randSalt,
-        ambientLighting,
-    }
-    public enum CommonTAAShaderUniforms
-    {
-        tex1,
-        tex2,
-        intensity,
-        renderScale,
-    }
-    public enum CommonCompositeShaderUniforms
-    {
-        albedo,
-        luminance,
-        normal,
-        depth,
-        renderScale,
-    }
-    public enum CommonPostprocessingShaderUniforms
-    {
-        tex
-    }
-    public enum CommonFlatShaderUniforms
-    {
-        mapSize,
-        cameraPosition,
-        inverseCameraMatrix,
-        renderScale,
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -104,15 +64,6 @@ namespace Voxand.Engine.Graphics
 
         public Vector3 cameraPosition = default;
         public float randSalt = 0;
-
-        public Vector3 ambientLighting = default;
-        public float time = 0;
-
-        public Vector3i mapSize = default;
-        float padding1 = 0;
-
-        public Vector3i voxelBrickmapSize = default;
-        float padding2 = 0;
 
         public ComputeRenderInputStd140() { }
     }

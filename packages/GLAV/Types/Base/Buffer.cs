@@ -54,13 +54,12 @@ public class Buffer : GLResource
         Bind();
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe void Store<T>(ref T[] data, int readingOffsetIndex, int count, int writingOffsetInBytes)
+    public unsafe void Store<T>(ref T[] data, int readingOffsetIndex, int size, int writingOffsetInBytes)
         where T : struct
     {
         Bind();
         fixed (T* readStart = &data[readingOffsetIndex])
-            GL.BufferSubData(bufferTarget, writingOffsetInBytes, count * sizeof(T), (nint)readStart);
+            GL.BufferSubData(bufferTarget, writingOffsetInBytes, size, (nint)readStart);
     }
     public unsafe void Store<T>(ref T data, int offsetInBytes)
         where T : struct
@@ -68,7 +67,7 @@ public class Buffer : GLResource
         Bind();
         GL.BufferSubData(bufferTarget, offsetInBytes, sizeof(T), ref data);
     }
-    public unsafe void Store(nint dataPtr, int offsetInBytes, int size)
+    public unsafe void Store(int offsetInBytes, nint dataPtr, int size)
     {
         Bind();
         GL.BufferSubData(bufferTarget, offsetInBytes, size, dataPtr);
@@ -87,7 +86,7 @@ public class Buffer : GLResource
         int itemSize; unsafe { itemSize = sizeof(Format); }
         Format[] data = Retrieve<Format>(startOffsetInBytes, count);
 
-        Console.WriteLine($"# Content of {Lable} from {startOffsetInBytes} to {startOffsetInBytes + count * itemSize} ({count} items)");
+        Console.WriteLine($"# Content of {GLLable} from {startOffsetInBytes} to {startOffsetInBytes + count * itemSize} ({count} items)");
         for (int i = 0; i < data.Length; i++)
         {
             Console.WriteLine(data[i]);
@@ -139,7 +138,7 @@ public class Buffer : GLResource
         GL.BindBufferBase(destination.target, destination.index, Handle.id);
     }
 
-    public override void Free()
+    protected override void Free()
     {
         GL.DeleteBuffer(Handle.id);
     }

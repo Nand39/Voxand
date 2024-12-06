@@ -16,9 +16,12 @@ using Voxand.Engine.Systems.Voxels;
 using Voxand.Helpers;
 using Voxand.Helpers.Utility;
 using Voxand.UI;
+using Voxand.Engine.Graphics.Pipelines.DefaultVoxelPTRP;
+using Voxand.Engine.Graphics.Pipelines;
+using DisposableExt;
 
 namespace Voxand;
-public class ActiveState(Voxand game) : GameState(game)
+public class ActiveState(Window game) : GameState(game)
 {
     bool cameraFollow;
     float sensitivity = 0.0038f;
@@ -33,6 +36,9 @@ public class ActiveState(Voxand game) : GameState(game)
     VoxelPalette voxelPalette;
     VoxandRendererActive renderer;
     UI_Manager ui;
+    Camera mainCamera;
+
+    VoxelPTRP renderingPipeline;
     
     Framewatch fps;
 
@@ -44,16 +50,15 @@ public class ActiveState(Voxand game) : GameState(game)
 
     bool lockMovement = false;
 
-    Texture2D texture;
     public override void Load()
     {
         Console.WriteLine($"{(int)TextureUnit.Texture0}, {(int)TextureUnit.Texture1}");
 
-        GL.ClearColor(0.3f, 0.3f, 0.2f, 1);
+        GL.ClearColor(0.6f, 0.3f, 0.2f, 1);
 
-        Camera.position = (Vector3)mapSize / 2 + new Vector3(-3, 3, 3);
-        Camera.screenSize = new Vector2i(128, 128);
-        Camera.FOV = 90;
+        mainCamera = new Camera();
+        mainCamera.position = (Vector3)mapSize / 2 + new Vector3(-3, 3, 3);
+        mainCamera.FOV = 90;
 
         if (hideCursor) 
             unsafe { GLFW.SetInputMode(main.WindowPtr, CursorStateAttribute.Cursor, CursorModeValue.CursorHidden); }
@@ -62,7 +67,7 @@ public class ActiveState(Voxand game) : GameState(game)
 
         voxelMap = new(mapSize, new VoxelBrickmapDefaultPersistenceModule());
 
-        renderer = new VoxandRendererActive(main.content);
+        renderer = new VoxandRendererActive(main.content) { camera = mainCamera };
         ui = new UI_Manager(voxelPalette, main.content);
 
         renderer.SetMapSize(mapSize);
@@ -80,6 +85,8 @@ public class ActiveState(Voxand game) : GameState(game)
         Util.CurrentMap = voxelMap;
 
         voxelMap.SetVoxelValueAndBit(voxelMap.Dimensions / 2, 0, true);
+
+        renderingPipeline = new(main.content, mainCamera, voxelMap, main.ClientSize);
 
         Console.WriteLine("Loaded");
     }
@@ -108,13 +115,14 @@ public class ActiveState(Voxand game) : GameState(game)
             Vector2 mouseShift = (main.MouseState.Position - screenCenter) * sensitivity;
             main.MousePosition = screenCenter;
 
-            Camera.rotation.Y += mouseShift.X; Camera.rotation.Y %= MathF.Tau;
-            Camera.rotation.X += mouseShift.Y; 
-            Camera.rotation.X = Math.Clamp(Camera.rotation.X, -1.57079f, 1.57079f);
+            mainCamera.rotation.Y += mouseShift.X; mainCamera.rotation.Y %= MathF.Tau;
+            mainCamera.rotation.X += mouseShift.Y;
+            mainCamera.rotation.X = Math.Clamp(mainCamera.rotation.X, -1.57079f, 1.57079f);
         }
         #endregion
 
         #region Building
+
         if (main.KeyboardState.IsKeyPressed(Keys.Z))
         {
             material += 1;
@@ -132,7 +140,7 @@ public class ActiveState(Voxand game) : GameState(game)
             {
                 Stopwatch sw = Stopwatch.StartNew();
 
-                DDAOut result = voxelMap.Raycast(Camera.position, Camera.PixelToRay((Vector2i)main.MouseState.Position));
+                DDAOut result = voxelMap.Raycast(mainCamera.position, mainCamera.PixelToRay(main.MouseState.Position / main.ClientSize, (float)main.ClientSize.X / main.ClientSize.Y));
 
                 sw.Stop();
                 Console.WriteLine($"Raycast time = {sw.Elapsed.TotalMilliseconds} ms");
@@ -155,7 +163,7 @@ public class ActiveState(Voxand game) : GameState(game)
             {
                 Stopwatch sw = Stopwatch.StartNew();
 
-                DDAOut result = voxelMap.Raycast(Camera.position, Camera.PixelToRay((Vector2i)main.MouseState.Position));
+                DDAOut result = voxelMap.Raycast(mainCamera.position, mainCamera.PixelToRay(main.MouseState.Position / main.ClientSize, (float)main.ClientSize.X / main.ClientSize.Y));
 
                 sw.Stop();
                 Console.WriteLine($"Raycast time = {sw.Elapsed.TotalMilliseconds} ms");
@@ -166,9 +174,6 @@ public class ActiveState(Voxand game) : GameState(game)
                 }
             }
         }
-
-
-        if (main.KeyboardState.IsKeyPressed(Keys.T)) renderer.agressiveTAA = !renderer.agressiveTAA;
 
         #endregion
 
@@ -190,7 +195,7 @@ public class ActiveState(Voxand game) : GameState(game)
             float speed = this.speed * (float)args.Time;
             Vector3 forward, tangent; Vector3 movement = Vector3.Zero;
 
-            forward = Util.RotateY(Vector3.UnitZ, Camera.rotation.Y);
+            forward = Util.RotateY(Vector3.UnitZ, mainCamera.rotation.Y);
             tangent = Vector3.Cross(Vector3.UnitY, forward);
 
             if (main.KeyboardState.IsKeyDown(Keys.W))
@@ -223,44 +228,49 @@ public class ActiveState(Voxand game) : GameState(game)
             {
                 movement.Normalize();
                 if (fastMovement) movement *= 8;
-                Camera.position += forward * movement.Z * speed;
-                Camera.position += tangent * movement.X * speed;
-                Camera.position += Vector3.UnitY * movement.Y * speed;
+                mainCamera.position += forward * movement.Z * speed;
+                mainCamera.position += tangent * movement.X * speed;
+                mainCamera.position += Vector3.UnitY * movement.Y * speed;
             }
 
-            Camera.position = Vector3.Clamp(Camera.position, Vector3.Zero, new(mapSize.X - 1, mapSize.Y - 1, mapSize.Z - 1));
+            mainCamera.position = Vector3.Clamp(mainCamera.position, Vector3.Zero, new(mapSize.X - 1, mapSize.Y - 1, mapSize.Z - 1));
         }
         #endregion
 
         if (main.KeyboardState.IsKeyPressed(Keys.L)) lockMovement = lockMovement ? false : true;
 
         if (main.KeyboardState.IsKeyPressed(Keys.B))
-            voxelMap.SetVoxelValueAndBit((Vector3i)Camera.position, material, true);
+            voxelMap.SetVoxelValueAndBit((Vector3i)mainCamera.position, material, true);
 
+        if (main.KeyboardState.IsKeyPressed(Keys.T))
+        {
+            Console.WriteLine(renderer.agressiveTAA ? "ATAA enabled" : "ATAA disabled");
+            renderer.agressiveTAA = !renderer.agressiveTAA;
+        }
 
         if (main.KeyboardState.IsKeyPressed(Keys.R))
         {
-            (uint value, uint bit, int brickIndex) = voxelMap.Examine((Vector3i)Camera.position, false);
-            Console.WriteLine($"! CPU SIDE: voxel data at {(Vector3i)Camera.position}: value={value}; empty={bit == 0}; brick={brickIndex}");
-            (value, bit, brickIndex) = voxelMap.Examine((Vector3i)Camera.position, true);
-            Console.WriteLine($"* GPU SIDE: voxel data at {(Vector3i)Camera.position}: value={value}; empty={bit == 0}; brick={brickIndex}");
+            (uint value, uint bit, int brickIndex) = voxelMap.Examine((Vector3i)mainCamera.position, false);
+            Console.WriteLine($"! CPU SIDE: voxel data at {(Vector3i)mainCamera.position}: value={value}; empty={bit == 0}; brick={brickIndex}");
+            (value, bit, brickIndex) = voxelMap.Examine((Vector3i)mainCamera.position, true);
+            Console.WriteLine($"* GPU SIDE: voxel data at {(Vector3i)mainCamera.position}: value={value}; empty={bit == 0}; brick={brickIndex}");
         }
+
+        //Console.WriteLine("scroll: " + main.MouseState.Scroll.Y * 0.2f);
+        renderer.compositeShaderInfo.SetUniform("wp", main.MouseState.Scroll.Y * 0.2f);
 
         fps.Tick(args);
     }
     public override void Render(FrameEventArgs args)
     {
-        renderer.RenderVoxels((float)args.Time);
-
-        renderer.Composite();
-
-        renderer.Postprocess(renderer.settings.CompositingResultTexture);
+        renderingPipeline.Execute();
 
         ui.Display();
     }
     public override void Unload()
     {
         renderer.Dispose();
+        renderingPipeline.Dispose();
         voxelMap.Dispose();
 
         Console.WriteLine("Resources was successfully unloaded");
@@ -269,8 +279,6 @@ public class ActiveState(Voxand game) : GameState(game)
     public override void OnResize(ResizeEventArgs args)
     {
         screenCenter = args.Size / 2;
-        Camera.screenSize = args.Size;
-        Camera.RefreshProjection();
         renderer.OnResize(args);
     }
 }

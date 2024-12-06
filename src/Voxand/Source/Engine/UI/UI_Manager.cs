@@ -15,7 +15,6 @@ using Voxand.Helpers.ExtensionMethods;
 namespace Voxand.UI;
 public static class EventTransformer
 {
-    delegate void UIRequestHandler(EventArgs args);
     public static void AddEvents(this EventTarget manager, UI_Window window)
     {
         Type T = window.GetType();
@@ -319,10 +318,7 @@ public sealed class UI_DebugWindow() : UI_Window
 {
     protected override void Display()
     {
-
         ImGui.Begin("Debug");
-
-        ImGui.Text($"Cam pos: {Camera.position}");
 
         ImGui.SeparatorText("Frame time");
         ImGui.Text($"FPS: {Util.FrameTimeData.FPS}");

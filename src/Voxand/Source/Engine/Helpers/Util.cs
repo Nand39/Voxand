@@ -13,7 +13,7 @@ public static class Util
 {
     public const float BYTE_NORMALIZE = 1f / 255f;
     public const float SQRT_TWO = 1.414213f;
-    public const float DEG2RAD = 180 / MathF.PI;
+    public const float DEG2RAD = MathF.PI / 180;
     
     public static readonly Random Random = new();
     public static readonly int ProcessorCount = Environment.ProcessorCount;

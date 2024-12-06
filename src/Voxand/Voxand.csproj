@@ -7,6 +7,15 @@
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
 	<PublishAot>false</PublishAot>
+	<GenerateDocumentationFile>True</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <NoWarn>1591</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <NoWarn>1591</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -43,7 +52,9 @@
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </EmbeddedResource>
     <EmbeddedResource Include="Content\Graphics\Shaders\VoxelRender\voxelRenderComputeBrickmap.comp" />
-    <EmbeddedResource Include="Content\Graphics\Textures\router.png" />
+    <EmbeddedResource Include="Content\Graphics\Textures\router.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
     <EmbeddedResource Include="Content\Graphics\Shaders\VoxelRender\voxelRenderCompute.comp" />
     <EmbeddedResource Include="Content\Graphics\Shaders\tempAntiAliasingShader.vert">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
@@ -75,11 +86,26 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="DisposeExt" Version="1.0.0" />
-    <PackageReference Include="GLAV" Version="1.0.0" />
     <PackageReference Include="ImGui.NET" Version="1.91.0.1" />
     <PackageReference Include="OpenTK" Version="4.8.2" />
-    <PackageReference Include="StbImageSharp" Version="2.27.14" />
+    <PackageReference Include="StbImageSharp" Version="2.30.15" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\packages\DisposeExt\DisposeExt.csproj" />
+    <ProjectReference Include="..\..\packages\GLAV\GLAV.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Content\Graphics\Textures\env.hdr">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Content\Graphics\Textures\map.jpg">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Content\Graphics\Textures\map_hdr.hdr">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
   <ProjectExtensions><VisualStudio><UserProperties /></VisualStudio></ProjectExtensions>

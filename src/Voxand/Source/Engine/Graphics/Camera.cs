@@ -1,43 +1,33 @@
-﻿using OpenTK.Graphics.OpenGL4;
-using OpenTK.Mathematics;
-using Voxand.Helpers;
+﻿using OpenTK.Mathematics;
 
-namespace Voxand.Engine;
-public static class Camera 
+namespace Voxand.Engine.Graphics;
+public class Camera 
 {
-    public static Vector2i screenSize;
-    public static Vector3 position;
-    public static Vector3 rotation;
-    static float fov;
-    public static float FOV 
-    {
-        get { return fov; }
-        set 
-        { 
-            fov = value;
-            RefreshProjection();
-        }
-    }
-    public static Matrix4 projectionMat;
-    public static Matrix4 CreateCameraMatrix()
+    public Vector3 position;
+    public Vector3 rotation;
+
+    /// <summary>
+    /// Angle of the field of view in degrees used to create camera transformation matrix.
+    /// </summary>
+    public float FOV { get; set; }
+    public Matrix4 CreateCameraMatrix(float aspectRatio)
     {
         return
-               Matrix4.CreateRotationY(rotation.Y) *
-               Matrix4.CreateRotationX(rotation.X) *
-               Matrix4.CreateRotationZ(rotation.Z) *
-               projectionMat;
+            Matrix4.CreateRotationY(rotation.Y) *
+            Matrix4.CreateRotationX(rotation.X) *
+            Matrix4.CreateRotationZ(rotation.Z) * 
+            CreateProjectionMatrix(aspectRatio);
     }
-    public static void RefreshProjection()
+    public Matrix4 CreateProjectionMatrix(float aspectRatio)
     {
-        projectionMat = Matrix4.CreatePerspectiveFieldOfView(fov * (float)Math.PI / 180, (float)screenSize.X / screenSize.Y, 1, 2);
+        return Matrix4.CreatePerspectiveFieldOfView(FOV * Helpers.Util.DEG2RAD, aspectRatio, 1, 2);
     }
-
-    public static Vector3 PixelToRay(Vector2i pixel)
+    public Vector3 PixelToRay(Vector2 uv, float aspectRatio)
     {
-        Vector2 targetNDC = (Vector2)pixel / Util.ClientSize * 2f;
+        Vector2 targetNDC = uv * 2f;
         targetNDC.X--; targetNDC.Y = -(targetNDC.Y - 1);
 
-        Matrix4 inverseCameraMatrix = Matrix4.Invert(CreateCameraMatrix());
+        Matrix4 inverseCameraMatrix = Matrix4.Invert(CreateCameraMatrix(aspectRatio));
 
         Vector4 screenSpaceNear = new(targetNDC.X, targetNDC.Y, 0, 1);
         Vector4 screenSpaceFar = new(targetNDC.X, targetNDC.Y, 1, 1);

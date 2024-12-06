@@ -10,18 +10,19 @@ public abstract class GLResource : IDisposableExt
     public GLResourceHandle Handle = new();
     public DisposeHelper DisposeHelper { get; }
     public GLResource() => DisposeHelper = new(this); 
-    public string Lable
+    public string GLLable
     {
         get
         {
-            Shader a = new();
-            GL.GetObjectLabel(Util.VoxandGLResourceTypeToLabelIdentifier(Handle.resourceType), Handle.id, 256, out int length, out string label);
+            GL.GetObjectLabel(Util.GLResourceTypeToLabelIdentifier(Handle.resourceType), Handle.id, 200, out int length, out string label);
             if (label == "") label = "UnnamedResource";
             return label;
         }
         set => Util.LabelResource(Handle, value);
     }
-    public abstract void Free();
+    public string Lable { get; set; } = "UnnamedResource";
+    void IDisposableExt.Free() => Free();
+    protected abstract void Free();
     ~GLResource() => this.Dispose();
 }
 public struct GLResourceHandle(int handle, GLResourceType resourceType)

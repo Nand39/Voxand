@@ -3,17 +3,22 @@
 using OpenTK.Graphics.OpenGL4;
 
 using GLAV.Helpers.ExtensionMethods;
+using GLAV.Types;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace GLAV.Systems;
 public static class GLRegistry
 {
-    static int[] textureUnits = new int[GL.GetInteger(GetPName.MaxCombinedTextureImageUnits)];
+    static Texture2D[] textureUnits = new Texture2D[GL.GetInteger(GetPName.MaxCombinedTextureImageUnits)];
     static int activeTextureUnit;
+
+    static Texture2D[] imageUnits = new Texture2D[GL.GetInteger(GetPName.MaxCombinedImageUniforms)];
 
     static int[] bufferTargets;
     static Dictionary<BufferTarget, int> bufferTargetMapping;
 
-    static int activeShaderProgram;
+    static int activeShaderProgram = -1;
+    static int activeFramebuffer = 0;
 
     static GLRegistry()
     {
@@ -29,30 +34,75 @@ public static class GLRegistry
 
     #region TEXTURES
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void SelectTextureUnit(TextureUnit unit)
+    #region TEX BINDING
+    public static void SelectTextureUnit(int unit)
     {
-        int u = (int)unit - (int)TextureUnit.Texture0;
-        if (activeTextureUnit == u) return;
-        activeTextureUnit = u;
-        GL.ActiveTexture(unit);
+        if (activeTextureUnit == unit) return;
+        activeTextureUnit = unit;
+        GL.ActiveTexture(TextureUnit.Texture0 + unit);
+    }
+
+    public static void BindTexture(Texture2D tex, TextureTarget target)
+    {
+        Texture2D currentlyBound = textureUnits[activeTextureUnit];
+        if (currentlyBound is not null)
+        {
+            if (currentlyBound == tex)
+                return;
+            currentlyBound.MarkTextureUnbound();
+        }
+        textureUnits[activeTextureUnit] = tex;
+        GL.BindTexture(target, tex.Handle.id);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void BindTexture(TextureTarget target, int handle)
-    {
-        if (textureUnits[activeTextureUnit] == handle) return;
-        textureUnits[activeTextureUnit] = handle;
-        GL.BindTexture(target, handle);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void BindTexture(TextureUnit unit, TextureTarget target, int handle)
+    public static void BindTexture(Texture2D tex, int unit, TextureTarget target)
     {
         SelectTextureUnit(unit);
-        BindTexture(target, handle);
+        BindTexture(tex, target);
     }
 
+    public static void BindTextureRaw(int handle, int unit, TextureTarget target)
+    {
+        SelectTextureUnit(unit);
+        BindTextureRaw(handle, target);
+    }
+
+    public static void BindTextureRaw(int handle, TextureTarget target)
+    {
+        Texture2D currentlyBound = textureUnits[activeTextureUnit];
+        if (currentlyBound is not null)
+        {
+            if (currentlyBound.Handle.id == handle)
+                return;
+            currentlyBound.MarkTextureUnbound();
+        }
+        textureUnits[activeTextureUnit] = null;
+        GL.BindTexture(target, handle);
+    }
+    #endregion
+    
+    #region IMG BINDING
+    public static void BindImage(Texture2D tex, int binding, TextureAccess access, SizedInternalFormat format)
+    {
+        Texture2D currentlyBound = imageUnits[binding];
+        if (currentlyBound != null)
+            currentlyBound.MarkImageUnbound();
+        imageUnits[binding] = tex;
+        GL.BindImageTexture(binding, tex.Handle.id, 0, false, 0, access, format);
+    }
+    #endregion
+
+    #endregion
+
+    #region FRAMEBUFFERS
+    public static void BindFramebuffer(FramebufferTarget target, int handle)
+    {
+        if (activeFramebuffer == handle)
+            return;
+        activeFramebuffer = handle;
+        GL.BindFramebuffer(target, handle);
+    }
     #endregion
 
     #region BUFFERS
@@ -65,9 +115,9 @@ public static class GLRegistry
         bufferTargets[targetIndex] = handle;
         GL.BindBuffer(target, handle);
     }
-
     #endregion
 
+    #region SHADERS
     public static void UseProgram(int handle)
     {
         if (activeShaderProgram == handle)
@@ -75,4 +125,11 @@ public static class GLRegistry
         activeShaderProgram = handle;
         GL.UseProgram(handle);
     }
+    public static void DeleteProgram(int handle)
+    {
+        if (activeShaderProgram == handle)
+            activeShaderProgram = -1;
+        GL.DeleteProgram(handle);
+    }
+    #endregion
 }

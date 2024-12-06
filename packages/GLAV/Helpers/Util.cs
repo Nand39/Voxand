@@ -7,11 +7,10 @@ public static class Util
 {
     public static void LabelResource(GLResourceHandle handle, string name)
     {
-        ObjectLabelIdentifier objLabelId = VoxandGLResourceTypeToLabelIdentifier(handle.resourceType);
+        ObjectLabelIdentifier objLabelId = GLResourceTypeToLabelIdentifier(handle.resourceType);
         GL.ObjectLabel(objLabelId, handle.id, name.Length, name);
     }
-
-    public static ObjectLabelIdentifier VoxandGLResourceTypeToLabelIdentifier(GLResourceType type)
+    public static ObjectLabelIdentifier GLResourceTypeToLabelIdentifier(GLResourceType type)
     {
         switch (type)
         {

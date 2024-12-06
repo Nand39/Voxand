@@ -1,15 +1,15 @@
 ﻿using DisposableExt;
 
-namespace Voxand.Engine.Graphics;
+namespace Voxand.Engine.Graphics.Pipelines;
 public abstract class RenderingPipeline : IDisposableExt
 {
-    protected DisposalList resources = new();
     public DisposeHelper DisposeHelper { get; }
     public RenderingPipeline()
     {
         DisposeHelper = new(this);
     }
     public abstract void Execute();
-    public abstract void Free();
+    void IDisposableExt.Free() => Free();
+    protected abstract void Free();
     ~RenderingPipeline() => this.Dispose();
 }

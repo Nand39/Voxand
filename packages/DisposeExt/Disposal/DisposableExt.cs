@@ -29,7 +29,7 @@ public class DisposeHelper(IDisposableExt target)
         OnDispose?.Invoke(disposable);
     }
 }
-public static class AutocallExtension
+public static class ImplicitCastExtension
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)] public static void Dispose(this IDisposableExt obj) => obj.Dispose();
 }
