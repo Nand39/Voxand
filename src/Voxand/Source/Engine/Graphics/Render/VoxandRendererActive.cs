@@ -32,7 +32,7 @@ public class VoxandRendererActive : IDisposable
 
     public bool agressiveTAA = false;
 
-    float renderResolutionScaler = 0.8f;
+    float renderResolutionScaler = 1f;
 
     ComputeRenderInputStd140 computeInput;
 
@@ -162,6 +162,7 @@ public class VoxandRendererActive : IDisposable
 
             computeInputSSBO.Bind();
             computeInputSSBO.Store(ref computeInput, 0);
+            computeInputSSBO.LogContent<float>();
         }
 
         GL.DispatchCompute(renderResolution.X / 8, renderResolution.Y / 8, 1);

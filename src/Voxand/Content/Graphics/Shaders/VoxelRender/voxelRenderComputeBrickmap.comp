@@ -131,7 +131,7 @@ void main()
 
     if (indicate) 
     { 
-        lum = indicationColor; 
+        lum = vec3(1, 2, 0); 
     }
 
     imageStore(luminanceTexture, texelCoord, vec4(lum, 0));
@@ -451,9 +451,17 @@ void executePathTracing(vec3 origin, vec3 dir, out vec3 luminance, out float dep
         luminance = skySample(dir);
         return;
     }
-    if (firstHitResult != 0)
+    if (firstHitResult == 2)
     {
-        luminance = vec3(1, 0, 0);
+        if (mapSize.x == 256)
+        {
+            luminance = vec3(0, 1, 0.4);
+        }
+        else
+        {
+            luminance = vec3(1, 0.5, 2);
+        }
+        
         return;
     }
 

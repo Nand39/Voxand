@@ -1,7 +1,7 @@
 ﻿using OpenTK.Windowing.Common;
 using Voxand.Engine;
 
-namespace Voxand.Helpers.Utility;
+namespace Voxand.Helpers.UtilityObjects;
 
 public class FrameTimeData
 {

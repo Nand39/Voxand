@@ -5,7 +5,7 @@ using OpenTK.Graphics.OpenGL4;
 
 using Voxand.Engine.Systems.Voxels;
 using Voxand.Engine.Graphics;
-using Voxand.Helpers.Utility;
+using Voxand.Helpers.UtilityObjects;
 
 namespace Voxand.Helpers;
 

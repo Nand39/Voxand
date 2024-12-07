@@ -27,7 +27,7 @@ public class ShaderController : IDisposableExt
         UniformInfo? info = ShaderInfo.GetUniformInfo(uniformName);
         if (info is null) 
         {
-            //Console.WriteLine($"Failed to set uniform \"{uniformName}\" of shader {Shader.Handle.id}; Not found.");
+            Console.WriteLine($"Failed to set uniform \"{uniformName}\" of shader {Shader.Handle.id}; Not found.");
             return; 
         }
         Shader.SetUniform(info.Value.location, info.Value.type, value);

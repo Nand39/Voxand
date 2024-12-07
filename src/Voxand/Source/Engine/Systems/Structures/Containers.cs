@@ -57,13 +57,13 @@ namespace Voxand.Engine.Graphics
     [StructLayout(LayoutKind.Sequential)]
     struct ComputeRenderInputStd140
     {
-        unsafe public static int sizeInBytes = sizeof(ComputeRenderInputStd140);
+        public static unsafe int sizeInBytes = sizeof(ComputeRenderInputStd140);
         public static int streamDataSize = 20 * sizeof(float);
 
         public Matrix4 inverseCameraMatrix = Matrix4.Identity;
 
         public Vector3 cameraPosition = default;
-        public float randSalt = 0;
+        public float randSalt = 1;
 
         public ComputeRenderInputStd140() { }
     }

@@ -7,18 +7,16 @@ using OpenTK.Windowing.GraphicsLibraryFramework;
 
 using ImGuiNET;
 
-using GLAV.Types;
+using DisposableExt;
 
-using Voxand.Engine;
 using Voxand.Engine.GameStates;
 using Voxand.Engine.Graphics;
 using Voxand.Engine.Systems.Voxels;
 using Voxand.Helpers;
-using Voxand.Helpers.Utility;
+using Voxand.Helpers.UtilityObjects;
 using Voxand.UI;
 using Voxand.Engine.Graphics.Pipelines.DefaultVoxelPTRP;
-using Voxand.Engine.Graphics.Pipelines;
-using DisposableExt;
+using Voxand.Engine.Graphics.Pipelines.Modules;
 
 namespace Voxand;
 public class ActiveState(Window game) : GameState(game)
@@ -263,7 +261,19 @@ public class ActiveState(Window game) : GameState(game)
     }
     public override void Render(FrameEventArgs args)
     {
-        renderingPipeline.Execute();
+        //renderingPipeline.MapSizeChanged(mapSize);
+
+        //renderingPipeline.Execute();
+
+        //renderer.RenderVoxelsCompute();
+
+        renderingPipeline.VPT();
+        renderingPipeline.TAA();
+        renderingPipeline.CMP();
+        //renderingPipeline.IPP();
+
+        //renderer.Composite();
+        //renderer.Postprocess(renderer.settings.CompositingResultTexture);
 
         ui.Display();
     }
@@ -280,5 +290,6 @@ public class ActiveState(Window game) : GameState(game)
     {
         screenCenter = args.Size / 2;
         renderer.OnResize(args);
+        renderingPipeline.SetFinalResolution(args.Size);
     }
 }
