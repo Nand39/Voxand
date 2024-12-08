@@ -33,7 +33,7 @@ public class Shader : GLResource
 
         return true;
     }
-    public void Use() => GLRegistry.UseProgram(Handle.id);
+    public void Use() => GLRegistry.Instance.UseProgram(Handle.id);
 
     #region Introspection
     public int GetInterfaceProperty(ProgramInterface targetInterface, ProgramInterfaceParameter targetParameter)
@@ -305,9 +305,13 @@ public class Shader : GLResource
     }
 
     #endregion
-    protected override void Free()
+    protected override void Free(bool hasContext)
     {
-        Console.WriteLine($"Shader {Lable}");
-        GLRegistry.DeleteProgram(Handle.id);
+        if (hasContext)
+        {
+            GLRegistry.Instance.DeleteProgram(Handle.id);
+            return;
+        }
+        GLRegistry.Instance.ScheduleAction(() => GLRegistry.Instance.DeleteProgram(Handle.id));
     }
 }

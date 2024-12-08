@@ -11,6 +11,7 @@ using System.Reflection;
 using Voxand.Helpers;
 using Voxand.UI;
 using Voxand.Helpers.Interop;
+using GLAV.Systems;
 
 namespace Voxand;
 public class Window(GameWindowSettings gameWindowSettings, NativeWindowSettings nativeWindowSettings) 
@@ -23,6 +24,7 @@ public class Window(GameWindowSettings gameWindowSettings, NativeWindowSettings 
     protected override void OnLoad()
     {
         AppDomain.CurrentDomain.UnhandledException += OnException;
+        GLRegistry.Initialize(Context);
 
         CenterWindow();
         IsVisible = true;
@@ -58,6 +60,7 @@ public class Window(GameWindowSettings gameWindowSettings, NativeWindowSettings 
     }
     protected override void OnRenderFrame(FrameEventArgs args)
     {
+        GLRegistry.Instance.ProcessOpenGLActions();
         gameState.Render(args);
         imGui.Render();
         Context.SwapBuffers();

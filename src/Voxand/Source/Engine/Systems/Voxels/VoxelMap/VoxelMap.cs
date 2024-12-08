@@ -2,7 +2,7 @@
 using Voxand.Helpers;
 
 namespace Voxand.Engine.Systems.Voxels;
-public abstract class VoxelMap : IDisposable, IMemMeasurable
+public abstract class VoxelMap : IDisposable
 {
     public readonly Vector3i Dimensions;
     readonly IVoxelMapPersistence persistenceModule;

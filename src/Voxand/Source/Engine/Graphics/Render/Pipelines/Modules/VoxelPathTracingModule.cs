@@ -64,7 +64,7 @@ public sealed class VoxelPathTracingModule : RenderingPipeline
         public float randSalt = 1;
     }
     public Camera Camera { get; set; }
-    public VoxelPathTracingModule(ShaderController shaderControllerPT, Camera camera, Vector3i mapSize, Texture2D skyTexInput, Texture2D luminanceOutput, Texture2D depthOutput, Texture2D normalOutput)
+    public VoxelPathTracingModule(ShaderController shaderControllerPT, Camera camera, Vector3i mapSize, Texture2D skyTexture, Texture2D luminanceOutput, Texture2D depthOutput, Texture2D normalOutput)
     {
         pathTracingShaderController = shaderControllerPT;
         pathTracingShaderController.SetUniform("luminanceTexture", 0);
@@ -73,7 +73,7 @@ public sealed class VoxelPathTracingModule : RenderingPipeline
         pathTracingShaderController.SetUniform("skyTex", 8);
 
         Camera = camera;
-        SkyTex = skyTexInput;
+        SkyTex = skyTexture;
         shaderInputSSBO = new();
         unsafe
         {
@@ -142,7 +142,6 @@ public sealed class VoxelPathTracingModule : RenderingPipeline
         shaderInputStreaming.inverseCameraMatrix = Matrix4.Transpose(Matrix4.Invert(Camera.CreateCameraMatrix(luminanceOutput.Size.X / luminanceOutput.Size.Y)));
         shaderInputStreaming.randSalt = Util.Random.NextSingle() + 1;
         shaderInputSSBO.Store(ref shaderInputStreaming, 0);
-        shaderInputSSBO.LogContent<float>();
     }
     protected override void Free() => shaderInputSSBO.Dispose();
 }

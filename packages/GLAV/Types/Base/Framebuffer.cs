@@ -31,15 +31,20 @@ public class Framebuffer : GLResource
     }
     public void BindFramebuffer(FramebufferTarget target)
     {
-        GLRegistry.BindFramebuffer(target, Handle.id);
+        GLRegistry.Instance.BindFramebuffer(target, Handle.id);
     }
     public void Attach(FramebufferAttachmentInfo attachment)
     {
         BindFramebuffer(FramebufferTarget.Framebuffer);
         GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, attachment.attahcmentType, attachment.textureTarget, attachment.texture.Handle.id, 0);
     }
-    protected override void Free()
+    protected override void Free(bool hasContext)
     {
-        GL.DeleteFramebuffer(Handle.id);
+        if (hasContext)
+        {
+            GL.DeleteFramebuffer(Handle.id);
+            return;
+        }
+        GLRegistry.Instance.ScheduleAction(() => GL.DeleteFramebuffer(Handle.id));
     }
 }

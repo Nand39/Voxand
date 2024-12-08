@@ -11,15 +11,16 @@ using Voxand.Engine.Graphics.Tools.ShaderServices;
 using Voxand.Engine.Graphics.Pipelines.Modules;
 using Voxand.Engine.Systems.Voxels;
 using Voxand.Content;
-using Voxand.Helpers;
+using Voxand.Engine.Graphics.Tools;
 
 namespace Voxand.Engine.Graphics.Pipelines.DefaultVoxelPTRP;
 
 public sealed class VoxelPTRP : RenderingPipeline
 {
     Camera Camera;
-    Texture2D luminancePT, depthPT, normalPT, luminanceTAA, compositingResult;
+    Texture2D luminancePT, depthPT, normalPT, luminanceTAA;
     Texture2D skyTex;
+    IRenderTarget renderTarget;
     ShaderController pathTracingShaderController, TAAShaderController, compositingShaderController, postprocessingShaderController;
 
     DisposalList lifetimeResources;
@@ -27,18 +28,20 @@ public sealed class VoxelPTRP : RenderingPipeline
     // each time path tracing resolution changes
     DisposalList varyingRenderDataStorage;
 
-    Vector2i renderResolution;
-
     VoxelPathTracingModule voxelPathTracingModule;
     AntiAliasingModule antiAliasingModule;
     CompositingModule compositingModule;
-    PostprocessingModule postprocessingModule;
-    public Vector2i PathTracingResolution
+    public Vector2i PathTracingResolution { get; set; }
+    public IRenderTarget RenderTarget
     {
-        get => renderResolution;
-        set => renderResolution = value;
+        get => renderTarget;
+        set
+        {
+            renderTarget = value;
+            compositingModule.Output = value;
+        }
     }
-    public VoxelPTRP(ContentManager content, Camera camera, VoxelMap map, Vector2i pathTracingResolution)
+    public VoxelPTRP(ContentManager content, Camera camera, VoxelMap map, IRenderTarget output, Vector2i pathTracingResolution)
     {
         lifetimeResources = new(); varyingRenderDataStorage = new();
 
@@ -50,8 +53,7 @@ public sealed class VoxelPTRP : RenderingPipeline
         varyingRenderDataStorage.Add(luminancePT,
                                      depthPT,
                                      normalPT,
-                                     luminanceTAA,
-                                     compositingResult);
+                                     luminanceTAA);
 
         skyTex = content.LoadTexture("Graphics/Textures/env.hdr", false);
 
@@ -84,16 +86,14 @@ public sealed class VoxelPTRP : RenderingPipeline
             shaderControllerPT: pathTracingShaderController,
             camera: Camera,
             mapSize: map.Dimensions,
-            skyTexInput: skyTex,
+            skyTexture: skyTex,
             luminanceOutput: luminancePT,
             depthOutput: depthPT,
             normalOutput: normalPT);
 
         antiAliasingModule = new(TAAShaderController, luminancePT, luminanceTAA);
 
-        compositingModule = new(compositingShaderController, luminanceTAA, depthPT, normalPT, compositingResult);
-
-        postprocessingModule = new(postprocessingShaderController, compositingResult, Util.ClientSize);
+        compositingModule = new(compositingShaderController, luminanceTAA, depthPT, normalPT, output);
 
         lifetimeResources.Add(
             pathTracingShaderController,
@@ -108,12 +108,10 @@ public sealed class VoxelPTRP : RenderingPipeline
         voxelPathTracingModule.Execute();
         antiAliasingModule.Execute();
         compositingModule.Execute();
-        postprocessingModule.Execute();
     }
     public void VPT() => voxelPathTracingModule.Execute();
     public void TAA() => antiAliasingModule.Execute();
     public void CMP() => compositingModule.Execute();
-    public void IPP() => postprocessingModule.Execute();
 
     /// <summary>
     /// Sets target resolution to render the scene in. Disposes and reallocates textures and framebuffers
@@ -121,6 +119,9 @@ public sealed class VoxelPTRP : RenderingPipeline
     /// </summary>
     public void SetRenderingResolution(Vector2i resolution)
     {
+        if (resolution.X % 8 + resolution.Y % 8 != 0)
+            throw new ArgumentException($"Both dimensions of {nameof(resolution)} should be divisible by 8.");
+
         varyingRenderDataStorage.Free();
 
         CreateVaryingRenderDataStorage(resolution);
@@ -129,17 +130,11 @@ public sealed class VoxelPTRP : RenderingPipeline
         luminancePT,
         depthPT,
         normalPT,
-        luminanceTAA,
-        compositingResult);
+        luminanceTAA);
 
         voxelPathTracingModule.SetOutput(luminancePT, depthPT, normalPT);
         antiAliasingModule.SetInputOutput(luminancePT, luminanceTAA);
         compositingModule.SetInput(luminanceTAA, depthPT, normalPT);
-        compositingModule.CompositingOutput = compositingResult;
-    }
-    public void SetFinalResolution(Vector2i resolution)
-    {
-        postprocessingModule.OutputResolution = resolution;
     }
     void CreateVaryingRenderDataStorage(Vector2i resolution)
     {
@@ -203,24 +198,6 @@ public sealed class VoxelPTRP : RenderingPipeline
         luminanceTAA.GLLable = "lumTAA";
 
         #endregion
-
-        #region Compositing
-
-        texParams =
-            [
-            new(TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear),
-        new(TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest),
-        ];
-
-        format.internalFormat = PixelInternalFormat.Rgba32f;
-        format.format = PixelFormat.Rgba;
-
-        compositingResult = new Texture2D();
-        compositingResult.Alloc(resolution, format, nint.Zero);
-        compositingResult.SetParams(ref texParams);
-        compositingResult.GLLable = "compositingOutput";
-
-        #endregion
     }
     public void MapSizeChanged(Vector3i newSize)
     {
@@ -231,7 +208,6 @@ public sealed class VoxelPTRP : RenderingPipeline
         voxelPathTracingModule.Dispose();
         antiAliasingModule.Dispose();
         compositingModule.Dispose();
-        postprocessingModule.Dispose();
         lifetimeResources.Dispose();
         varyingRenderDataStorage.Dispose();
         skyTex.Dispose();

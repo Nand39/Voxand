@@ -4,45 +4,64 @@ using OpenTK.Graphics.OpenGL4;
 
 using GLAV.Helpers.ExtensionMethods;
 using GLAV.Types;
-using static System.Net.Mime.MediaTypeNames;
+using OpenTK.Windowing.Desktop;
 
 namespace GLAV.Systems;
-public static class GLRegistry
+public sealed class GLRegistry
 {
-    static Texture2D[] textureUnits = new Texture2D[GL.GetInteger(GetPName.MaxCombinedTextureImageUnits)];
-    static int activeTextureUnit;
+    static GLRegistry instance = null;
+    public static GLRegistry Instance => instance;
 
-    static Texture2D[] imageUnits = new Texture2D[GL.GetInteger(GetPName.MaxCombinedImageUniforms)];
+    Texture2D[] textureUnits = new Texture2D[GL.GetInteger(GetPName.MaxCombinedTextureImageUnits)];
+    int activeTextureUnit;
 
-    static int[] bufferTargets;
-    static Dictionary<BufferTarget, int> bufferTargetMapping;
+    Texture2D[] imageUnits = new Texture2D[GL.GetInteger(GetPName.MaxCombinedImageUniforms)];
 
-    static int activeShaderProgram = -1;
-    static int activeFramebuffer = 0;
+    int[] bufferTargets;
+    Dictionary<BufferTarget, int> bufferTargetMapping;
 
-    static GLRegistry()
+    int activeShaderProgram = -1;
+    int activeFramebuffer = 0;
+
+    Queue<Action> pendingGLActions = new();
+
+    public IGLFWGraphicsContext GLFWGraphicsContext { get; private set; }
+
+    GLRegistry() { }
+    public static void Initialize(IGLFWGraphicsContext context)
     {
-        BufferTarget[] bufferTargets = (BufferTarget[])Enum.GetValues(typeof(BufferTarget));
-        GLRegistry.bufferTargets = new int[bufferTargets.Length];
-        bufferTargetMapping = [];
-        for (int i = 0; i < bufferTargets.Length; i++)
+        instance = new();
+        instance.GLFWGraphicsContext = context;
+        BufferTarget[] bufferTargetEnums = (BufferTarget[])Enum.GetValues(typeof(BufferTarget));
+        instance.bufferTargets = new int[bufferTargetEnums.Length];
+        instance.bufferTargetMapping = [];
+        for (int i = 0; i < bufferTargetEnums.Length; i++)
         {
-            GLRegistry.bufferTargets[i] = -1;
-            bufferTargetMapping[bufferTargets[i]] = i;
+            instance.bufferTargets[i] = -1;
+            instance.bufferTargetMapping[bufferTargetEnums[i]] = i;
         }
     }
+    public void ProcessOpenGLActions()
+    {
+        if (!GLFWGraphicsContext.IsCurrent)
+            throw new InvalidOperationException("Cannot process OpenGL actions on a thread that does not have OpenGL context.");
+
+        while (pendingGLActions.TryDequeue(out Action action))
+            action?.Invoke();
+    }
+    public void ScheduleAction(Action action) => pendingGLActions.Enqueue(action);
 
     #region TEXTURES
 
     #region TEX BINDING
-    public static void SelectTextureUnit(int unit)
+    public void SelectTextureUnit(int unit)
     {
         if (activeTextureUnit == unit) return;
         activeTextureUnit = unit;
         GL.ActiveTexture(TextureUnit.Texture0 + unit);
     }
 
-    public static void BindTexture(Texture2D tex, TextureTarget target)
+    public void BindTexture(Texture2D tex, TextureTarget target)
     {
         Texture2D currentlyBound = textureUnits[activeTextureUnit];
         if (currentlyBound is not null)
@@ -56,19 +75,19 @@ public static class GLRegistry
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void BindTexture(Texture2D tex, int unit, TextureTarget target)
+    public void BindTexture(Texture2D tex, int unit, TextureTarget target)
     {
         SelectTextureUnit(unit);
         BindTexture(tex, target);
     }
 
-    public static void BindTextureRaw(int handle, int unit, TextureTarget target)
+    public void BindTextureRaw(int handle, int unit, TextureTarget target)
     {
         SelectTextureUnit(unit);
         BindTextureRaw(handle, target);
     }
 
-    public static void BindTextureRaw(int handle, TextureTarget target)
+    public void BindTextureRaw(int handle, TextureTarget target)
     {
         Texture2D currentlyBound = textureUnits[activeTextureUnit];
         if (currentlyBound is not null)
@@ -83,7 +102,7 @@ public static class GLRegistry
     #endregion
     
     #region IMG BINDING
-    public static void BindImage(Texture2D tex, int binding, TextureAccess access, SizedInternalFormat format)
+    public void BindImage(Texture2D tex, int binding, TextureAccess access, SizedInternalFormat format)
     {
         Texture2D currentlyBound = imageUnits[binding];
         if (currentlyBound != null)
@@ -95,18 +114,8 @@ public static class GLRegistry
 
     #endregion
 
-    #region FRAMEBUFFERS
-    public static void BindFramebuffer(FramebufferTarget target, int handle)
-    {
-        if (activeFramebuffer == handle)
-            return;
-        activeFramebuffer = handle;
-        GL.BindFramebuffer(target, handle);
-    }
-    #endregion
-
     #region BUFFERS
-    public static void BindBuffer(BufferTarget target, int handle)
+    public void BindBuffer(BufferTarget target, int handle)
     {
         int targetIndex = bufferTargetMapping[target];
         if (bufferTargets[targetIndex] == handle) 
@@ -117,15 +126,25 @@ public static class GLRegistry
     }
     #endregion
 
+    #region FRAMEBUFFERS
+    public void BindFramebuffer(FramebufferTarget target, int handle)
+    {
+        if (activeFramebuffer == handle)
+            return;
+        activeFramebuffer = handle;
+        GL.BindFramebuffer(target, handle);
+    }
+    #endregion
+
     #region SHADERS
-    public static void UseProgram(int handle)
+    public void UseProgram(int handle)
     {
         if (activeShaderProgram == handle)
             return;
         activeShaderProgram = handle;
         GL.UseProgram(handle);
     }
-    public static void DeleteProgram(int handle)
+    public void DeleteProgram(int handle)
     {
         if (activeShaderProgram == handle)
             activeShaderProgram = -1;

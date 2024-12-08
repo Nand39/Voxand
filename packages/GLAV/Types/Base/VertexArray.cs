@@ -36,14 +36,19 @@ public class VertexArray : GLResource
             GL.EnableVertexAttribArray(attrib.location);
         }
         GL.BindVertexArray(0);
-        GLRegistry.BindBuffer(BufferTarget.ArrayBuffer, 0);
+        GLRegistry.Instance.BindBuffer(BufferTarget.ArrayBuffer, 0);
     }
     public void Bind()
     {
         GL.BindVertexArray(Handle.id);
     }
-    protected override void Free()
+    protected override void Free(bool hasContext)
     {
-        GL.DeleteVertexArray(Handle.id);
+        if (hasContext)
+        {
+            GL.DeleteVertexArray(Handle.id);
+            return;
+        }
+        GLRegistry.Instance.ScheduleAction(() => GL.DeleteVertexArray(Handle.id));
     }
 }

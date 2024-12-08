@@ -7,13 +7,32 @@ using DisposableExt;
 using Voxand.Engine.Graphics.Meshes.Primitives;
 using Voxand.Engine.Graphics.Tools.ShaderServices;
 using Voxand.Engine.Graphics.Tools.Exceptions;
+using Voxand.Engine.Graphics.Tools;
 
 namespace Voxand.Engine.Graphics.Pipelines.Modules;
 public sealed class AntiAliasingModule : RenderingPipeline
 {
-    Texture2D luminanceTAA, luminancePT;
-    Framebuffer TAAOutputFramebuffer;
+    Texture2D luminanceOutput, luminanceInput;
+    RenderTarget renderTarget;
     ShaderController TAAShaderController;
+    public Texture2D LuminanceInput
+    {
+        get => luminanceInput;
+        set
+        {
+            ExceptionConstructor.ThrowIfTextureSizeNotEqual(value, luminanceOutput);
+            luminanceInput = value;
+        }
+    }
+    public Texture2D LuminanceOutput
+    {
+        get => luminanceOutput;
+        set
+        {
+            ExceptionConstructor.ThrowIfTextureSizeNotEqual(value, luminanceInput);
+            luminanceOutput = value;
+        }
+    }
     public AntiAliasingModule(ShaderController shaderControllerTAA, Texture2D luminanceInput, Texture2D luminanceOutput)
     {
         if (luminanceInput == luminanceOutput)
@@ -21,27 +40,25 @@ public sealed class AntiAliasingModule : RenderingPipeline
 
         ExceptionConstructor.ThrowIfTextureSizeNotEqual(luminanceInput, luminanceOutput);
 
-        luminancePT = luminanceInput;
-        luminanceTAA = luminanceOutput;
+        this.luminanceInput = luminanceInput;
+        this.luminanceOutput = luminanceOutput;
+
+        FramebufferAttachmentInfo attachment =
+            new(LuminanceOutput, FramebufferAttachment.ColorAttachment0, TextureTarget.Texture2D);
+        renderTarget = new(LuminanceOutput.Size, attachment);
 
         TAAShaderController = shaderControllerTAA;
         TAAShaderController.SetUniform("intensity", 0.5f);
         TAAShaderController.SetUniform("tex1", 0);
         TAAShaderController.SetUniform("tex2", 1);
-
-        TAAOutputFramebuffer = new Framebuffer();
-        FramebufferAttachmentInfo[] attachments =
-            { new(luminanceTAA, FramebufferAttachment.ColorAttachment0, TextureTarget.Texture2D) };
-        TAAOutputFramebuffer.Create(ref attachments);
     }
     public override void Execute()
     {
-        TAAOutputFramebuffer.BindFramebuffer(FramebufferTarget.Framebuffer);
-
+        renderTarget.Use();
         TAAShaderController.Shader.Use();
 
-        luminancePT.BindTex(0);
-        luminanceTAA.BindTex(1);
+        luminanceInput.BindTex(0);
+        luminanceOutput.BindTex(1);
 
         Primitives.ScreenQuad.Bind();
         GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
@@ -50,8 +67,11 @@ public sealed class AntiAliasingModule : RenderingPipeline
     {
         ExceptionConstructor.ThrowIfTextureSizeNotEqual(luminanceInput, luminanceOutput);
 
-        luminancePT = luminanceInput;
-        luminanceTAA = luminanceOutput;
+        this.luminanceInput = luminanceInput;
+        this.luminanceOutput = luminanceOutput;
+        FramebufferAttachmentInfo attachment = new(LuminanceOutput, FramebufferAttachment.ColorAttachment0, TextureTarget.Texture2D);
+        //renderTarget.Dispose();
+        renderTarget = new(LuminanceOutput.Size, attachment);
     }
-    protected override void Free() => TAAOutputFramebuffer.Dispose();
+    protected override void Free() => renderTarget.Dispose();
 }

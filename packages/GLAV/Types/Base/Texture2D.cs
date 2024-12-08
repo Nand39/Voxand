@@ -75,11 +75,11 @@ public class Texture2D : GLResource
     public void BindTex(int unit)
     {
         TextureUnit = unit;
-        GLRegistry.BindTexture(this, unit, TextureTarget.Texture2D);
+        GLRegistry.Instance.BindTexture(this, unit, TextureTarget.Texture2D);
     }
     public void BindAsImage(int target, TextureAccess access, SizedInternalFormat format)
     {
-        GLRegistry.BindImage(this, target, access, format);
+        GLRegistry.Instance.BindImage(this, target, access, format);
         ImageUnit = target;
     }
     public void MarkTextureUnbound() => TextureUnit = -1;
@@ -107,9 +107,13 @@ public class Texture2D : GLResource
     }
     public void Realloc(Vector2i textureSize) => Alloc(textureSize, Format, nint.Zero);
     public override string ToString() => $"\"{Lable}\" (id={Handle.id})";
-    protected override void Free()
+    protected override void Free(bool hasContext)
     {
-        GL.DeleteTexture(Handle.id);
-        GC.SuppressFinalize(this);
+        if (hasContext)
+        {
+            GL.DeleteTexture(Handle.id);
+            return;
+        }
+        GLRegistry.Instance.ScheduleAction(() => GL.DeleteTexture(Handle.id));
     }
 }

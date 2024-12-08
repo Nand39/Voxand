@@ -1,8 +1,10 @@
 ﻿using OpenTK.Graphics.OpenGL4;
+using OpenTK.Graphics;
 
 using DisposableExt;
 
 using GLAV.Helpers.Util;
+using GLAV.Systems;
 
 namespace GLAV.Types;
 public abstract class GLResource : IDisposableExt
@@ -21,8 +23,8 @@ public abstract class GLResource : IDisposableExt
         set => Util.LabelResource(Handle, value);
     }
     public string Lable { get; set; } = "UnnamedResource";
-    void IDisposableExt.Free() => Free();
-    protected abstract void Free();
+    void IDisposableExt.Free() => Free(GLRegistry.Instance.GLFWGraphicsContext.IsCurrent);
+    protected abstract void Free(bool hasContext);
     ~GLResource() => this.Dispose();
 }
 public struct GLResourceHandle(int handle, GLResourceType resourceType)

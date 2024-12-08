@@ -40,19 +40,6 @@ namespace Voxand.Engine.Graphics
         }
         public int GetUniformLocation(E uniformKey) => uniformLocations[Convert.ToInt32(uniformKey)];
     }
-    
-    public struct RendererActiveSettings()
-    {
-        public Texture2D VoxelLuminanceTexture;
-        public Texture2D VoxelNormalTexture;
-        public Texture2D VoxelDepthTexture;
-
-        public Framebuffer TAAFramebuffer;
-        public Texture2D TAALuminanceTexture;
-
-        public Framebuffer CompositingFramebuffer;
-        public Texture2D CompositingResultTexture;
-    }
 
     [StructLayout(LayoutKind.Sequential)]
     struct ComputeRenderInputStd140

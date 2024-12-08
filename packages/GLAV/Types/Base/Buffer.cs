@@ -45,7 +45,7 @@ public class Buffer : GLResource
 
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void Bind() => GLRegistry.BindBuffer(bufferTarget, Handle.id);
+    public void Bind() => GLRegistry.Instance.BindBuffer(bufferTarget, Handle.id);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Bind(BufferTarget target) 
@@ -138,8 +138,13 @@ public class Buffer : GLResource
         GL.BindBufferBase(destination.target, destination.index, Handle.id);
     }
 
-    protected override void Free()
+    protected override void Free(bool hasContext)
     {
-        GL.DeleteBuffer(Handle.id);
+        if (hasContext)
+        {
+            GL.DeleteBuffer(Handle.id);
+            return;
+        }
+        GLRegistry.Instance.ScheduleAction(() => GL.DeleteBuffer(Handle.id));
     }
 }

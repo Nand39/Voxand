@@ -178,7 +178,7 @@ void main()
         int prevTexture2D = GL.GetInteger(GetPName.TextureBinding2D) - (int)TextureUnit.Texture0;
 
         _fontTexture = GL.GenTexture();
-        GLRegistry.BindTextureRaw(_fontTexture, 0, TextureTarget.Texture2D);
+        GLRegistry.Instance.BindTextureRaw(_fontTexture, 0, TextureTarget.Texture2D);
         GL.TexStorage2D(TextureTarget2d.Texture2D, mips, SizedInternalFormat.Rgba8, width, height);
         LabelObject(ObjectLabelIdentifier.Texture, _fontTexture, "ImGui Text Atlas");
 
@@ -195,8 +195,8 @@ void main()
         GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
 
         // Restore state
-        GLRegistry.BindTextureRaw(prevTexture2D, 0, TextureTarget.Texture2D);
-        GLRegistry.SelectTextureUnit(prevActiveTexture);
+        GLRegistry.Instance.BindTextureRaw(prevTexture2D, 0, TextureTarget.Texture2D);
+        GLRegistry.Instance.SelectTextureUnit(prevActiveTexture);
 
         io.Fonts.SetTexID((IntPtr)_fontTexture);
 
@@ -414,7 +414,7 @@ void main()
             -1.0f,
             1.0f);
 
-        GLRegistry.UseProgram(_shader);
+        GLRegistry.Instance.UseProgram(_shader);
         GL.UniformMatrix4(_shaderProjectionMatrixLocation, false, ref mvp);
         GL.Uniform1(_shaderFontTextureLocation, 0);
         CheckGLError("Projection");
@@ -451,7 +451,7 @@ void main()
                 }
                 else
                 {
-                    GLRegistry.BindTextureRaw((int)pcmd.TextureId, 0, TextureTarget.Texture2D);
+                    GLRegistry.Instance.BindTextureRaw((int)pcmd.TextureId, 0, TextureTarget.Texture2D);
                     CheckGLError("Texture");
 
                     // We do _windowHeight - (int)clip.W instead of (int)clip.Y because gl has flipped Y when it comes to these coordinates
@@ -476,8 +476,8 @@ void main()
         GL.Disable(EnableCap.ScissorTest);
 
         // Reset state
-        GLRegistry.BindTextureRaw(prevTexture2D, prevActiveTexture, TextureTarget.Texture2D);
-        GLRegistry.UseProgram(prevProgram);
+        GLRegistry.Instance.BindTextureRaw(prevTexture2D, prevActiveTexture, TextureTarget.Texture2D);
+        GLRegistry.Instance.UseProgram(prevProgram);
         GL.BindVertexArray(prevVAO);
         GL.Scissor(prevScissorBox[0], prevScissorBox[1], prevScissorBox[2], prevScissorBox[3]);
         GL.BindBuffer(BufferTarget.ArrayBuffer, prevArrayBuffer);

@@ -1,4 +1,5 @@
-﻿using OpenTK.Graphics.OpenGL4;
+﻿using GLAV.Systems;
+using OpenTK.Graphics.OpenGL4;
 
 namespace GLAV.Types;
 public class ShaderPart : GLResource
@@ -18,5 +19,13 @@ public class ShaderPart : GLResource
             throw new Exception(infoLog);
         }
     }
-    protected override void Free() => GL.DeleteShader(Handle.id);
+    protected override void Free(bool hasContext)
+    {
+        if (hasContext)
+        {
+            GL.DeleteShader(Handle.id);
+            return;
+        }
+        GLRegistry.Instance.ScheduleAction(() => GL.DeleteShader(Handle.id)); 
+    }
 }

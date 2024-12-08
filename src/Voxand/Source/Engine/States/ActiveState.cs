@@ -16,7 +16,7 @@ using Voxand.Helpers;
 using Voxand.Helpers.UtilityObjects;
 using Voxand.UI;
 using Voxand.Engine.Graphics.Pipelines.DefaultVoxelPTRP;
-using Voxand.Engine.Graphics.Pipelines.Modules;
+using Voxand.Engine.Graphics.Tools;
 
 namespace Voxand;
 public class ActiveState(Window game) : GameState(game)
@@ -32,7 +32,6 @@ public class ActiveState(Window game) : GameState(game)
 
     VoxelBrickmap voxelMap;
     VoxelPalette voxelPalette;
-    VoxandRendererActive renderer;
     UI_Manager ui;
     Camera mainCamera;
 
@@ -43,8 +42,6 @@ public class ActiveState(Window game) : GameState(game)
     Vector2i screenCenter;
 
     public static uint material = 0;
-
-    int renderTechniqueIndex = 1;
 
     bool lockMovement = false;
 
@@ -65,26 +62,15 @@ public class ActiveState(Window game) : GameState(game)
 
         voxelMap = new(mapSize, new VoxelBrickmapDefaultPersistenceModule());
 
-        renderer = new VoxandRendererActive(main.content) { camera = mainCamera };
         ui = new UI_Manager(voxelPalette, main.content);
 
-        renderer.SetMapSize(mapSize);
-        renderer.SetTechnique((RenderTechniques)renderTechniqueIndex);
-
         fps = new Framewatch(Util.FrameTimeData, 1);
-
-        ui.OnRenderTechniqueChangeRequest += (args) =>
-        {
-            renderTechniqueIndex++;
-            renderTechniqueIndex %= Enum.GetNames(typeof(RenderTechniques)).Length;
-            renderer.SetTechnique((RenderTechniques)renderTechniqueIndex);
-        };
 
         Util.CurrentMap = voxelMap;
 
         voxelMap.SetVoxelValueAndBit(voxelMap.Dimensions / 2, 0, true);
 
-        renderingPipeline = new(main.content, mainCamera, voxelMap, main.ClientSize);
+        renderingPipeline = new(main.content, mainCamera, voxelMap, DefaultRenderTarget.Instance, new((main.ClientSize.X / 2) & ~7, (main.ClientSize.Y / 2) & ~7));
 
         Console.WriteLine("Loaded");
     }
@@ -242,8 +228,8 @@ public class ActiveState(Window game) : GameState(game)
 
         if (main.KeyboardState.IsKeyPressed(Keys.T))
         {
-            Console.WriteLine(renderer.agressiveTAA ? "ATAA enabled" : "ATAA disabled");
-            renderer.agressiveTAA = !renderer.agressiveTAA;
+            //Console.WriteLine(renderer.agressiveTAA ? "ATAA enabled" : "ATAA disabled");
+            //renderer.agressiveTAA = !renderer.agressiveTAA;
         }
 
         if (main.KeyboardState.IsKeyPressed(Keys.R))
@@ -253,9 +239,6 @@ public class ActiveState(Window game) : GameState(game)
             (value, bit, brickIndex) = voxelMap.Examine((Vector3i)mainCamera.position, true);
             Console.WriteLine($"* GPU SIDE: voxel data at {(Vector3i)mainCamera.position}: value={value}; empty={bit == 0}; brick={brickIndex}");
         }
-
-        //Console.WriteLine("scroll: " + main.MouseState.Scroll.Y * 0.2f);
-        renderer.compositeShaderInfo.SetUniform("wp", main.MouseState.Scroll.Y * 0.2f);
 
         fps.Tick(args);
     }
@@ -279,7 +262,6 @@ public class ActiveState(Window game) : GameState(game)
     }
     public override void Unload()
     {
-        renderer.Dispose();
         renderingPipeline.Dispose();
         voxelMap.Dispose();
 
@@ -289,7 +271,6 @@ public class ActiveState(Window game) : GameState(game)
     public override void OnResize(ResizeEventArgs args)
     {
         screenCenter = args.Size / 2;
-        renderer.OnResize(args);
-        renderingPipeline.SetFinalResolution(args.Size);
+        renderingPipeline.SetRenderingResolution(new((args.Size.X / 2) & ~7, (args.Size.Y / 2) & ~7));
     }
 }
