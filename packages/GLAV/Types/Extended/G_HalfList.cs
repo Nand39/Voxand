@@ -26,7 +26,7 @@ public unsafe class G_HalfList<T> : IDisposableExt where T : struct
 
         buffer = new Buffer();
         buffer.Alloc(target, initialCapacity * ItemSize, usageHint);
-        buffer.BindBufferBase(new(rangeTarget, bindingIndex));
+        buffer.BindEntireBuffer(new(rangeTarget, bindingIndex));
 
         DisposeHelper = new(this);
     }
@@ -34,7 +34,7 @@ public unsafe class G_HalfList<T> : IDisposableExt where T : struct
         : this(target, rangeTarget, bindingIndex, initialCapacity, itemSize, usageHint)
     {
         bufferName = lable;
-        buffer.GLLable = lable;
+        buffer.Lable = lable;
         named = true;
     }
 
@@ -77,13 +77,13 @@ public unsafe class G_HalfList<T> : IDisposableExt where T : struct
         Buffer newBuffer = new Buffer();
         newBuffer.Alloc(buffer.bufferTarget, newCapacity * ItemSize, usageHint);
         if (named) 
-            newBuffer.GLLable = bufferName;
+            newBuffer.Lable = bufferName;
 
         Console.WriteLine($"OLD: {buffer.Handle.id}; NEW: {newBuffer.Handle.id}");
         
         buffer.CopyTo(newBuffer, 0, 0, buffer.Size - 1);
 
-        newBuffer.BindBufferBase(buffer.destination);
+        newBuffer.BindEntireBuffer(buffer.bindingInfo);
 
         buffer.Dispose();
         buffer = newBuffer;

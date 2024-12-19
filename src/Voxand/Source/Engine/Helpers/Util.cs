@@ -4,7 +4,7 @@ using OpenTK.Mathematics;
 using OpenTK.Graphics.OpenGL4;
 
 using Voxand.Engine.Systems.Voxels;
-using Voxand.Engine.Graphics;
+using Voxand.Engine.Systems.Graphics;
 using Voxand.Helpers.UtilityObjects;
 
 namespace Voxand.Helpers;
@@ -17,7 +17,6 @@ public static class Util
     
     public static readonly Random Random = new();
     public static readonly int ProcessorCount = Environment.ProcessorCount;
-    public static VoxelMap CurrentMap;
     public static Vector2i ClientSize;
     public static FrameTimeData FrameTimeData = new();
     public static Vector3 RotateY(Vector3 vect, float r)
@@ -75,7 +74,7 @@ public static class Util
         return megabytes + fraction;
     }
 
-    public static Vector3 RotateVerticalByNormalIndex(Vector3 vect, int normalIndex)
+    public static Vector3 RotateUnitYByNormalIndex(Vector3 vect, int normalIndex)
     {
         switch (normalIndex)
         {

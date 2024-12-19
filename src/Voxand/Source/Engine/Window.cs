@@ -1,31 +1,55 @@
 ﻿#pragma warning disable CS8618 //Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 
+using System.Reflection;
+
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
+using OpenTK.Windowing.GraphicsLibraryFramework;
+
+using GLAV.Systems;
 
 using Voxand.Content;
-using Voxand.Engine.GameStates;
-using Voxand.Engine;
-using System.Reflection;
+using Voxand.Engine.ExecutionControl;
 using Voxand.Helpers;
 using Voxand.UI;
 using Voxand.Helpers.Interop;
-using GLAV.Systems;
+using Voxand.Helpers.Exceptions;
+using System;
 
 namespace Voxand;
-public class Window(GameWindowSettings gameWindowSettings, NativeWindowSettings nativeWindowSettings) 
-    : GameWindow(gameWindowSettings, nativeWindowSettings)
+public sealed class Window : GameWindow
 {
-    GameState gameState;
-    public ContentManager content;
-    public ImGuiController imGui;
+    static Window windowInstance;
+    public static Window Instance => windowInstance;
+
+    public ExecutionManager ExecutionManager { get; private set; }
+    public ContentManager Content { get; private set; }
+    public ImGuiController ImGuiController { get; private set; }
+
+    GLFWCallbacks.CharCallback charCallback;
+
+    Window(GameWindowSettings windowSettings, NativeWindowSettings nativeWindowSettings)
+        : base(windowSettings, nativeWindowSettings)
+    {
+    }
+
+    public static void Initialize(GameWindowSettings windowSettings, NativeWindowSettings nativeWindowSettings)
+    {
+        windowInstance = new Window(windowSettings, nativeWindowSettings);
+    }
 
     protected override void OnLoad()
     {
+        unsafe
+        {
+            charCallback = (winPtr, codepoint) => ImGuiController.PressChar((char)codepoint);
+            GLFW.SetCharCallback(WindowPtr, charCallback);
+        }
+
         AppDomain.CurrentDomain.UnhandledException += OnException;
         GLRegistry.Initialize(Context);
-
+        
         CenterWindow();
         IsVisible = true;
         Util.ClientSize = ClientSize;
@@ -34,35 +58,38 @@ public class Window(GameWindowSettings gameWindowSettings, NativeWindowSettings 
 
         string? AsmName = Assembly.GetExecutingAssembly().GetName().Name;
 
-        content = new ContentManager(
+        Content = new ContentManager(
             basePath: Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Content"), 
             asmBasePath: string.Join('.', AsmName, "Content"));
 
-        imGui = new ImGuiController(ClientSize.X, ClientSize.Y);
+        ImGuiController = new ImGuiController(ClientSize.X, ClientSize.Y);
 
-        SetGameState(new ActiveState(this));
+        SetExecutionManager(new MainExecutionManager(this));
 
         MouseWheel += (args) =>
         {
-            imGui.MouseScroll(args.Offset);
+            ImGuiController.MouseScroll(args.Offset);
         };
     }
+
     protected override void OnUnload()
     {
-        gameState.Unload();
+        ExecutionManager.Unload();
         base.OnUnload();
     }
+
     protected override void OnUpdateFrame(FrameEventArgs args)
     {
-        gameState.Update(args);
-        imGui.Update(this, (float)args.Time);
+        ExecutionManager.Update(args);
+        ImGuiController.Update(this, (float)args.Time);
         base.OnUpdateFrame(args);
     }
+
     protected override void OnRenderFrame(FrameEventArgs args)
     {
         GLRegistry.Instance.ProcessOpenGLActions();
-        gameState.Render(args);
-        imGui.Render();
+        ExecutionManager.Render(args);
+        ImGuiController.Render();
         Context.SwapBuffers();
         base.OnRenderFrame(args);
     }
@@ -71,24 +98,26 @@ public class Window(GameWindowSettings gameWindowSettings, NativeWindowSettings 
     //additional functionality
     //======================================================
     
-    public void SetGameState(GameState newState)
+    public void SetExecutionManager(ExecutionManager newExecutionManager)
     {
-        if (newState == null)
-        {
-            Close();
-            throw new ArgumentNullException("GameState cannot be set to null");
-        }
+        ArgumentNullException.ThrowIfNull(newExecutionManager);
 
-        if (gameState != null) gameState.Unload();
+        if (ExecutionManager is not null) 
+            ExecutionManager.Unload();
 
-        gameState = newState;
-        gameState.Load();
+        ExecutionManager = newExecutionManager;
+        ExecutionManager.Load();
+    }
+    public T TryAccessExecutionManager<T>() where T : class
+    {
+        return ExecutionManager as T ??
+            throw new FeatureUnsupportedException($"Current execution manager does not support {nameof(T)} feature.");
     }
     void OnException(object sender, UnhandledExceptionEventArgs args)
     {
         Console.WriteLine("oops :/");
         Exception ex = (args.ExceptionObject as Exception)!;
-        NativeFuncs.Win.MessageBox(0, $"Voxand has crashed lmao\n{ex.Message}\nStack trace:\n{ex.StackTrace ?? "! bad luck"}", "oops", 0x00000000u);
+        NativeFuncs.Win.MessageBox(0, $"Voxand has crashed lmao\n{ex.Message}\nStack trace:\n{ex.StackTrace ?? "!bad luck, no stack trace"}", "oops", 0x00000000u);
         Close();
         Environment.Exit(ex.HResult);
     }
@@ -96,8 +125,8 @@ public class Window(GameWindowSettings gameWindowSettings, NativeWindowSettings 
     {
         base.OnResize(args);
         Util.ClientSize = ClientSize;
-        imGui.WindowResized(ClientSize.X, ClientSize.Y);
+        ImGuiController.WindowResized(ClientSize.X, ClientSize.Y);
         GL.Viewport(0, 0, args.Width, args.Height);
-        gameState.OnResize(args);
+        ExecutionManager.OnResize(args);
     }
 }

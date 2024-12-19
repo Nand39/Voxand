@@ -6,7 +6,6 @@ using OpenTK.Mathematics;
 
 using GLAV.Data;
 using GLAV.Types;
-using Voxand.Content;
 
 namespace Voxand.Engine.Systems.Voxels
 {
@@ -21,7 +20,7 @@ namespace Voxand.Engine.Systems.Voxels
     }
 }
 
-namespace Voxand.Engine.Graphics
+namespace Voxand.Engine.Systems.Graphics
 {
     public class ShaderUniformCacheEnum<E> where E : Enum
     {
@@ -71,7 +70,7 @@ namespace Voxand.Engine.Graphics
     }
 }
 
-namespace Voxand.Engine.Graphics.GLUtil
+namespace Voxand.Engine.Systems.Graphics.GLUtil
 {
     #region Vertex Data
     public struct V_PositionUV

@@ -20,19 +20,14 @@
 
   <ItemGroup>
     <None Remove="Content\ava6.png" />
-    <None Remove="Content\Graphics\Shaders\tempAntiAliasingShader.frag" />
-    <None Remove="Content\Graphics\Shaders\tempAntiAliasingShader.vert" />
     <None Remove="Content\Graphics\Shaders\Test.comp" />
     <None Remove="Content\Graphics\Shaders\TestFrag.frag" />
     <None Remove="Content\Graphics\Shaders\Testing\TestVert.vert" />
     <None Remove="Content\Graphics\Shaders\voxelCompositing.frag" />
     <None Remove="Content\Graphics\Shaders\voxelCompositing.vert" />
-    <None Remove="Content\Graphics\Shaders\voxelPostprocessingShader.frag" />
-    <None Remove="Content\Graphics\Shaders\voxelPostprocessingShader.vert" />
     <None Remove="Content\Graphics\Shaders\voxelRender.frag" />
     <None Remove="Content\Graphics\Shaders\voxelRender.vert" />
     <None Remove="Content\Graphics\Shaders\voxelRenderFlat.frag" />
-    <None Remove="Content\Graphics\Shaders\VoxelRender\voxelRenderComputeBrickmap.comp" />
     <None Remove="Content\Graphics\Textures\router.png" />
     <None Remove="Content\Graphics\UI\ImGuiStyles\style.json" />
   </ItemGroup>
@@ -44,6 +39,15 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Content\Graphics\Shaders\tempAntiAliasingBasicShader.comp">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Content\Graphics\Shaders\tempAntiAliasingShader.comp">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Content\Graphics\Shaders\copyTex8.comp">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
     <EmbeddedResource Include="Content\Graphics\Shaders\Testing\TestFrag.frag">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </EmbeddedResource>
@@ -51,36 +55,14 @@
     <EmbeddedResource Include="Content\Graphics\Shaders\Testing\TestVert.vert">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </EmbeddedResource>
-    <EmbeddedResource Include="Content\Graphics\Shaders\VoxelRender\voxelRenderComputeBrickmap.comp" />
+    <EmbeddedResource Include="Content\Graphics\Shaders\voxelRenderComputeBrickmap.comp" />
     <EmbeddedResource Include="Content\Graphics\Textures\router.png">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Content\Graphics\Shaders\VoxelRender\voxelRenderCompute.comp" />
-    <EmbeddedResource Include="Content\Graphics\Shaders\tempAntiAliasingShader.vert">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </EmbeddedResource>
     <EmbeddedResource Include="Content\Graphics\Shaders\voxelCompositing.frag">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </EmbeddedResource>
-    <EmbeddedResource Include="Content\Graphics\Shaders\tempAntiAliasingShader.frag">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Content\Graphics\Shaders\voxelPostprocessingShader.frag">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Content\Graphics\Shaders\voxelPostprocessingShader.vert">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </EmbeddedResource>
     <EmbeddedResource Include="Content\Graphics\Shaders\voxelCompositing.vert">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Content\Graphics\Shaders\VoxelRender\voxelRenderFlat.frag">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Content\Graphics\Shaders\VoxelRender\voxelRender.frag">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Content\Graphics\Shaders\VoxelRender\voxelRender.vert">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </EmbeddedResource>
   </ItemGroup>

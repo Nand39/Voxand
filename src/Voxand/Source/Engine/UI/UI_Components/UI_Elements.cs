@@ -6,7 +6,7 @@ namespace Voxand.UI.Components;
 
 public abstract class UI_Element
 {
-    public Dictionary<string, int> Data = [];
+    public Dictionary<string, object> Data { get; protected set; } = [];
     public virtual void Display() { }
 }
 public class UI_Button(string label, Vector2 size, int pushID = 0) : UI_Element
@@ -18,7 +18,7 @@ public class UI_Button(string label, Vector2 size, int pushID = 0) : UI_Element
     public Vector4 hoverColor = Vector4.One;
     public Vector4 activeColor = Vector4.One;
 
-    public event Action<Dictionary<string, int>> OnClick;
+    public event Action<Dictionary<string, object>> OnClick;
     public override void Display()
     {
         ImGui.PushStyleColor(ImGuiCol.Button, color); 
@@ -37,14 +37,15 @@ public class UI_Button(string label, Vector2 size, int pushID = 0) : UI_Element
         OnClick?.Invoke(Data);
     }
 }
-public class UI_ColorButton(Vector2 size, int pushID, int key) : UI_Button(string.Empty, size, pushID)
+public class UI_ColorButton(Vector2 size, int pushID) : UI_Button(string.Empty, size, pushID)
 {
-    public int Key = key;
-    public bool selected = false;
+    public bool Enabled { get; protected set; } = false;
     public uint outlineColor;
     public float outlineThickness;
 
-    public event Action<Dictionary<string, int>, int, bool> OnClick;
+    public event Action<Dictionary<string, object>, bool> OnClick;
+    public event Action<Dictionary<string, object>> OnEnable;
+    public event Action<Dictionary<string, object>> OnDisable;
     public override void Display()
     {
         ImGui.PushStyleColor(ImGuiCol.Button, color);
@@ -54,13 +55,12 @@ public class UI_ColorButton(Vector2 size, int pushID, int key) : UI_Button(strin
         ImGui.PushID(pushID);
         if (ImGui.Button(string.Empty, size)) 
         {
-            selected = !selected;
             Click();
         }
         ImGui.PopID();
         ImGui.PopStyleColor();
 
-        if (selected)
+        if (Enabled)
         {
             ImGui.GetWindowDrawList().AddRect(
                 p_min: ImGui.GetItemRectMin(),
@@ -74,6 +74,24 @@ public class UI_ColorButton(Vector2 size, int pushID, int key) : UI_Button(strin
 
     public override void Click()
     {
-        OnClick?.Invoke(Data, Key, selected);
+        Enabled = !Enabled;
+        OnClick?.Invoke(Data, Enabled);
+        if (Enabled)
+            OnEnable?.Invoke(Data);
+        else
+            OnDisable?.Invoke(Data);
     }
+    public void Disable(bool silent)
+    {
+        Enabled = false;
+        if (!silent)
+            OnDisable?.Invoke(Data);
+    }
+    public void Enable(bool silent)
+    {
+        Enabled = true;
+        if (!silent)
+            OnEnable?.Invoke(Data);
+    }
+    public void SetState(bool enabled) => Enabled = enabled;
 }

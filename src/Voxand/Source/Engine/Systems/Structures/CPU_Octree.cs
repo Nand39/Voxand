@@ -9,7 +9,7 @@ public class Octree<T>(T rootValue, Vector3 min, Vector3 max)
         public T Value { get; set; } = value;
         uint depth = depth;
         Vector3 midPoint = (max + min) * 0.5f;
-        Vector3 min = min, max = max;
+        Vector3 min = min;
         Node[] descendants = new Node[8];
 
         public Node AddDescendant(int index, T value)

@@ -3,9 +3,10 @@
 using OpenTK.Graphics.OpenGL4;
 
 using GLAV.Systems;
+using System.Text;
 
 namespace GLAV.Types;
-public readonly struct BufferDestination(BufferRangeTarget target, int index)
+public readonly struct BufferBindingInfo(BufferRangeTarget target, int index)
 {
     public readonly BufferRangeTarget target = target;
     public readonly int index = index;
@@ -15,7 +16,7 @@ public class Buffer : GLResource
 {
     public int Size { get; protected set; } = 0;
     public BufferTarget bufferTarget { get; protected set; }
-    public BufferDestination destination { get; protected set; }
+    public BufferBindingInfo bindingInfo { get; protected set; }
     public Buffer()
     {
         Handle.resourceType = GLResourceType.Buffer;
@@ -25,91 +26,95 @@ public class Buffer : GLResource
     public void Alloc(BufferTarget bufferTarget, int size, BufferUsageHint usageHint)
     {
         Size = size;
-        Bind(bufferTarget);
+        Use(bufferTarget);
         GL.BufferData(bufferTarget, size, IntPtr.Zero, usageHint);
     }
     public void Alloc<T>(BufferTarget bufferTarget, ref T data, int size, BufferUsageHint usageHint) 
         where T : struct
     {
         Size = size;
-        Bind(bufferTarget);
+        Use(bufferTarget);
         GL.BufferData(this.bufferTarget, size, ref data, usageHint);
     }
     public unsafe void Alloc<T>(BufferTarget bufferTarget, ref T[] data, int size, BufferUsageHint usageHint) 
         where T : struct
     {
         Size = size;
-        Bind(bufferTarget);
+        Use(bufferTarget);
         GL.BufferData(this.bufferTarget, size, data, usageHint);
     }
 
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void Bind() => GLRegistry.Instance.BindBuffer(bufferTarget, Handle.id);
+    public void Use() => GLRegistry.Instance.BindBuffer(bufferTarget, Handle.id);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void Bind(BufferTarget target) 
+    public void Use(BufferTarget target) 
     {
         bufferTarget = target;
-        Bind();
+        Use();
     }
-
-    public unsafe void Store<T>(ref T[] data, int readingOffsetIndex, int size, int writingOffsetInBytes)
-        where T : struct
+    public unsafe void Store(int offsetInBytes, nint dataPtr, int size)
     {
-        Bind();
-        fixed (T* readStart = &data[readingOffsetIndex])
-            GL.BufferSubData(bufferTarget, writingOffsetInBytes, size, (nint)readStart);
+        Use();
+        GL.BufferSubData(bufferTarget, offsetInBytes, size, dataPtr);
     }
     public unsafe void Store<T>(ref T data, int offsetInBytes)
         where T : struct
     {
-        Bind();
+        Use();
         GL.BufferSubData(bufferTarget, offsetInBytes, sizeof(T), ref data);
     }
-    public unsafe void Store(int offsetInBytes, nint dataPtr, int size)
+    public unsafe void Store<T>(T[] data, int readingOffsetInBytes, int sizeInBytes, int writingOffsetInBytes)
+        where T : struct
     {
-        Bind();
-        GL.BufferSubData(bufferTarget, offsetInBytes, size, dataPtr);
+        Use();
+        fixed (T* arrayStart = &data[0])
+            GL.BufferSubData(bufferTarget, writingOffsetInBytes, sizeInBytes, (nint)arrayStart + readingOffsetInBytes);
     }
     public unsafe void LogContent<Format>() where Format : struct
     {
         int itemSize = sizeof(Format);
         int count = Size / itemSize;
-        LogContent<Format>(0, count);
+        string contentLog = GetContentLog<Format>(0, count);
+        Console.WriteLine(contentLog);
+
         int bytesOmitted = Size - (count * itemSize);
         if (bytesOmitted > 0)
-            Console.WriteLine($"! {bytesOmitted} bytes omitted");
+            Console.WriteLine($"{bytesOmitted} bytes omitted!");
     }
-    public void LogContent<Format>(int startOffsetInBytes, int count) where Format : struct
+    public string GetContentLog<Format>(int startOffsetInBytes, int count) where Format : struct
     {
         int itemSize; unsafe { itemSize = sizeof(Format); }
         Format[] data = Retrieve<Format>(startOffsetInBytes, count);
 
-        Console.WriteLine($"# Content of {GLLable} from {startOffsetInBytes} to {startOffsetInBytes + count * itemSize} ({count} items)");
+        string log = "";
+        StringBuilder stringBuilder = new();
+        stringBuilder.Append($"Content of {Lable} from {startOffsetInBytes} to {startOffsetInBytes + count * itemSize} ({count} items)\n");
         for (int i = 0; i < data.Length; i++)
         {
-            Console.WriteLine(data[i]);
+            stringBuilder.Append($"{data[i]}\n");
         }
-        Console.WriteLine("# End of buffer content log");
+        stringBuilder.Append("End of buffer content log.");
+        return stringBuilder.ToString();
     }
     public void CopyTo(Buffer destinationBuffer, int readingOffsetInBytes, int writingOffsetInBytes, int size)
     {
         BufferTarget sourceOriginalTarget = bufferTarget;
         BufferTarget destinationOriginalTarget = destinationBuffer.bufferTarget;
 
-        Bind(BufferTarget.CopyReadBuffer);
-        destinationBuffer.Bind(BufferTarget.CopyWriteBuffer);
+        Use(BufferTarget.CopyReadBuffer);
+        destinationBuffer.Use(BufferTarget.CopyWriteBuffer);
 
         GL.CopyBufferSubData(BufferTarget.CopyReadBuffer, BufferTarget.CopyWriteBuffer, readingOffsetInBytes, writingOffsetInBytes, size);
 
-        Bind(sourceOriginalTarget);
-        destinationBuffer.Bind(destinationOriginalTarget);
+        Use(sourceOriginalTarget);
+        destinationBuffer.Use(destinationOriginalTarget);
     }
 
     public unsafe T[] Retrieve<T>(int readingOffsetInBytes, int count) where T : struct
     {
-        Bind();
+        Use();
         int size = sizeof(T) * count;
         T[] output = new T[count];
         fixed (T* outputPtr = output)
@@ -120,9 +125,16 @@ public class Buffer : GLResource
     }
     public unsafe T Retrieve<T>(int readingOffsetInBytes) where T : struct
     {
-        Bind();
         int size = sizeof(T);
+        if (readingOffsetInBytes + size > Size)
+            throw new ArgumentOutOfRangeException(
+                paramName: nameof(readingOffsetInBytes),
+                actualValue: readingOffsetInBytes,
+                message: $"{nameof(readingOffsetInBytes)} + size of the type to retrieve ({typeof(T)}; size = {size}) " +
+                         $"should not exceed buffer bounds.");
+
         T output = new T();
+        Use();
         GL.GetBufferSubData(bufferTarget, readingOffsetInBytes, size, (nint)(&output));
         return output;
     }
@@ -132,10 +144,10 @@ public class Buffer : GLResource
         return Retrieve<T>(index * sizeof(T));
     }
 
-    public void BindBufferBase(BufferDestination destination)
+    public void BindEntireBuffer(BufferBindingInfo bindingInfo)
     {
-        this.destination = destination;
-        GL.BindBufferBase(destination.target, destination.index, Handle.id);
+        this.bindingInfo = bindingInfo;
+        GL.BindBufferBase(bindingInfo.target, bindingInfo.index, Handle.id);
     }
 
     protected override void Free(bool hasContext)

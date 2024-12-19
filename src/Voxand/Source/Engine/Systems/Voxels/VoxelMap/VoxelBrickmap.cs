@@ -9,7 +9,7 @@ using GLAV.Types;
 using DisposableExt;
 
 using Voxand.Engine;
-using Voxand.Engine.Graphics;
+using Voxand.Engine.Systems.Graphics;
 using Voxand.Engine.Systems.Structures;
 using Voxand.Helpers;
 using Voxand.Helpers.ExtensionMethods;
@@ -22,7 +22,7 @@ public class VoxelBrickmap : VoxelMap
     Vector3i brickmapSize;
 
     int[,,] C_brickmap;
-    UnsafeList<VoxelBrick> C_brickList;
+    UnmanagedList<VoxelBrick> C_brickList;
 
     Buffer G_brickmap;
     G_HalfList<VoxelBrick> G_BrickList;
@@ -100,7 +100,7 @@ public class VoxelBrickmap : VoxelMap
             for (int y = 0, ly = C_brickmap.GetLength(0); y < ly; y++)
                 for (int z = 0, lz = C_brickmap.GetLength(1); z < lz; z++)
                     C_brickmap[y, z, x] = -1;
-        C_brickList = new UnsafeList<VoxelBrick>(1);
+        C_brickList = new UnmanagedList<VoxelBrick>(1);
         
         G_BrickList = new G_HalfList<VoxelBrick>(
             target: BufferTarget.ShaderStorageBuffer, 
@@ -117,13 +117,13 @@ public class VoxelBrickmap : VoxelMap
             bufferTarget: BufferTarget.ShaderStorageBuffer,
             size: brickmapSize.X * brickmapSize.Y * brickmapSize.Z * sizeof(int), 
             usageHint: BufferUsageHint.DynamicDraw);
-        G_brickmap.BindBufferBase(new(BufferRangeTarget.ShaderStorageBuffer, 1));
+        G_brickmap.BindEntireBuffer(new(BufferRangeTarget.ShaderStorageBuffer, 1));
         unsafe
         {
             fixed (int* initBrickmapPtr = C_brickmap)
                 G_brickmap.Store(0, (nint)initBrickmapPtr, C_brickmap.Length * sizeof(int));
         }
-        G_brickmap.GLLable = "*** Brickmap";
+        G_brickmap.Lable = "*** Brickmap";
 
         DDABrick = new();
         DDAVoxel = new();

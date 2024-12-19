@@ -1,6 +1,4 @@
 ﻿using ImGuiNET;
-using System;
-using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
@@ -270,44 +268,18 @@ void main()
         io.KeyShift = KeyboardState.IsKeyDown(Keys.LeftShift) || KeyboardState.IsKeyDown(Keys.RightShift);
         io.KeySuper = KeyboardState.IsKeyDown(Keys.LeftSuper) || KeyboardState.IsKeyDown(Keys.RightSuper);
 
-        foreach (Keys key in keys)
-        {
-            if (key == Keys.Unknown)
-            {
-                continue;
-            }
-            bool down = KeyboardState.IsKeyDown(key);
-            io.AddKeyEvent(TranslateKey(key), down);
-
-            char c = (char)key;
-
-            if (' ' == c)
-            {
-                PressChar(c);
-                continue;
-            }
-
-            bool isDigit = char.IsAsciiDigit(c);
-            bool isLetter = char.IsAsciiLetter(c);
-            if (down && !KeyboardState.WasKeyDown(key) && (isLetter || isDigit))
-            {
-                if (isLetter)
-                {
-                    if (io.KeyShift)
-                        PressChar(c);
-                    else
-                        PressChar(char.ToLower(c));
-                }
-                else PressChar(c);
-            }
-        }
+        io.AddKeyEvent(ImGuiKey.Backspace, Window.Instance.IsKeyDown(Keys.Backspace));
+        io.AddKeyEvent(ImGuiKey.RightArrow, Window.Instance.IsKeyDown(Keys.Right));
+        io.AddKeyEvent(ImGuiKey.LeftArrow, Window.Instance.IsKeyDown(Keys.Left));
+        io.AddKeyEvent(ImGuiKey.UpArrow, Window.Instance.IsKeyDown(Keys.Up));
+        io.AddKeyEvent(ImGuiKey.DownArrow, Window.Instance.IsKeyDown(Keys.Down));
+        io.AddKeyEvent(ImGuiKey.Enter, Window.Instance.IsKeyDown(Keys.Enter));
 
         foreach (var c in PressedChars)
         {
             io.AddInputCharacter(c);
         }
         PressedChars.Clear();
-
     }
 
     internal void PressChar(char keyChar)

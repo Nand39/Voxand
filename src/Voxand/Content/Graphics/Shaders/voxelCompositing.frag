@@ -5,7 +5,7 @@ in vec2 uv;
 out vec4 outColor;
 
 uniform sampler2D luminance;
-uniform sampler2D depth;
+uniform sampler2D depth_motion;
 uniform isampler2D normal;
 
 uniform float wp;
@@ -23,8 +23,6 @@ void main()
     
     targetTextureSize = textureSize(luminance, 0);
     ivec2 frag = ivec2(uv * targetTextureSize);
-
-    //outColor = vec4(uv, 0, 1);
     
     vec3 lum = texelFetch(luminance, frag, 0).xyz;
     
@@ -58,7 +56,7 @@ vec3 denoiseLuminance(ivec2 targetTexel)
     vec3 sum = vec3(0);
     ivec2 texel;
     int CN = texelFetch(normal, targetTexel, 0).r;
-    float CD = texelFetch(depth, targetTexel, 0).r;
+    float CD = texelFetch(depth_motion, targetTexel, 0).r;
     int pixCount = 0;
 
     for (texel.x = targetTexel.x - blurKernelSize; texel.x <= maxTexel.x; texel.x++)
@@ -69,7 +67,7 @@ vec3 denoiseLuminance(ivec2 targetTexel)
             {
                 continue;
             }
-            if (abs(texelFetch(depth, texel, 0).r - CD) > 0.9)
+            if (abs(texelFetch(depth_motion, texel, 0).r - CD) > 0.9)
             {
                 continue;
             }

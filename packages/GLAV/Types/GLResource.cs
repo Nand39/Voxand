@@ -12,7 +12,7 @@ public abstract class GLResource : IDisposableExt
     public GLResourceHandle Handle = new();
     public DisposeHelper DisposeHelper { get; }
     public GLResource() => DisposeHelper = new(this); 
-    public string GLLable
+    public string Lable
     {
         get
         {
@@ -22,7 +22,6 @@ public abstract class GLResource : IDisposableExt
         }
         set => Util.LabelResource(Handle, value);
     }
-    public string Lable { get; set; } = "UnnamedResource";
     void IDisposableExt.Free() => Free(GLRegistry.Instance.GLFWGraphicsContext.IsCurrent);
     protected abstract void Free(bool hasContext);
     ~GLResource() => this.Dispose();

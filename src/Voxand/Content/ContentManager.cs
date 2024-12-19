@@ -145,7 +145,10 @@ public class ContentManager(string basePath, string asmBasePath)
         bool succeeded = shader.Create(shaderAttachments);
 
         if (!succeeded)
-            throw new Exception($"Cannot load shader; parts: {string.Join("; ", sourcePaths)}");
+            throw new Exception(
+@$"Cannot load shader.
+Log: {GL.GetProgramInfoLog(shader.Handle.id)}
+Parts: {string.Join(";\n", sourcePaths)}");
 
         return shader;
     }
@@ -154,7 +157,9 @@ public class ContentManager(string basePath, string asmBasePath)
         string source = embedded ? ReadEmbedded(sourcePath, out bool succeeded) : ReadFile(sourcePath, out succeeded);
 
         if (!succeeded)
-            throw new Exception($"Cannot load shader source; path: {sourcePath}");
+            throw new Exception(
+@$"Cannot load shader part source code.
+Path: {sourcePath}; embedded = {embedded}");
 
         ShaderType? type = Util.IdentifyShaderSource(sourcePath);
 
