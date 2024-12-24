@@ -60,6 +60,11 @@ layout(std140, binding = 3) buffer inputData
 
 uniform ivec3 mapSize;
 uniform ivec3 voxelBrickmapSize;
+uniform vec3 sunDirection = vec3(0.19, 0.51, 0.84);
+uniform vec3 sunColor = vec3(2.8, 2.65, 2);
+uniform float sunDirectionJitter = 0.07;
+
+uniform int samples = 1;
 
 
 // Global vars
@@ -71,14 +76,13 @@ const float INV_TWO_PI = 1 / TWO_PI;
 
 const int intMaxValue = 2147483647;
 
-int samples = 2;
 float invSamples = 1.0 / samples;
 float jitterArc = TWO_PI / samples;
 vec2 fragPosition;
 
 float randSaltLocal;
 
-const float depthBias = -0.02;
+const float depthBias = -0.002;
 const int brickSizeInUINTS = 18;
 
 
@@ -88,18 +92,22 @@ void executePathTracing(vec3 origin, vec3 dir, out vec3 luminance, out float dep
 
 int trace        (vec3 origin, vec3 dir, out vec3 hitPos, out material hitMat, out int normal, out float depth);
 int traceLast    (vec3 origin, vec3 dir, out material hitMat);
-int traverse     (vec3 origin, vec3 dir, out vec3 hitPos, out material hitMat, out int normal, out float depth);  // Experimantal
-int traverseLast (vec3 origin, vec3 dir, out material hitMat);
 
 float minVec3(vec3 vect);
 float maxVec3(vec3 vect);
 float cart2Sph_Phi(vec3 vect);
 float cart2Sph_Theta(vec3 vect);
+vec3 rodriguesRotation(vec3 v, vec3 axis, float theta);
+vec3 rotateVerticalByNormal(vec3 vector, int normal);
+
 vec3 skySample(vec3 dir);
+vec3 sunSample(vec3 pos, vec3 dir);
+
 vec3 scatter(vec3 normal, int sampleIndex);
 vec3 randomVector(vec3 key, int sampleIndex);
 float random (vec2 point);
-vec3 rotateVerticalByNormal(vec3 vector, int normal);
+vec3 jitterVector(vec3 v, float theta, float amount);
+
 uint getBrickIndex(ivec3 voxelPosition); 
 uint getVoxelValue(ivec3 voxelPosition);
 uint getVoxelValueAndBit(ivec3 voxelPosition, out uint voxelBit);
@@ -228,7 +236,7 @@ int traceLast(vec3 origin, vec3 dir, out material hitMat)
         }
         else 
         { 
-        escaped = false;
+            escaped = false;
             break; 
         }
 
@@ -348,7 +356,6 @@ int trace(vec3 origin, vec3 dir, out vec3 hitPos, out material hitMat, out int n
         
 	} while (true);
 
-    //if (i == 500) return 2;
     if (escaped) return 1;
 
     depth += depthBias;
@@ -452,14 +459,27 @@ void executePathTracing(vec3 origin, vec3 dir, out vec3 luminance, out float dep
 
     vec3 indirectContribution = vec3(0);
 
+    vec3 fl_hpos; int fl_n; float fl_d;
+    int exposedToSun;
+
     int i = 1;
     while(i <= samples)
     {
+        vec3 secondHitPos;
+        int secondNormal;
+        float secondDepth;
+
         vec3 scatteredDir = scatter(normal, i);
-        secondHitResult = traceLast(firstHitPos, scatteredDir, secondHitMat);
+        secondHitResult = trace(firstHitPos, scatteredDir, secondHitPos, secondHitMat, secondNormal, secondDepth);
+        
         if (secondHitResult == 0)
         {
-            indirectContribution += secondHitMat.emission * dot(vecNormal(normal), scatteredDir);
+            float incomingCosineWeight = dot(vecNormal(normal), scatteredDir);
+            indirectContribution += secondHitMat.emission * incomingCosineWeight;
+
+            float key1 = random(fragPosition.xy * 78.12 * i) * TWO_PI;
+            float key2 = random(vec2(key1 * 32.2, key1 * 51.1)) * sunDirectionJitter;
+            indirectContribution += sunSample(secondHitPos, jitterVector(sunDirection, key1, key2)) * secondHitMat.color * clamp(dot(vecNormal(secondNormal), sunDirection), 0, 1) * incomingCosineWeight;
             i++;
             continue;
         }
@@ -472,11 +492,9 @@ void executePathTracing(vec3 origin, vec3 dir, out vec3 luminance, out float dep
         i++;
     }
 
-    //vec3 fl_hpos; int fl_n; float fl_d;
-    //vec3 sunDirection = vec3(0.28, 0.92, 0.28);
-
-    //int exposedToSun = trace(firstHitPos, sunDirection, fl_hpos, secondHitMat, fl_n, fl_d);
-    //vec3 sunContribution = vec3(0.8, 0.8, 0.7) * exposedToSun * dot(vecNormal(normal), sunDirection) * clamp(dot(rotateVerticalByNormal(vec3(0, 1, 0), normal), sunDirection), 0, 1);;
+    float key1 = random(fragPosition.xy * 92.92) * TWO_PI;
+    float key2 = random(vec2(key1 * 32.2, key1 * 51.1)) * sunDirectionJitter;
+    indirectContribution += sunSample(firstHitPos, jitterVector(sunDirection, key1, key2)) * clamp(dot(vecNormal(normal), sunDirection), 0, 1);
 
     luminance = firstHitMat.emission + indirectContribution * invSamples * firstHitMat.color;
     return;
@@ -573,10 +591,28 @@ float cart2Sph_Theta(vec3 vect)
 
 vec3 skySample(vec3 dir)
 {
-    float theta = atan(dir.z, dir.x);
-    float phi = asin(dir.y);
+    //float theta = atan(dir.z, dir.x);
+    //float phi = asin(dir.y);
 
-    vec2 uv = vec2(theta * INV_TWO_PI + 0.5, phi * INV_PI + 0.5);
+    //vec2 uv = vec2(theta * INV_TWO_PI + 0.5, phi * INV_PI + 0.5);
 
-    return texture2D(skyTex, uv).rgb;
+    //return texture2D(skyTex, uv).rgb;
+    return vec3(0.75, 1.3, 1.9);
+}
+
+vec3 sunSample(vec3 pos, vec3 dir)
+{
+    vec3 fl_hpos; int fl_n; float fl_d; material fl_mat;
+    return sunColor * trace(pos, dir, fl_hpos, fl_mat, fl_n, fl_d);
+}
+
+vec3 rodriguesRotation(vec3 v, vec3 axis, float theta)
+{
+    float cosTheta = cos(theta);
+    return v * cosTheta + cross(axis, v) * sin(theta) + axis * dot(axis, v) * (1 - cosTheta);
+}
+
+vec3 jitterVector(vec3 v, float theta, float amount)
+{
+    return rodriguesRotation(rodriguesRotation(v, cross(v, vec3(1, 0, 0)), amount), v, theta);
 }

@@ -283,7 +283,7 @@ public class VoxelBrickmap : VoxelMap
 
                 float escapeTime = DDABrick.nextIntersectionTime.Min() * 4;
                 Vector3 escape = escapeTime * dir + origin;
-                int nextAxis = DDABrick.nextIntersectionTime.IndexMin();
+                int nextAxis = DDABrick.nextIntersectionTime.IndexOfMin();
                 escape[nextAxis] += dir[nextAxis] > 0 ? -0.5f : 0.5f;
                 enteranceVoxel[DDABrick.lastAxis] += dir[DDABrick.lastAxis] > 0 ? 0.5f : -0.5f;
                 int totalSteps = ((Vector3i)escape - (Vector3i)enterance).AsAbs().Sum();

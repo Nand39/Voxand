@@ -15,7 +15,11 @@ using Voxand.Helpers;
 using DisposableExt;
 
 namespace Voxand.Engine.Systems.Graphics.Pipelines.Modules;
-public sealed class VoxelPathTracingModule : RenderingPipeline
+public interface IVoxelPathTracingSettings
+{
+    public int Samples { get; set; }
+}
+public sealed class VoxelPathTracingModule : RenderingPipeline, IVoxelPathTracingSettings
 {
     ShaderController pathTracingShaderController;
     Texture2D luminanceOutput, depth_motionOutput, normalOutput;
@@ -66,6 +70,17 @@ public sealed class VoxelPathTracingModule : RenderingPipeline
         public float randSalt = 1;
     }
     public Camera Camera { get; set; }
+    int samples;
+    public int Samples
+    {
+        get => samples;
+        set
+        {
+            samples = value;
+            pathTracingShaderController.SetUniform("samples", samples);
+        }
+    }
+
     public VoxelPathTracingModule(ShaderController shaderControllerPT, Camera camera, Vector3i mapSize, Texture2D skyTexture, Texture2D luminanceOutput, Texture2D depth_motionOutput, Texture2D normalOutput)
     {
         pathTracingShaderController = shaderControllerPT;
@@ -73,6 +88,8 @@ public sealed class VoxelPathTracingModule : RenderingPipeline
         pathTracingShaderController.SetUniform("depthTexture", 1);
         pathTracingShaderController.SetUniform("normalTexture", 2);
         pathTracingShaderController.SetUniform("skyTex", 8);
+        
+        Samples = 1;
 
         Camera = camera;
         SkyTex = skyTexture;

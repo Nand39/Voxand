@@ -42,7 +42,7 @@
     <EmbeddedResource Include="Content\Graphics\Shaders\tempAntiAliasingBasicShader.comp">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </EmbeddedResource>
-    <EmbeddedResource Include="Content\Graphics\Shaders\tempAntiAliasingShader.comp">
+    <EmbeddedResource Include="Content\Graphics\Shaders\tempAntiAliasingReprojectionShader.comp">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </EmbeddedResource>
     <EmbeddedResource Include="Content\Graphics\Shaders\copyTex8.comp">

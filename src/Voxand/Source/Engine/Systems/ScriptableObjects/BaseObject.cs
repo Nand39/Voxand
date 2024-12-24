@@ -9,9 +9,9 @@ public abstract class BaseObject : IDisposableExt
 {
     public DisposeHelper DisposeHelper { get; }
 
-    protected IWindowState WindowState => Window.Instance.TryAccessExecutionManager<IWindowStateSupported>().WindowState;
-    protected IEngineState EngineState => Window.Instance.TryAccessExecutionManager<IEngineStateSupported>().EngineState;
-    protected IObjectRegistry ObjectRegistry => Window.Instance.TryAccessExecutionManager<IObjectRegistrySupported>().ObjectRegistry;
+    protected IWindowState WindowState => Window.Instance.TryAccessExecutionManager<ISupportsWindowState>().WindowState;
+    protected IEngineState EngineState => Window.Instance.TryAccessExecutionManager<ISupportsEngineState>().EngineState;
+    protected IObjectRegistry ObjectRegistry => Window.Instance.TryAccessExecutionManager<ISupportsObjectRegistry>().ObjectRegistry;
     /// <summary>
     /// A shorthand for the window object.
     /// </summary>

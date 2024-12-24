@@ -120,11 +120,6 @@ public interface IObjectRegistry
     public void AddObject(BaseObject objectToAdd);
     public void AddObjects(params BaseObject[] objectToAdd);
 }
-public interface IInputState
-{
-    public KeyboardState KeyboardState { get; }
-    public MouseState MouseState { get; }
-}
 public interface IEngineState
 {
     public EventDispatcher Events { get; }
@@ -134,25 +129,24 @@ public interface IEngineState
     public Camera MainCamera { get; }
 }
 
-
-public interface IWindowStateSupported
+public interface ISupportsWindowState
 {
     public IWindowState WindowState { get; }
 }
-public interface IObjectRegistrySupported
+public interface ISupportsObjectRegistry
 {
     public IObjectRegistry ObjectRegistry { get; }
 }
-public interface IEngineStateSupported
+public interface ISupportsEngineState
 {
     public IEngineState EngineState { get; }
 }
+
 public sealed class MainExecutionManager : ExecutionManager,
-    IWindowStateSupported, IObjectRegistrySupported, IEngineStateSupported
+    ISupportsWindowState, ISupportsObjectRegistry, ISupportsEngineState
 {
     Vector3i mapSize = new(256, 256, 256);
     Framewatch fps;
-
     
     readonly EngineState engineState;
     readonly WindowState windowState;
@@ -180,10 +174,17 @@ public sealed class MainExecutionManager : ExecutionManager,
         
         VoxelMaterial[] materials =
         {
-            new(new(0.8f, 0.8f, 0.8f), new(0, 0, 0)),
+            new(Util.Hex2Vec("#50555c"), new(0, 0, 0)),
+            new(Util.Hex2Vec("#5e6269"), new(0, 0, 0)),
+            new(Util.Hex2Vec("#42454a"), new(0, 0, 0)),
+
+            new(Util.Hex2Vec("#614c31"), new(0, 0, 0)),
+            new(Util.Hex2Vec("#735b3d"), new(0, 0, 0)),
+            new(Util.Hex2Vec("#52422e"), new(0, 0, 0)),
+
             new(Util.Hex2Vec("#376e47"), new(0, 0, 0)),
-            new(Util.Hex2Vec("#f5f2a6"), new(0, 0, 0)),
-            new(Util.Hex2Vec("#78664e"), new(0, 0, 0)),
+            new(Util.Hex2Vec("#3e8051"), new(0, 0, 0)),
+            new(Util.Hex2Vec("#326b43"), new(0, 0, 0)),
 
             new(new(0.8f, 0.8f, 0.8f), new(2, 1.85f, 1)),
             new(new(0.8f, 0.8f, 0.8f), new(1, 0, 0)),
@@ -228,8 +229,6 @@ public sealed class MainExecutionManager : ExecutionManager,
 
         fps = new Framewatch(Util.FrameTimeData, 1);
 
-        engineState.VoxelMap.SetVoxelValueAndBit(engineState.VoxelMap.Dimensions / 2, 0, true);
-
         engineState.RenderingPipeline = new(
             content: main.Content,
             camera: engineState.MainCamera,
@@ -241,6 +240,10 @@ public sealed class MainExecutionManager : ExecutionManager,
 
         viewer.VoxelTool.Events.ExportEvents(materialEditorWindow);
         viewer.VoxelTool.Events.ExportEvents(paletteWindow);
+
+        MapGenerator mapGen = new(EngineState.VoxelMap);
+
+        mapGen.Generate(new Vector2i(40, 40));
 
         Console.WriteLine("Loaded");
     }
@@ -262,7 +265,7 @@ public sealed class MainExecutionManager : ExecutionManager,
         engineState.VoxelPalette.Dispose();
         objectRegistry.Dispose();
 
-        Console.WriteLine("Resources was successfully unloaded");
+        Console.WriteLine("Unloaded");
     }
     public override void OnResize(ResizeEventArgs args)
     {

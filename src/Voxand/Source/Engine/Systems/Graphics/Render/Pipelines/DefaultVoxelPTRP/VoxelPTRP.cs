@@ -31,6 +31,8 @@ public sealed class VoxelPTRP : RenderingPipeline
     VoxelPathTracingModule voxelPathTracingModule;
     AntiAliasingBasicModule antiAliasingModule;
     CompositingModule compositingModule;
+    public IAntiAliasingBasicModuleSettings antiAliasingSettings => antiAliasingModule;
+    public IVoxelPathTracingSettings voxelPathTracingSettings => voxelPathTracingModule;
     public Vector2i RenderingResolution { get; set; }
     public RenderTarget RenderTarget
     {

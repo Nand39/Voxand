@@ -101,10 +101,8 @@ public sealed class Window : GameWindow
     public void SetExecutionManager(ExecutionManager newExecutionManager)
     {
         ArgumentNullException.ThrowIfNull(newExecutionManager);
-
-        if (ExecutionManager is not null) 
-            ExecutionManager.Unload();
-
+        
+        ExecutionManager?.Unload();
         ExecutionManager = newExecutionManager;
         ExecutionManager.Load();
     }

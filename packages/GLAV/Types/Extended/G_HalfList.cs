@@ -78,8 +78,6 @@ public unsafe class G_HalfList<T> : IDisposableExt where T : struct
         newBuffer.Alloc(buffer.bufferTarget, newCapacity * ItemSize, usageHint);
         if (named) 
             newBuffer.Lable = bufferName;
-
-        Console.WriteLine($"OLD: {buffer.Handle.id}; NEW: {newBuffer.Handle.id}");
         
         buffer.CopyTo(newBuffer, 0, 0, buffer.Size - 1);
 
@@ -89,8 +87,6 @@ public unsafe class G_HalfList<T> : IDisposableExt where T : struct
         buffer = newBuffer;
 
         Capacity = newCapacity;
-
-        Console.WriteLine("list expanded to " + Capacity);
     }
     int GetNextCapacity() => Capacity < 1000 ? (int)MathF.Ceiling((2 - Capacity * 0.0005f) * Capacity) : Capacity + 500;
     void IDisposableExt.Free()

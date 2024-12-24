@@ -8,7 +8,11 @@ using Voxand.Engine.Systems.Graphics.Tools.ShaderServices;
 using Voxand.Helpers.Exceptions.GLAVExceptions;
 
 namespace Voxand.Engine.Systems.Graphics.Pipelines.Modules;
-public sealed class AntiAliasingBasicModule : RenderingPipeline
+public interface IAntiAliasingBasicModuleSettings
+{
+    public float Intensity { get; set; }
+}
+public sealed class AntiAliasingBasicModule : RenderingPipeline, IAntiAliasingBasicModuleSettings
 {
     ShaderController shaderController;
     Texture2D luminanceAccum, luminanceOutput;
