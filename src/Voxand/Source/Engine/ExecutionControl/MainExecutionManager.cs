@@ -20,6 +20,8 @@ using Voxand.Engine.Systems.ScriptableObjects;
 using Voxand.UI;
 using Voxand.App;
 using Voxand.App.VoxelEditing;
+using Voxand.App.Map.Generation;
+using Voxand.App.Map;
 
 namespace Voxand.Engine.ExecutionControl;
 
@@ -52,8 +54,8 @@ public class EngineState : IEngineState
     public VoxelPTRP RenderingPipeline { get => renderingPipeline; set { renderingPipeline = value; Events.Invoke("main_renderingPipeline_changed", RenderingPipeline); } }
     VoxelPTRP renderingPipeline;
 
-    public VoxelBrickmap VoxelMap { get => voxelMap; set { voxelMap = value; Events.Invoke("main_voxelMap_changed", VoxelMap); } }
-    VoxelBrickmap voxelMap;
+    public ChunkMap VoxelMap { get => voxelMap; set { voxelMap = value; Events.Invoke("main_voxelMap_changed", VoxelMap); } }
+    ChunkMap voxelMap;
 
     public VoxelPalette VoxelPalette { get => voxelPalette; set { voxelPalette = value; Events.Invoke("main_voxelPalette_changed", VoxelPalette); } }
     VoxelPalette voxelPalette;
@@ -124,7 +126,7 @@ public interface IEngineState
 {
     public EventDispatcher Events { get; }
     public VoxelPTRP RenderingPipeline { get; }
-    public VoxelBrickmap VoxelMap { get; }
+    public ChunkMap VoxelMap { get; }
     public VoxelPalette VoxelPalette { get; }
     public Camera MainCamera { get; }
 }
@@ -145,7 +147,7 @@ public interface ISupportsEngineState
 public sealed class MainExecutionManager : ExecutionManager,
     ISupportsWindowState, ISupportsObjectRegistry, ISupportsEngineState
 {
-    Vector3i mapSize = new(256, 256, 256);
+    Vector3i numberOfChunks = new(128, 42, 128);
     Framewatch fps;
     
     readonly EngineState engineState;
@@ -169,7 +171,7 @@ public sealed class MainExecutionManager : ExecutionManager,
         GL.ClearColor(0.6f, 0.3f, 0.2f, 1);
 
         engineState.MainCamera = new Camera();
-        engineState.MainCamera.position = (Vector3)mapSize / 2 + new Vector3(-3, 3, 3);
+        engineState.MainCamera.position = (Vector3)numberOfChunks * 2 + new Vector3(-3, 3, 3);
         engineState.MainCamera.FOV = 90;
         
         VoxelMaterial[] materials =
@@ -193,14 +195,15 @@ public sealed class MainExecutionManager : ExecutionManager,
         };
         engineState.VoxelPalette = new(materials, 2);
 
-        engineState.VoxelMap = new(mapSize, new VoxelBrickmapDefaultPersistenceModule());
+        engineState.VoxelMap = new(numberOfChunks.Xz, new(4), numberOfChunks.Y * 4);
+        engineState.VoxelMap.MapGenerator = new BrickmapGenerator(engineState.VoxelMap.RawStructure, new(200, 200), 120);
 
-        UI_Manager.Initialize(main.Content);
+        UI_Manager.Initialize(WindowState.Window.Content);
 
         UI_PaletteWindow paletteWindow = new(engineState.VoxelPalette);
         UI_MaterialEditorWindow materialEditorWindow = new(engineState.VoxelPalette);
         UI_SettingsWindow renderSettingsWindow = new();
-        UI_DebugWindow debugWindow = new(engineState.VoxelMap);
+        UI_DebugWindow debugWindow = new(engineState.VoxelMap.RawStructure);
 
         paletteWindow.Select(0);
 
@@ -230,7 +233,7 @@ public sealed class MainExecutionManager : ExecutionManager,
         fps = new Framewatch(Util.FrameTimeData, 1);
 
         engineState.RenderingPipeline = new(
-            content: main.Content,
+            content: WindowState.Window.Content,
             camera: engineState.MainCamera,
             map: engineState.VoxelMap,
             output: DefaultRenderTarget.Instance,
@@ -241,15 +244,18 @@ public sealed class MainExecutionManager : ExecutionManager,
         viewer.VoxelTool.Events.ExportEvents(materialEditorWindow);
         viewer.VoxelTool.Events.ExportEvents(paletteWindow);
 
-        MapGenerator mapGen = new(EngineState.VoxelMap);
-
-        mapGen.Generate(new Vector2i(40, 40));
+        viewer.recreateMapRequest += () =>
+        {
+            engineState.VoxelMap.Dispose();
+            engineState.VoxelMap = new(numberOfChunks.Xz, new(4), numberOfChunks.Y * 4);
+        };
 
         Console.WriteLine("Loaded");
     }
     public override void Update(FrameEventArgs args)
     {
         objectRegistry.Update(args);
+
         fps.Tick(args);
     }
     public override void Render(FrameEventArgs args)

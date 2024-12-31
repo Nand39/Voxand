@@ -5,6 +5,7 @@ using OpenTK.Graphics.OpenGL4;
 using GLAV.Helpers.ExtensionMethods;
 using GLAV.Types;
 using OpenTK.Windowing.Desktop;
+using System.Collections.Concurrent;
 
 namespace GLAV.Systems;
 public sealed class GLRegistry
@@ -23,7 +24,7 @@ public sealed class GLRegistry
     int activeShaderProgram = -1;
     int activeFramebuffer = 0;
 
-    Queue<Action> pendingGLActions = new();
+    ConcurrentQueue<Action> pendingGLActions = new();
 
     public IGLFWGraphicsContext GLFWGraphicsContext { get; private set; }
 

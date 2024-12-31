@@ -15,7 +15,6 @@ using Voxand.Helpers;
 using Voxand.UI;
 using Voxand.Helpers.Interop;
 using Voxand.Helpers.Exceptions;
-using System;
 
 namespace Voxand;
 public sealed class Window : GameWindow
@@ -64,7 +63,8 @@ public sealed class Window : GameWindow
 
         ImGuiController = new ImGuiController(ClientSize.X, ClientSize.Y);
 
-        SetExecutionManager(new MainExecutionManager(this));
+        ExecutionManager = new MainExecutionManager(this);
+        ExecutionManager.Load();
 
         MouseWheel += (args) =>
         {
@@ -97,15 +97,6 @@ public sealed class Window : GameWindow
     //======================================================
     //additional functionality
     //======================================================
-    
-    public void SetExecutionManager(ExecutionManager newExecutionManager)
-    {
-        ArgumentNullException.ThrowIfNull(newExecutionManager);
-        
-        ExecutionManager?.Unload();
-        ExecutionManager = newExecutionManager;
-        ExecutionManager.Load();
-    }
     public T TryAccessExecutionManager<T>() where T : class
     {
         return ExecutionManager as T ??

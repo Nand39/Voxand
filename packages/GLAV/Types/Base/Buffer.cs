@@ -131,7 +131,7 @@ public class Buffer : GLResource
                 paramName: nameof(readingOffsetInBytes),
                 actualValue: readingOffsetInBytes,
                 message: $"{nameof(readingOffsetInBytes)} + size of the type to retrieve ({typeof(T)}; size = {size}) " +
-                         $"should not exceed buffer bounds.");
+                         $"should not exceed buffer bounds. Tried accessing bytes from {readingOffsetInBytes} to {readingOffsetInBytes + size} out of {Size}.");
 
         T output = new T();
         Use();

@@ -185,6 +185,45 @@ public static class VectorTKExtensions
         return vect.Normalized();
     }
     #endregion
+
+    #region Inbounds
+    // Integer-based vectors
+    public static bool Inbounds(this Vector2i vect, Vector2i min, Vector2i max)
+    {
+        return vect.X >= min.X && vect.X < max.X &&
+               vect.Y >= min.Y && vect.Y < max.Y;
+    }
+    public static bool Inbounds(this Vector3i vect, Vector3i min, Vector3i max)
+    {
+        return vect.X >= min.X && vect.X < max.X &&
+               vect.Y >= min.Y && vect.Y < max.Y &&
+               vect.Z >= min.Z && vect.Z < max.Z;
+    }
+
+    // Float-based vectors
+    public static bool Inbounds(this Vector2 vect, Vector2 min, Vector2 max)
+    {
+        return vect.X >= min.X && vect.X < max.X &&
+               vect.Y >= min.Y && vect.Y < max.Y;
+    }
+    public static bool Inbounds(this Vector2 vect, Vector2i min, Vector2i max)
+    {
+        return vect.X >= min.X && vect.X < max.X &&
+               vect.Y >= min.Y && vect.Y < max.Y;
+    }
+    public static bool Inbounds(this Vector3 vect, Vector3 min, Vector3 max)
+    {
+        return vect.X >= min.X && vect.X < max.X &&
+               vect.Y >= min.Y && vect.Y < max.Y &&
+               vect.Z >= min.Z && vect.Z < max.Z;
+    }
+    public static bool Inbounds(this Vector3 vect, Vector3i min, Vector3i max)
+    {
+        return vect.X >= min.X && vect.X < max.X &&
+               vect.Y >= min.Y && vect.Y < max.Y &&
+               vect.Z >= min.Z && vect.Z < max.Z;
+    }
+    #endregion
 }
 public static class VecotorNumExtensions
 {

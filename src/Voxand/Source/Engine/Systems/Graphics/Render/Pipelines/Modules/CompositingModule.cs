@@ -56,7 +56,7 @@ public sealed class CompositingModule : RenderingPipeline
     {
         compositingShaderController = shaderController;
         compositingShaderController.SetUniform("luminance", 0);
-        compositingShaderController.SetUniform("depth", 1);
+        compositingShaderController.SetUniform("depth_motion", 1);
         compositingShaderController.SetUniform("normal", 2);
 
         SetInput(luminanceInput, depth_motionInput, normalInput);

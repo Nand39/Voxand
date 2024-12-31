@@ -25,7 +25,7 @@ public class DisposalList : IDisposableExt
         foreach (var resource in resources)
             Remove(resource);
     }
-    public void Free()
+    void IDisposableExt.Free()
     {
         for (; resources.Count > 0;)
             resources[0].Dispose();

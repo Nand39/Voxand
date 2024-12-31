@@ -1,20 +1,22 @@
 ﻿using OpenTK.Mathematics;
+using Voxand.App.Map;
 using Voxand.Engine.Systems.General.Events;
 using Voxand.Engine.Systems.ScriptableObjects;
 using Voxand.Engine.Systems.Voxels;
 using Voxand.Helpers;
+using Voxand.Helpers.ExtensionMethods;
 
 namespace Voxand.App.VoxelEditing;
 public class VoxelTool : BaseObject
 {
-    VoxelMap map;
+    ChunkMap map;
     public EventDispatcher Events { get; private set; } = new("user_voxelTool_events");
     int activeMaterial;
     public override void Initialize()
     {
         Events.AddEvent("activeMaterial_changed");
         EngineState.Events.Subscribe("main_voxelMap_changed", (args) => {
-            map = (VoxelMap)args;
+            map = (ChunkMap)args;
         });
         map = EngineState.VoxelMap;
     }
@@ -29,8 +31,8 @@ public class VoxelTool : BaseObject
     }
     public void PlaceSingle(Vector3i position)
     {
-        if (Util.Inbounds(in position, in map.Dimensions))
-            ((VoxelBrickmap)map).SetVoxelValueAndBit(position, (uint)ActiveMaterial, true);
+        if (position.Inbounds(Vector3i.Zero, map.Dimensions))
+            map.Place(position, ActiveMaterial);
     }
     public void PlaceSphere(Vector3i position, float radius)
     {
@@ -51,8 +53,8 @@ public class VoxelTool : BaseObject
     }
     public void RemoveSingle(Vector3i position)
     {
-        if (Util.Inbounds(in position, in map.Dimensions))
-            ((VoxelBrickmap)map).SetVoxelValueAndBit(position, 0, false);
+        if (position.Inbounds(Vector3i.Zero, map.Dimensions))
+            map.Remove(position);
     }
     public void RemoveSphere(Vector3i position, float radius)
     {

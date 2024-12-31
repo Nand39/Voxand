@@ -25,40 +25,6 @@ public static class Util
         float cos = MathF.Cos(r);
         return new Vector3(vect.X * cos - vect.Z * sin, vect.Y, vect.X * sin + vect.Z * cos);
     }
-    public static bool Inbounds(ref readonly Vector3 p, ref readonly Vector3 max)
-    {
-        return p.X >= 0 && p.X < max.X &&
-               p.Y >= 0 && p.Y < max.Y &&
-               p.Z >= 0 && p.Z < max.Z;
-    }
-    public static bool Inbounds(ref readonly Vector3 p, ref readonly Vector3i max)
-    {
-        return p.X >= 0 && p.X < max.X &&
-               p.Y >= 0 && p.Y < max.Y &&
-               p.Z >= 0 && p.Z < max.Z;
-    }
-    public static bool Inbounds(ref readonly Vector3i p, ref readonly Vector3i max)
-    {
-        return p.X >= 0 && p.X < max.X &&
-               p.Y >= 0 && p.Y < max.Y &&
-               p.Z >= 0 && p.Z < max.Z;
-    }
-
-    public static Vector3i ClampVector(Vector3i min, Vector3i max, Vector3i vector)
-    {
-        return new(
-            vector.X < min.X ? min.X : vector.X > max.X ? max.X : vector.X,
-            vector.Y < min.Y ? min.Y : vector.Y > max.Y ? max.Y : vector.Y,
-            vector.Z < min.Z ? min.Z : vector.Z > max.Z ? max.Z : vector.Z);
-    }
-
-    public static bool Inbounds(ref readonly Vector3i p, ref readonly Vector3i min, ref readonly Vector3i max)
-    {
-        return p.X >= min.X && p.X < max.X &&
-               p.Y >= min.Y && p.Y < max.Y &&
-               p.Z >= min.Z && p.Z < max.Z;
-    }
-
     public static void CalcTaskingInfo(int tasksDispatched, int totalWorkSize, out int taskSize, out int taskRemains, out int taskCount)
     {
         taskSize = totalWorkSize / ProcessorCount;

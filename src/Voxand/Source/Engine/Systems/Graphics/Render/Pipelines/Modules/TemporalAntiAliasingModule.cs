@@ -10,7 +10,7 @@ using Voxand.Helpers.Exceptions.GLAVExceptions;
 namespace Voxand.Engine.Systems.Graphics.Pipelines.Modules;
 public interface IAntiAliasingBasicModuleSettings
 {
-    public float Intensity { get; set; }
+    float Intensity { get; set; }
 }
 public sealed class AntiAliasingBasicModule : RenderingPipeline, IAntiAliasingBasicModuleSettings
 {

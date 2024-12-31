@@ -17,7 +17,7 @@ using Voxand.Helpers.ExtensionMethods;
 using Buffer = GLAV.Types.Buffer;
 
 namespace Voxand.Engine.Systems.Voxels;
-public class VoxelBrickmap : VoxelMap
+public class VoxelBrickmap : VoxelMap, ISinglePlaceable
 {
     Vector3i brickmapSize;
 
@@ -33,7 +33,7 @@ public class VoxelBrickmap : VoxelMap
     const int VOXEL_PACK_ARRAY_OFFSET = 2 * sizeof(uint);
 
     [StructLayout(LayoutKind.Sequential)] 
-    unsafe struct VoxelBrick
+    public unsafe struct VoxelBrick
     {
         fixed uint bitmask[2];
         fixed uint packs[16];
@@ -51,7 +51,7 @@ public class VoxelBrickmap : VoxelMap
         {
             int packIndex = GetVoxelPackIndex(localPosition);
             int shift = localPosition.X << 3;
-            uint pack = (packs[packIndex] & (~(255u << shift))) | (value << shift); ;
+            uint pack = (packs[packIndex] & (~(255u << shift))) | (value << shift);
             packs[packIndex] = pack;
             return pack;
         }
@@ -178,6 +178,9 @@ public class VoxelBrickmap : VoxelMap
             return (0, false);
         return (C_brickList[brickIndex]->GetVoxelValue(VoxelPositionToLocalPosition(position)), true);
     }
+    public void PlaceSingle(Vector3i position, int value) => SetVoxelValueAndBit(position, (uint)value, true);
+    public void RemoveSingle(Vector3i position) => SetVoxelValueAndBit(position, 0, false);
+
     public (uint voxelValue, uint voxelBit, int brickIndex) Examine(Vector3i position, bool fromGPU)
     {
         VoxelBrick brick;
@@ -256,7 +259,7 @@ public class VoxelBrickmap : VoxelMap
         {
             DDABrick.Step();
             Vector3i pos = DDABrick.voxelPos;
-            if (!Util.Inbounds(ref pos, ref brickmapSize))
+            if (!pos.Inbounds(Vector3i.Zero, brickmapSize))
             {
                 return new() { hit = false };
             }
@@ -316,7 +319,7 @@ public class VoxelBrickmap : VoxelMap
     {
         return G_brickmap.Size + G_BrickList.Capacity * G_BrickList.ItemSize;
     }
-    public override void Free()
+    protected override void Free()
     {
         G_BrickList.Dispose();
     }
@@ -329,7 +332,7 @@ public class VoxelBrickmap : VoxelMap
     Vector3i VoxelPositionToLocalPosition(Vector3i position) => new(position.X & 3, position.Y & 3, position.Z & 3);
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     int VoxelPositionToVoxelPackIndex(Vector3i localPosition) => (localPosition.Y << 2) + localPosition.Z;
-    unsafe int CreateOrModifyBrick(Vector3i brickPosition, ref readonly VoxelBrick brick)
+    public unsafe int CreateOrModifyBrick(Vector3i brickPosition, ref readonly VoxelBrick brick)
     {
         int brickIndex = GetBrickIndexDirect(brickPosition);
         if (brickIndex == -1)
@@ -341,7 +344,6 @@ public class VoxelBrickmap : VoxelMap
         }
         else
         {
-            brickIndex = G_BrickList.Add(brick);
             fixed (VoxelBrick* brickPtr = &brick)
             {
                 C_brickList[brickIndex] = brickPtr;
@@ -377,9 +379,10 @@ public class VoxelBrickmap : VoxelMap
     public int GetBrickIndexFromGPU(Vector3i position)
     {
         Vector3i brickPosition = VoxelPositionToBrickPosition(position);
-        return G_brickmap.Retrieve<int>(brickPosition.X, brickPosition.Y, brickPosition.Z, brickmapSize.X, brickmapSize.Z);
+        return G_brickmap.Retrieve<int>(brickPosition.Y, brickPosition.Z, brickPosition.X, brickmapSize.X, brickmapSize.Z);
     }
     VoxelBrick GetBrickFromGPU(int brickIndex) => G_BrickList[brickIndex];
+
 
     #endregion
 

@@ -18,6 +18,8 @@ vec3 toneMap_IDKWHAT(vec3 color, float max_white_l);
 vec3 toneMap_ExtendedReinhard(vec3 color, float whitePoint);
 vec3 denoiseLuminance(ivec2 targetTexel);
 
+vec3 fogColor = vec3(0.75, 1.3, 1.9);
+
 void main() 
 {
     
@@ -26,13 +28,18 @@ void main()
     
     vec3 lum = texelFetch(luminance, frag, 0).xyz;
     
+//    float fogIntensity = texelFetch(depth_motion, frag, 0).x;
+//    float fogShift = fogIntensity - 50;
+//    fogIntensity = fogShift < 0 ? 0 : clamp((fogShift) * 0.009, 0, 1);
+//    lum = mix(lum, fogColor, fogIntensity);
+
     vec3 toneMappedLum = toneMap_IDKWHAT(lum, 6);
     vec3 gammaCorrectedLum = vec3(pow(toneMappedLum.r, 0.4545), pow(toneMappedLum.g, 0.4545), pow(toneMappedLum.b, 0.4545));
     outColor = vec4(gammaCorrectedLum, 1);
+    
     //outColor = vec4(clamp(lum, vec3(0), vec3(1)), 1);
 
     //outColor = vec4(denoiseLuminance(frag) * texelFetch(albedo, frag, 0).xyz, 1);
-    //outColor = vec4(texelFetch(depth, frag, 0).r * 0.03, 0, 0, 1);
     //outColor = vec4(texelFetch(normal, frag, 0).r * 0.2, 0, 0, 1);
     
 }

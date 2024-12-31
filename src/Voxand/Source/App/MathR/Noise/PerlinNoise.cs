@@ -1,8 +1,10 @@
-﻿using OpenTK.Mathematics;
-using System.Diagnostics;
-using Voxand.Helpers;
-using Voxand.Helpers.ExtensionMethods;
+﻿using System.Diagnostics;
 
+using OpenTK.Mathematics;
+
+using Voxand.Helpers;
+
+namespace Voxand.App.MathR.Noise;
 public class PerlinNoise
 {
     Vector2[,] vectorGrid;
@@ -46,9 +48,6 @@ public class PerlinNoise
         float horizontal1 = Lerp(dot01, dot11, weightX);
 
         float val = Lerp(horizontal0, horizontal1, weightY);
-
-        if (val == float.NaN)
-            Debugger.Break();
 
         return val;
     }

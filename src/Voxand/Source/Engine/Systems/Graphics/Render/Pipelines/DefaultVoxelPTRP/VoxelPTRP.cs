@@ -12,6 +12,7 @@ using Voxand.Engine.Systems.Graphics.Tools.ShaderServices;
 using Voxand.Engine.Systems.Graphics.Pipelines.Modules;
 using Voxand.Engine.Systems.Graphics.Tools;
 using Voxand.Engine.Systems.Voxels;
+using Voxand.App.Map;
 
 namespace Voxand.Engine.Systems.Graphics.Pipelines.DefaultVoxelPTRP;
 
@@ -43,7 +44,7 @@ public sealed class VoxelPTRP : RenderingPipeline
             compositingModule.Output = value;
         }
     }
-    public VoxelPTRP(ContentManager content, Camera camera, VoxelMap map, RenderTarget output, Vector2i renderingResolution)
+    public VoxelPTRP(ContentManager content, Camera camera, ChunkMap map, RenderTarget output, Vector2i renderingResolution)
     {
         lifetimeResources = new(); varyingRenderDataStorage = new();
 
@@ -106,7 +107,7 @@ public sealed class VoxelPTRP : RenderingPipeline
         if (resolution.X % 8 + resolution.Y % 8 != 0)
             throw new ArgumentException($"Both dimensions of {nameof(resolution)} should be divisible by 8.");
 
-        varyingRenderDataStorage.Free();
+        varyingRenderDataStorage.Dispose();
 
         CreateVaryingRenderDataStorage(resolution);
 

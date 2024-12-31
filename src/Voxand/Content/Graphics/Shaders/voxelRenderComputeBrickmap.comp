@@ -60,9 +60,9 @@ layout(std140, binding = 3) buffer inputData
 
 uniform ivec3 mapSize;
 uniform ivec3 voxelBrickmapSize;
-uniform vec3 sunDirection = vec3(0.19, 0.51, 0.84);
+uniform vec3 sunDirection = vec3(0.31, 0.82, 0.47);
 uniform vec3 sunColor = vec3(2.8, 2.65, 2);
-uniform float sunDirectionJitter = 0.07;
+uniform float sunDirectionJitter = 0.01;
 
 uniform int samples = 1;
 
@@ -98,6 +98,7 @@ float maxVec3(vec3 vect);
 float cart2Sph_Phi(vec3 vect);
 float cart2Sph_Theta(vec3 vect);
 vec3 rodriguesRotation(vec3 v, vec3 axis, float theta);
+vec3 simpleRodriguesRotation(vec3 v, vec3 normal, float theta);
 vec3 rotateVerticalByNormal(vec3 vector, int normal);
 
 vec3 skySample(vec3 dir);
@@ -333,7 +334,7 @@ int trace(vec3 origin, vec3 dir, out vec3 hitPos, out material hitMat, out int n
         stepMask = vec3(lessThanEqual(nextIntersectionTime.xyz, min(nextIntersectionTime.yzx, nextIntersectionTime.zxy)));
 
         vec3 a = (stepMask * nextIntersectionTime);
-        depth = maxVec3(a);
+        depth = maxVec3(a) - depthBias;
 
         nextIntersectionTime += stepMask * timeToCross;
         voxelPosition += ivec3(stepMask) * gridStep;
@@ -591,12 +592,12 @@ float cart2Sph_Theta(vec3 vect)
 
 vec3 skySample(vec3 dir)
 {
-    //float theta = atan(dir.z, dir.x);
-    //float phi = asin(dir.y);
-
-    //vec2 uv = vec2(theta * INV_TWO_PI + 0.5, phi * INV_PI + 0.5);
-
-    //return texture2D(skyTex, uv).rgb;
+//    float theta = atan(dir.z, dir.x);
+//    float phi = asin(dir.y);
+//
+//    vec2 uv = vec2(theta * INV_TWO_PI + 0.5, phi * INV_PI + 0.5);
+//
+//    return texture2D(skyTex, uv).rgb;
     return vec3(0.75, 1.3, 1.9);
 }
 
@@ -611,8 +612,12 @@ vec3 rodriguesRotation(vec3 v, vec3 axis, float theta)
     float cosTheta = cos(theta);
     return v * cosTheta + cross(axis, v) * sin(theta) + axis * dot(axis, v) * (1 - cosTheta);
 }
+vec3 simpleRodriguesRotation(vec3 v, vec3 normal, float theta)
+{
+    return cos(theta) * v + sin(theta) * cross(v, normal);
+}
 
 vec3 jitterVector(vec3 v, float theta, float amount)
 {
-    return rodriguesRotation(rodriguesRotation(v, cross(v, vec3(1, 0, 0)), amount), v, theta);
+    return rodriguesRotation(simpleRodriguesRotation(v, cross(v, vec3(1, 0, 0)), amount), v, theta);
 }

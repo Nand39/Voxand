@@ -9,6 +9,7 @@ using Voxand.Helpers;
 using Voxand.UI.Components;
 using Voxand.Engine.Systems.General.Events;
 using Voxand.Helpers.ExtensionMethods;
+using Voxand.App.Map;
 
 namespace Voxand.UI;
 public static class UI_Manager
@@ -216,7 +217,7 @@ public sealed class UI_DebugWindow : UI_Window
     [ImportEvent("engine_state_events", "main_voxelMap_changed")]
     public void OnVoxelMapChanged(object newVoxelMap)
     {
-        voxelMap = newVoxelMap as VoxelMap ?? throw new ArgumentNullException(nameof(newVoxelMap));
+        voxelMap = (newVoxelMap as ChunkMap ?? throw new ArgumentNullException(nameof(newVoxelMap))).RawStructure;
     }
     protected override void Display()
     {

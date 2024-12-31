@@ -17,7 +17,7 @@ using DisposableExt;
 namespace Voxand.Engine.Systems.Graphics.Pipelines.Modules;
 public interface IVoxelPathTracingSettings
 {
-    public int Samples { get; set; }
+    int Samples { get; set; }
 }
 public sealed class VoxelPathTracingModule : RenderingPipeline, IVoxelPathTracingSettings
 {

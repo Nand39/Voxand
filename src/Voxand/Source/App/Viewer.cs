@@ -1,13 +1,15 @@
-﻿using ImGuiNET;
-using OpenTK.Mathematics;
+﻿using OpenTK.Mathematics;
 using OpenTK.Windowing.Common;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 
-using Voxand.App.VoxelEditing;
+using ImGuiNET;
+
 using Voxand.Engine.Systems.Graphics;
 using Voxand.Engine.Systems.ScriptableObjects;
 using Voxand.Engine.Systems.Voxels;
 using Voxand.Helpers;
+using Voxand.App.Map.Generation;
+using Voxand.App.VoxelEditing;
 
 namespace Voxand.App;
 public class Viewer : BaseObject
@@ -25,19 +27,59 @@ public class Viewer : BaseObject
     bool isRenderInterupted = false;
     bool wasRenderInterupted = false;
     Vector2i screenCenter;
+    int chunkLoadingDistance = 42;
+
+    public event Action? recreateMapRequest;
     public override void Initialize()
     {
         Win.Resize += (args) => screenCenter = args.Size / 2;
     }
     public override void Update(FrameEventArgs args)
     {
+        //if (Win.MouseState.ScrollDelta.Y != 0)
+        //{
+        //    mapGenCellSize += Vector2.One * Win.MouseState.ScrollDelta.Y;
+        //    Console.WriteLine("cell size = " + mapGenCellSize);
+        //}
+
+        //Task[] tasks = [];
+        //if (Win.KeyboardState.IsKeyPressed(Keys.I))
+        //{
+        //    Vector2i max = new(EngineState.VoxelMap.Dimensions.X >> 2, EngineState.VoxelMap.Dimensions.Z >> 2);
+            
+        //    Vector2i start = new Vector2i(((int)Camera.position.X >> 2) - chunkGenSpread.X / 2, ((int)Camera.position.Z >> 2) - chunkGenSpread.Y / 2);
+        //    start = Vector2i.Clamp(start, Vector2i.Zero, max);
+        //    Vector2i finish = start + chunkGenSpread;
+        //    finish = Vector2i.Clamp(finish, Vector2i.Zero, max);
+
+        //    ((BrickmapGenerator)EngineState.VoxelMap.MapGenerator).CellSize = mapGenCellSize;
+        //    Vector2i chunk = default;
+        //    tasks = new Task[(finish.X - start.X) * (finish.Y - start.Y)];
+        //    int i = 0;
+        //    for (chunk.Y = start.Y; chunk.Y < finish.Y; chunk.Y++)
+        //    {
+        //        for (chunk.X = start.X; chunk.X < finish.X; chunk.X++)
+        //        {
+        //            Console.WriteLine("starting at " + chunk);
+        //            Task chunkGenTask = StartChunkGen(chunk);
+        //            tasks[i] = chunkGenTask;
+        //            i++;
+        //        }
+        //    }
+        //    isRenderInterupted = true;
+        //}
+
         if (Win.KeyboardState.IsKeyPressed(Keys.LeftControl))
             fastMovement = !fastMovement;
 
         if (Win.KeyboardState.IsKeyPressed(Keys.L))
             lockMovement = !lockMovement;
 
-        HandleMovement((float)args.Time);
+        bool moved = HandleMovement((float)args.Time);
+        
+        if (moved)
+            HandleMapLoading();
+
         HandleCameraMouseFollow();
 
         if (isRenderInterupted)
@@ -68,9 +110,9 @@ public class Viewer : BaseObject
 
         if (Win.KeyboardState.IsKeyPressed(Keys.R))
         {
-            (uint value, uint bit, int brickIndex) = EngineState.VoxelMap.Examine((Vector3i)Camera.position, false);
+            (uint value, uint bit, int brickIndex) = ((VoxelBrickmap)EngineState.VoxelMap.RawStructure).Examine((Vector3i)Camera.position, false);
             Console.WriteLine($"! CPU SIDE: voxel data at {(Vector3i)Camera.position}: value={value}; empty={bit == 0}; brick={brickIndex}");
-            (value, bit, brickIndex) = EngineState.VoxelMap.Examine((Vector3i)Camera.position, true);
+            (value, bit, brickIndex) = ((VoxelBrickmap)EngineState.VoxelMap.RawStructure).Examine((Vector3i)Camera.position, true);
             Console.WriteLine($"* GPU SIDE: voxel data at {(Vector3i)Camera.position}: value={value}; empty={bit == 0}; brick={brickIndex}");
         }
 
@@ -92,14 +134,14 @@ public class Viewer : BaseObject
     void OnIntenseRender()
     {
         EngineState.RenderingPipeline.antiAliasingSettings.Intensity = 0.98f;
-        EngineState.RenderingPipeline.voxelPathTracingSettings.Samples = 2;
+        EngineState.RenderingPipeline.voxelPathTracingSettings.Samples = 1;
     }
     void OnFastRender()
     {
         EngineState.RenderingPipeline.antiAliasingSettings.Intensity = 0f;
         EngineState.RenderingPipeline.voxelPathTracingSettings.Samples = 1;
     }
-    void HandleMovement(float deltaTime)
+    bool HandleMovement(float deltaTime)
     {
         if (!lockMovement)
         {
@@ -141,11 +183,12 @@ public class Viewer : BaseObject
                 Camera.position += forward * movement.Z * speed;
                 Camera.position += tangent * movement.X * speed;
                 Camera.position += Vector3.UnitY * movement.Y * speed;
+                Camera.position = Vector3.Clamp(Camera.position, Vector3.Zero, new(EngineState.VoxelMap.Dimensions.X - 1, EngineState.VoxelMap.Dimensions.Y - 1, EngineState.VoxelMap.Dimensions.Z - 1));
                 isRenderInterupted = true;
+                return true;
             }
-
-            Camera.position = Vector3.Clamp(Camera.position, Vector3.Zero, new(EngineState.VoxelMap.Dimensions.X - 1, EngineState.VoxelMap.Dimensions.Y - 1, EngineState.VoxelMap.Dimensions.Z - 1));
         }
+        return false;
     }
     void HandleCameraMouseFollow()
     {
@@ -202,20 +245,40 @@ public class Viewer : BaseObject
                     uv: Win.MouseState.Position / Win.ClientSize,
                     aspectRatio: (float)Win.ClientSize.X / Win.ClientSize.Y);
 
-                DDAOut result = EngineState.VoxelMap.Raycast(Camera.position, raycastDir);
+                DDAOut result = EngineState.VoxelMap.RawStructure.Raycast(Camera.position, raycastDir);
 
                 if (result.hit)
                 {
                     if (placeVoxels)
+                    {
                         VoxelTool.PlaceSphere(
                             result.voxelHitPos + (Vector3i)Util.RotateUnitYByNormalIndex(Vector3.UnitY, result.normal), buildingRadius);
+                    }
                     else
+                    {
                         VoxelTool.RemoveSphere(result.voxelHitPos, buildingRadius);
+                    }
                 }
             }
         }
     }
+    void HandleMapLoading()
+    {
+        Vector2i camChunk = new((int)Camera.position.X >> 2, (int)Camera.position.Z >> 2);
+        Vector2i start = Vector2i.Clamp(new(camChunk.X - chunkLoadingDistance, camChunk.Y - chunkLoadingDistance), Vector2i.Zero, EngineState.VoxelMap.Dimensions.Xz / 4);
+        Vector2i finish = Vector2i.Clamp(new(camChunk.X + chunkLoadingDistance, camChunk.Y + chunkLoadingDistance), Vector2i.Zero, EngineState.VoxelMap.Dimensions.Xz / 4);
+        Vector2i chunk;
+        int chunkLoadingDistanceSquared = chunkLoadingDistance * chunkLoadingDistance;
 
+        for (chunk.Y = start.Y; chunk.Y < finish.Y; chunk.Y++)
+        {
+            for (chunk.X = start.X; chunk.X < finish.X; chunk.X++)
+            {
+                if ((chunk - camChunk).EuclideanLengthSquared <= chunkLoadingDistanceSquared)
+                EngineState.VoxelMap.StartLoadingChunkIfUnloaded(chunk);
+            }
+        }
+    }
     Vector3[] RayDistributionTest(int samples, float randSalt)
     {
         Vector3[] results = new Vector3[samples];
