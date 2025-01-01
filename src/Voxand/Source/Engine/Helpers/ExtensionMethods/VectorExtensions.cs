@@ -121,11 +121,6 @@ public static class VectorTKExtensions
     #endregion
 
     // Lacks implementation for certain types
-    #region Floor
-    public static Vector3i Floor(this Vector3 vect) => ((int)vect.X, (int)vect.Y, (int)vect.Z);
-    #endregion
-
-    // Lacks implementation for certain types
     #region Sum
     public static int Sum(this Vector3i vect) => vect.X + vect.Y + vect.Z;
     #endregion
@@ -223,6 +218,22 @@ public static class VectorTKExtensions
                vect.Y >= min.Y && vect.Y < max.Y &&
                vect.Z >= min.Z && vect.Z < max.Z;
     }
+    #endregion
+
+    #region Bitshift
+
+    #region To the right
+    public static Vector2i BitshiftRight(this Vector2i vect, int n) => new(vect.X >> n, vect.Y >> n);
+    public static Vector3i BitshiftRight(this Vector3i vect, int n) => new(vect.X >> n, vect.Y >> n, vect.Z >> n);
+    public static Vector4i BitshiftRight(this Vector4i vect, int n) => new(vect.X >> n, vect.Y >> n, vect.Z >> n, vect.W >> n);
+    #endregion
+
+    #region To the left
+    public static Vector2i BitshiftLeft(this Vector2i vect, int n) => new(vect.X << n, vect.Y << n);
+    public static Vector3i BitshiftLeft(this Vector3i vect, int n) => new(vect.X << n, vect.Y << n, vect.Z << n);
+    public static Vector4i BitshiftLeft(this Vector4i vect, int n) => new(vect.X << n, vect.Y << n, vect.Z << n, vect.W << n);
+    #endregion
+
     #endregion
 }
 public static class VecotorNumExtensions

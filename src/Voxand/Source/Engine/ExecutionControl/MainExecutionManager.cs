@@ -171,7 +171,7 @@ public sealed class MainExecutionManager : ExecutionManager,
         GL.ClearColor(0.6f, 0.3f, 0.2f, 1);
 
         engineState.MainCamera = new Camera();
-        engineState.MainCamera.position = (Vector3)numberOfChunks * 2 + new Vector3(-3, 3, 3);
+        engineState.MainCamera.position = new Vector3(numberOfChunks.X * 2, numberOfChunks.Y * 3.7f, numberOfChunks.Z * 2);
         engineState.MainCamera.FOV = 90;
         
         VoxelMaterial[] materials =

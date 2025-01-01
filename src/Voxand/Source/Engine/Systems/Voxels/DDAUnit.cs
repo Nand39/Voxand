@@ -22,10 +22,11 @@ public struct DDAOut
 public class DDAUnit()
 {
     DDAContext data = new();
-    public Vector3i voxelPos => data.voxelPosition;
-    public float lastHitDepth => data.lastDepth;
-    public Vector3 nextIntersectionTime => data.nextIntersectionTime;
-    public int lastAxis => data.lastAxis;
+    public Vector3i CurrentVoxelPos => data.voxelPosition;
+    public float LastHitDepth => data.lastDepth;
+    public Vector3 NextIntersectionTime => data.nextIntersectionTime;
+    public int LastAxis => data.lastAxis;
+    public Vector3 TimeToCross => data.timeToCross;
 
     public void Begin(Vector3 origin, Vector3 dir)
     {
@@ -51,29 +52,23 @@ public class DDAUnit()
                 ? data.nextIntersectionTime.X <= data.nextIntersectionTime.Z ? 0 : 2
                 : data.nextIntersectionTime.Y <= data.nextIntersectionTime.Z ? 1 : 2;
 
-        switch (data.lastAxis)
+        if (data.lastAxis == 0)
         {
-            case 0:
-                {
-                    data.voxelPosition.X += data.gridStep.X;
-                    data.lastDepth = data.nextIntersectionTime.X;
-                    data.nextIntersectionTime.X += data.timeToCross.X;
-                    break;
-                }
-            case 1:
-                {
-                    data.voxelPosition.Y += data.gridStep.Y;
-                    data.lastDepth = data.nextIntersectionTime.Y;
-                    data.nextIntersectionTime.Y += data.timeToCross.Y;
-                    break;
-                }
-            case 2:
-                {
-                    data.voxelPosition.Z += data.gridStep.Z;
-                    data.lastDepth = data.nextIntersectionTime.Z;
-                    data.nextIntersectionTime.Z += data.timeToCross.Z;
-                    break;
-                }
+            data.voxelPosition.X += data.gridStep.X;
+            data.lastDepth = data.nextIntersectionTime.X;
+            data.nextIntersectionTime.X += data.timeToCross.X;
+        }
+        else if(data.lastAxis == 1)
+        {
+            data.voxelPosition.Y += data.gridStep.Y;
+            data.lastDepth = data.nextIntersectionTime.Y;
+            data.nextIntersectionTime.Y += data.timeToCross.Y;
+        }
+        else
+        {
+            data.voxelPosition.Z += data.gridStep.Z;
+            data.lastDepth = data.nextIntersectionTime.Z;
+            data.nextIntersectionTime.Z += data.timeToCross.Z;
         }
     }
 }

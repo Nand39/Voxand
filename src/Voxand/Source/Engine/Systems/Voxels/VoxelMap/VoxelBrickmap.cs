@@ -6,12 +6,10 @@ using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 
 using GLAV.Types;
+using GLAV.Systems;
 using DisposableExt;
 
-using Voxand.Engine;
-using Voxand.Engine.Systems.Graphics;
 using Voxand.Engine.Systems.Structures;
-using Voxand.Helpers;
 using Voxand.Helpers.ExtensionMethods;
 
 using Buffer = GLAV.Types.Buffer;
@@ -57,16 +55,8 @@ public class VoxelBrickmap : VoxelMap, ISinglePlaceable
         }
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         int GetVoxelPackIndex(Vector3i localPosition) => (localPosition.Y << 2) + localPosition.Z;
-        public uint GetVoxelBit(Vector3i localPosition)
-        {
-            int bitmaskIndex = 0;
-            if (localPosition.Y > 1)
-            {
-                localPosition.Y -= 2;
-                bitmaskIndex++;
-            }
-            return bitmask[bitmaskIndex] & CreateVoxelMask(localPosition);
-        }
+        public ulong GetVoxelBit(Vector3i localPosition) => GetVoxelBitmask() & CreateVoxelMask(localPosition);
+        public ulong GetVoxelBitmask() => (ulong)bitmask[0] | (((ulong)bitmask[1]) << 32);
         public uint SetVoxelBit(Vector3i localPosition, bool solid)
         {
             int bitmaskIndex = 0;
@@ -85,7 +75,7 @@ public class VoxelBrickmap : VoxelMap, ISinglePlaceable
             bitmask[bitmaskIndex] = bitmask[bitmaskIndex] & (~mask);
             return bitmask[bitmaskIndex];
         }
-        uint CreateVoxelMask(Vector3i localPos) => 1u << ((localPos.Y << 4) + (localPos.Z << 2) + localPos.X);
+        public static ulong CreateVoxelMask(Vector3i localPos) => (ulong)1 << ((localPos.Y << 4) + (localPos.Z << 2) + localPos.X);
     }
 
     public VoxelBrickmap(Vector3i dimensions, IVoxelMapPersistence persistenceModule) : base(dimensions, persistenceModule)
@@ -181,13 +171,13 @@ public class VoxelBrickmap : VoxelMap, ISinglePlaceable
     public void PlaceSingle(Vector3i position, int value) => SetVoxelValueAndBit(position, (uint)value, true);
     public void RemoveSingle(Vector3i position) => SetVoxelValueAndBit(position, 0, false);
 
-    public (uint voxelValue, uint voxelBit, int brickIndex) Examine(Vector3i position, bool fromGPU)
+    public (uint voxelValue, ulong voxelBit, int brickIndex) Examine(Vector3i position, bool fromGPU)
     {
         VoxelBrick brick;
         Vector3i localPosition = VoxelPositionToLocalPosition(position);
         int brickIndex;
         uint voxelValue;
-        uint voxelBit;
+        ulong voxelBit;
 
         if (!fromGPU)
         {
@@ -212,103 +202,217 @@ public class VoxelBrickmap : VoxelMap, ISinglePlaceable
     }
 
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-    public override DDAOut Raycast(Vector3 origin, Vector3 dir)
+    public override unsafe DDAOut Raycast(Vector3 origin, Vector3 dir)
     {
-        int brickIndex;
-        DDABrick.Begin(origin / 4, dir);
-        brickIndex = GetBrickIndexDirect(DDABrick.voxelPos);
-        if (brickIndex >= 0)
-        {
+        Vector3i originVoxel = (Vector3i)origin;
+        Vector3i brickPosition = originVoxel.BitshiftRight(2);
+        DDAUnit dda = new();
+        ulong bitmask;
+        Vector3 entrance;
+        BrickTraversalResult traversalResult;
+        Vector3 brickSpaceOrigin = origin / 4;
+        Vector3i brickOffset = VoxelPositionToBrickPosition(originVoxel).BitshiftLeft(2);
 
-            if (!IsSolid(VoxelPositionToLocalPosition((Vector3i)origin), brickIndex))
+        dda.Begin(brickSpaceOrigin, dir, brickPosition);
+
+        // Origin brick
+        int brickIndex = GetBrickIndexDirect(dda.CurrentVoxelPos);
+        if (brickIndex != -1)
+        {
+            bitmask = C_brickList[brickIndex]->GetVoxelBitmask();
+            
+            entrance = origin - brickOffset;
+            traversalResult = TraverseBrick(bitmask, dir, VoxelPositionToLocalPosition(originVoxel), entrance, dda.TimeToCross);
+
+            if (traversalResult.escaped == false)
             {
-                return new()
+                Console.WriteLine("hit at " + (traversalResult.lastVoxelPosition + brickOffset));
+
+                if (traversalResult.lastAxis == -1)
+                    throw new InvalidOperationException("Cannot raycast from within the voxel.");
+
+                int normal = NormalIndex(dir, traversalResult.lastAxis);
+
+                float localDistance = MathF.Abs((dir[traversalResult.lastAxis] > 0 ? traversalResult.lastVoxelPosition[traversalResult.lastAxis] : traversalResult.lastVoxelPosition[traversalResult.lastAxis] + 1) - entrance[traversalResult.lastAxis]) * dda.TimeToCross[traversalResult.lastAxis];
+                return new DDAOut()
                 {
                     hit = true,
-                    hitPos = origin,
-                    voxelHitPos = (Vector3i)origin,
-                    normal = 0 // Normal is undefined here
+                    hitPos = dir * (localDistance) + origin,
+                    normal = normal,
+                    voxelHitPos = traversalResult.lastVoxelPosition + brickOffset
                 };
             }
-
-            DDAVoxel.Begin(origin, dir);
-
-            float escapeTime = DDABrick.nextIntersectionTime.Min() * 4;
-            Vector3 escape = escapeTime * dir + origin;
-            int totalSteps = ((Vector3i)escape - (Vector3i)origin).AsAbs().Sum();
-
-            for (int i = 0; i < totalSteps; i++)
-            {
-                DDAVoxel.Step();
-                Vector3i voxPos = DDAVoxel.voxelPos;
-
-                if (!IsSolid(VoxelPositionToLocalPosition(voxPos), brickIndex))
-                {
-                    return new()
-                    {
-                        hit = true,
-                        hitPos = dir * (DDAVoxel.lastHitDepth + DDABrick.lastHitDepth) + origin,
-                        voxelHitPos = voxPos,
-                        normal = NormalIndex(dir, DDAVoxel.lastAxis)
-                    };
-                }
-            }
         }
+
+        dda.Step();
+        brickOffset = dda.CurrentVoxelPos.BitshiftLeft(2);
 
         while (true)
         {
-            DDABrick.Step();
-            Vector3i pos = DDABrick.voxelPos;
-            if (!pos.Inbounds(Vector3i.Zero, brickmapSize))
+            brickIndex = GetBrickIndexDirect(dda.CurrentVoxelPos);
+            if (brickIndex != -1)
             {
-                return new() { hit = false };
-            }
+                bitmask = C_brickList[brickIndex]->GetVoxelBitmask();
+                entrance = dda.LastHitDepth * dir + brickSpaceOrigin;
 
-            brickIndex = GetBrickIndexDirect(pos);
-            if (brickIndex >= 0)
-            {
-                Vector3 enterance = dir * (DDABrick.lastHitDepth * 4) + origin;
-                Vector3 enteranceVoxel = enterance;
-                enteranceVoxel[DDABrick.lastAxis] += dir[DDABrick.lastAxis] > 0 ? 0.5f : -0.5f;
+                // For statistics/debug
+                float error = (entrance[dda.LastAxis] - MathF.Floor(entrance[dda.LastAxis]));
+                if (error != 0)
+                    Console.WriteLine("imprecision: " + error);
 
-                if (!IsSolid(VoxelPositionToLocalPosition((Vector3i)enteranceVoxel), brickIndex))
+
+                entrance -= (Vector3i)entrance;
+                entrance[dda.LastAxis] = dir[dda.LastAxis] > 0 ? 0 : 1;
+                entrance *= 4;
+                Vector3i entranceVoxel = (Vector3i)entrance;
+                entranceVoxel[dda.LastAxis] = dir[dda.LastAxis] > 0 ? 0 : 3;
+
+                traversalResult = TraverseBrick(bitmask, dir, entranceVoxel, entrance, dda.TimeToCross);
+
+                if (traversalResult.escaped == false)
                 {
-                    return new()
+                    traversalResult.lastAxis = traversalResult.lastAxis == -1 ? dda.LastAxis : traversalResult.lastAxis;
+
+                    int normal = NormalIndex(dir, traversalResult.lastAxis);
+
+                    float localDistance = MathF.Abs((dir[traversalResult.lastAxis] > 0 ? traversalResult.lastVoxelPosition[traversalResult.lastAxis] : traversalResult.lastVoxelPosition[traversalResult.lastAxis] + 1) - entrance[traversalResult.lastAxis]) * dda.TimeToCross[traversalResult.lastAxis];
+                    return new DDAOut()
                     {
                         hit = true,
-                        hitPos = enterance,
-                        voxelHitPos = (Vector3i)enteranceVoxel,
-                        normal = NormalIndex(dir, DDABrick.lastAxis)
+                        hitPos = (dir * (localDistance) + entrance) + brickOffset,
+                        normal = normal,
+                        voxelHitPos = traversalResult.lastVoxelPosition + brickOffset
                     };
                 }
+            }
+            dda.Step();
+            brickOffset = dda.CurrentVoxelPos.BitshiftLeft(2);
 
-                DDAVoxel.Begin(enterance, dir, (Vector3i)enteranceVoxel);
-
-                float escapeTime = DDABrick.nextIntersectionTime.Min() * 4;
-                Vector3 escape = escapeTime * dir + origin;
-                int nextAxis = DDABrick.nextIntersectionTime.IndexOfMin();
-                escape[nextAxis] += dir[nextAxis] > 0 ? -0.5f : 0.5f;
-                enteranceVoxel[DDABrick.lastAxis] += dir[DDABrick.lastAxis] > 0 ? 0.5f : -0.5f;
-                int totalSteps = ((Vector3i)escape - (Vector3i)enterance).AsAbs().Sum();
-
-                for (int i = 0; i < totalSteps; i++)
+            if (!dda.CurrentVoxelPos.Inbounds(Vector3i.Zero, brickmapSize))
+            {
+                return new DDAOut()
                 {
-                    DDAVoxel.Step();
-                    Vector3i voxPos = DDAVoxel.voxelPos;
-
-                    if (!IsSolid(VoxelPositionToLocalPosition(voxPos), brickIndex))
-                    {
-                        return new()
-                        {
-                            hit = true,
-                            hitPos = dir * (DDAVoxel.lastHitDepth + DDABrick.lastHitDepth) + origin,
-                            voxelHitPos = voxPos,
-                            normal = NormalIndex(dir, DDAVoxel.lastAxis)
-                        };
-                    }
-                }
+                    hit = false,
+                };
             }
         }
+    }
+
+    struct BrickTraversalResult
+    {
+        public bool escaped;
+        public int lastAxis;
+        public Vector3i lastVoxelPosition;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    BrickTraversalResult TraverseBrick(ulong bitmask, Vector3 dir, Vector3i voxelPosition, Vector3 startingPosition, Vector3 timeToCross)
+    {
+        Vector3 nextIntersectionTime = new(
+        dir.X < 0 ? startingPosition.X - voxelPosition.X : voxelPosition.X + 1 - startingPosition.X,
+        dir.Y < 0 ? startingPosition.Y - voxelPosition.Y : voxelPosition.Y + 1 - startingPosition.Y,
+        dir.Z < 0 ? startingPosition.Z - voxelPosition.Z : voxelPosition.Z + 1 - startingPosition.Z);
+        nextIntersectionTime *= timeToCross;
+
+
+        ulong voxelBit = VoxelBrick.CreateVoxelMask(voxelPosition);
+
+        if ((bitmask & voxelBit) > 0)
+        {
+            return new BrickTraversalResult()
+            {
+                escaped = false,
+                lastAxis = -1,
+                lastVoxelPosition = voxelPosition,
+            };
+        }
+
+        int axisToStep;
+
+        while (true)
+        {
+            axisToStep = nextIntersectionTime.X <= nextIntersectionTime.Y ?
+            (nextIntersectionTime.X <= nextIntersectionTime.Z ? 0 : 2) :
+            (nextIntersectionTime.Y <= nextIntersectionTime.Z ? 1 : 2);
+
+            if (axisToStep == 0)
+            {
+                if (dir.X > 0)
+                {
+                    if (voxelPosition.X == 3)
+                        break;
+
+                    voxelBit <<= 1;
+                    voxelPosition.X++;
+                }
+                else
+                {
+                    if (voxelPosition.X == 0)
+                        break;
+
+                    voxelBit >>= 1;
+                    voxelPosition.X--;
+                }
+                nextIntersectionTime.X += timeToCross.X;
+            }
+            else if (axisToStep == 2)
+            {
+                if (dir.Z > 0)
+                {
+                    if (voxelPosition.Z == 3)
+                        break;
+
+                    voxelBit <<= 4;
+                    voxelPosition.Z++;
+                }
+                else
+                {
+                    if (voxelPosition.Z == 0)
+                        break;
+
+                    voxelBit >>= 4;
+                    voxelPosition.Z--;
+                }
+                nextIntersectionTime.Z += timeToCross.Z;
+            }
+            else
+            {
+                if (dir.Y > 0)
+                {
+                    if (voxelPosition.Y == 3)
+                        break;
+
+                    voxelBit <<= 16;
+                    voxelPosition.Y++;
+                }
+                else
+                {
+                    if (voxelPosition.Y == 0)
+                        break;
+
+                    voxelBit >>= 16;
+                    voxelPosition.Y--;
+                }
+                nextIntersectionTime.Y += timeToCross.Y;
+            }
+
+            if ((bitmask & voxelBit) > 0)
+            {
+                return new BrickTraversalResult()
+                {
+                    escaped = false,
+                    lastAxis = axisToStep,
+                    lastVoxelPosition = voxelPosition,
+                };
+            }
+        }
+
+        return new BrickTraversalResult()
+        {
+            escaped = true,
+            lastAxis = axisToStep,
+            lastVoxelPosition = voxelPosition,
+        };
     }
     int NormalIndex(Vector3 dir, int lastAxis) => dir[lastAxis] > 0 ? lastAxis << 1 : (lastAxis << 1) + 1;
     public override long GetMemoryUsage()
