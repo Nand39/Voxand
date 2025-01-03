@@ -40,6 +40,19 @@ public static class Util
         return megabytes + fraction;
     }
 
+    public static Vector3i VectorFromNormalIndex(int normalIndex)
+    {
+        switch (normalIndex)
+        {
+            default: return default;
+            case 0: return new(-1, 0, 0);
+            case 1: return new(1, 0, 0);
+            case 2: return new(0, -1, 0);
+            case 3: return new(0, 1, 0);
+            case 4: return new(0, 0, -1);
+            case 5: return new(0, 0, 1);
+        }
+    }
     public static Vector3 RotateUnitYByNormalIndex(Vector3 vect, int normalIndex)
     {
         switch (normalIndex)
@@ -47,7 +60,7 @@ public static class Util
             default: return default;
             case 0: return new(-vect.Y, vect.X, vect.Z);
             case 1: return new(vect.Y, -vect.X, vect.Z);
-            case 2: return new(-vect.X, -vect.Y, vect.Z);
+            case 2: return -vect;
             case 3: return vect;
             case 4: return new(vect.X, vect.Z, -vect.Y);
             case 5: return new(vect.X, -vect.Z, vect.Y);

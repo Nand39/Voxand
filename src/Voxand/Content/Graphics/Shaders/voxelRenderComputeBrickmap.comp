@@ -29,9 +29,8 @@ struct material
 
 struct voxelBrick
 {
-    uint bitmask1;
-    uint bitmask2;
-    uint[16] packs;
+    uint bitmask[2];
+    uint packs[16];
 };
 
 layout(std430, binding = 0) buffer brickListSSBO
@@ -65,6 +64,7 @@ uniform vec3 sunColor = vec3(2.8, 2.65, 2);
 uniform float sunDirectionJitter = 0.01;
 
 uniform int samples = 1;
+float invSamples = 1.0 / samples;
 
 
 // Global vars
@@ -73,16 +73,17 @@ const float PI = 3.141592;
 const float TWO_PI = 6.283185;
 const float INV_PI = 1 / PI;
 const float INV_TWO_PI = 1 / TWO_PI;
-
 const int intMaxValue = 2147483647;
 
-float invSamples = 1.0 / samples;
-float jitterArc = TWO_PI / samples;
+
+vec2 uv;
 vec2 fragPosition;
+float jitterArc = TWO_PI / samples;
+float arcDisplacement;
 
 float randSaltLocal;
 
-const float depthBias = -0.002;
+const float depthBias = -0.001;
 const int brickSizeInUINTS = 18;
 
 
@@ -90,28 +91,34 @@ const int brickSizeInUINTS = 18;
 
 void executePathTracing(vec3 origin, vec3 dir, out vec3 luminance, out float depth, out int normal);
 
-int trace        (vec3 origin, vec3 dir, out vec3 hitPos, out material hitMat, out int normal, out float depth);
-int traceLast    (vec3 origin, vec3 dir, out material hitMat);
+int trace(vec3 origin, vec3 dir, out vec3 hitPos, out material hitMat, out int normal, out float depth);
+int traceLast(vec3 origin, vec3 dir, out material hitMat);
+
+int traceNew(vec3 origin, vec3 dir, out vec3 hitPosition, out ivec3 voxelHitPosition, out int normal);
+bool traverseBrick(uint bitmask0, uint bitmask1, vec3 startingPosition, ivec3 voxelPosition, vec3 dir, vec3 timeToCross, uint brickIndex, out ivec3 hitVoxel, out int lastAxis);
 
 float minVec3(vec3 vect);
 float maxVec3(vec3 vect);
-float cart2Sph_Phi(vec3 vect);
-float cart2Sph_Theta(vec3 vect);
+vec3 sph2Cart(float phi, float theta);
+
 vec3 rodriguesRotation(vec3 v, vec3 axis, float theta);
 vec3 simpleRodriguesRotation(vec3 v, vec3 normal, float theta);
 vec3 rotateVerticalByNormal(vec3 vector, int normal);
+int normalIndexFromDir(vec3 dir, int axis);
 
 vec3 skySample(vec3 dir);
 vec3 sunSample(vec3 pos, vec3 dir);
 
-vec3 scatter(vec3 normal, int sampleIndex);
-vec3 randomVector(vec3 key, int sampleIndex);
+vec3 getDiffuseReflectionDir(int normal, int sampleIndex);
+vec3 randomVector(vec2 key, int sampleIndex);
 float random (vec2 point);
 vec3 jitterVector(vec3 v, float theta, float amount);
+vec3 vecNormal(int normal);
 
 uint getBrickIndex(ivec3 voxelPosition); 
+uint getBrickIndexDirect(ivec3 brickPosition);
 uint getVoxelValue(ivec3 voxelPosition);
-uint getVoxelValueAndBit(ivec3 voxelPosition, out uint voxelBit);
+uint getVoxelBit(uint bitmask0, uint bitmask1, uint voxelIndex);
 
 bool indicate = false;
 vec3 indicationColor;
@@ -119,10 +126,12 @@ vec3 indicationColor;
 void main() 
 {
     ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
-    vec2 uv = vec2(texelCoord) / imageSize(luminanceTexture);
+    uv = vec2(texelCoord) / imageSize(luminanceTexture);
     fragPosition = uv * 2 - 1;
 
     randSaltLocal = randSalt;
+    arcDisplacement = random(uv * (randSalt - 1));
+    invSamples = 1.0 / samples;
 
     vec4 farFrag = vec4(fragPosition, 1, 1);
     vec4 far = invCameraMatrix * farFrag;
@@ -140,311 +149,20 @@ void main()
     imageStore(normalTexture, texelCoord, ivec4(normal, 0, 0, 0));
 }
 
-int traceLast(vec3 origin, vec3 dir, out material hitMat)
-{
-    
-    //initialization
-
-    ivec3 voxelPosition = ivec3(origin);
-    vec3 nextIntersectionTime;
-    vec3 timeToCross = abs(1.0 / dir);
-    ivec3 gridStep;
-    uint voxelValue;
-    float timeToClosestVoxel = float(getVoxelValue(voxelPosition));
-    int steps;
-    uint voxelBit = 0;
-
-    vec3 timeToEscape;
-
-    if (dir.x < 0)
-    {
-        gridStep.x = -1;
-        nextIntersectionTime.x = timeToCross.x * (origin.x - voxelPosition.x);
-        timeToEscape.x = nextIntersectionTime.x + voxelPosition.x * timeToCross.x;
-    }
-    else if (dir.x > 0)
-    {
-        gridStep.x = 1;
-        nextIntersectionTime.x = timeToCross.x * (voxelPosition.x + 1 - origin.x);
-        timeToEscape.x = nextIntersectionTime.x + (mapSize.x - voxelPosition.x) * timeToCross.x;
-    }
-    else
-    {
-        gridStep.x = 0;
-        timeToEscape.x = 3.402823466e+38;
-    }
-
-    if (dir.y < 0)
-    {
-        gridStep.y = -1;
-        nextIntersectionTime.y = timeToCross.y * (origin.y - voxelPosition.y);
-        timeToEscape.y = nextIntersectionTime.y + voxelPosition.y * timeToCross.y;
-    }
-    else if (dir.y > 0)
-    {
-        gridStep.y = 1;
-        nextIntersectionTime.y = timeToCross.y * (voxelPosition.y + 1 - origin.y);
-        timeToEscape.y = nextIntersectionTime.y + (mapSize.y - voxelPosition.y) * timeToCross.y;
-    }
-    else
-    {
-        gridStep.y = 0;
-        timeToEscape.y = 3.402823466e+38;
-    }
-
-    if (dir.z < 0)
-    {
-        gridStep.z = -1;
-        nextIntersectionTime.z = timeToCross.z * (origin.z - voxelPosition.z);
-        timeToEscape.z = nextIntersectionTime.z + voxelPosition.z * timeToCross.z;
-    }
-    else if (dir.z > 0)
-    {
-        gridStep.z = 1;
-        nextIntersectionTime.z = timeToCross.z * (voxelPosition.z + 1 - origin.z);
-        timeToEscape.z = nextIntersectionTime.z + (mapSize.z - voxelPosition.z) * timeToCross.z;
-    }
-    else
-    {
-        gridStep.z = 0;
-        timeToEscape.z = 3.402823466e+38;
-    }
-
-    float maxDepth = minVec3(timeToEscape) + depthBias;
-    float depth;
-
-    //traversal
-
-    bool escaped = true;
-    vec3 stepMask;
-    do
-	{
-        stepMask = vec3(lessThanEqual(nextIntersectionTime.xyz, min(nextIntersectionTime.yzx, nextIntersectionTime.zxy)));
-
-        vec3 a = (stepMask * nextIntersectionTime);
-        depth = maxVec3(a);
-
-        nextIntersectionTime += stepMask * timeToCross;
-        voxelPosition += ivec3(stepMask) * gridStep;
-
-        if (depth > maxDepth) break;
-		
-        voxelValue = getVoxelValueAndBit(voxelPosition, voxelBit);
-
-        if (voxelBit == 0)
-        {
-            timeToClosestVoxel = voxelValue;
-        }
-        else 
-        { 
-            escaped = false;
-            break; 
-        }
-
-	} while (true);
-    
-    if (escaped) return 1;
-
-    hitMat = materialPalette[voxelValue];
-    return 0;
-}
-
-int trace(vec3 origin, vec3 dir, out vec3 hitPos, out material hitMat, out int normal, out float depth)
-{
-    // Initialization
-
-    ivec3 voxelPosition = ivec3(origin);
-    vec3 nextIntersectionTime;
-    vec3 timeToCross = abs(1.0 / dir);
-    ivec3 gridStep;
-    uint voxelValue;
-    int side = 0;
-    float timeToClosestVoxel = getVoxelValue(voxelPosition);
-    uint voxelBit = 0;
-    int steps;
-
-    int InfoInteger = 0;
-
-    vec3 timeToEscape;
-
-    if (dir.x < 0)
-    {
-        gridStep.x = -1;
-        nextIntersectionTime.x = timeToCross.x * (origin.x - voxelPosition.x);
-        timeToEscape.x = nextIntersectionTime.x + voxelPosition.x * timeToCross.x;
-    }
-    else if (dir.x > 0)
-    {
-        gridStep.x = 1;
-        nextIntersectionTime.x = timeToCross.x * (voxelPosition.x + 1 - origin.x);
-        timeToEscape.x = nextIntersectionTime.x + (mapSize.x - voxelPosition.x - 1) * timeToCross.x;
-    }
-    else
-    {
-        gridStep.x = 0;
-        timeToEscape.x = 3.402823466e+38;
-    }
-
-    if (dir.y < 0)
-    {
-        gridStep.y = -1;
-        nextIntersectionTime.y = timeToCross.y * (origin.y - voxelPosition.y);
-        timeToEscape.y = nextIntersectionTime.y + voxelPosition.y * timeToCross.y;
-    }
-    else if (dir.y > 0)
-    {
-        gridStep.y = 1;
-        nextIntersectionTime.y = timeToCross.y * (voxelPosition.y + 1 - origin.y);
-        timeToEscape.y = nextIntersectionTime.y + (mapSize.y - voxelPosition.y - 1) * timeToCross.y;
-    }
-    else
-    {
-        gridStep.y = 0;
-        timeToEscape.y = 3.402823466e+38;
-    }
-
-    if (dir.z < 0)
-    {
-        gridStep.z = -1;
-        nextIntersectionTime.z = timeToCross.z * (origin.z - voxelPosition.z);
-        timeToEscape.z = nextIntersectionTime.z + voxelPosition.z * timeToCross.z;
-    }
-    else if (dir.z > 0)
-    {
-        gridStep.z = 1;
-        nextIntersectionTime.z = timeToCross.z * (voxelPosition.z + 1 - origin.z);
-        timeToEscape.z = nextIntersectionTime.z + (mapSize.z - voxelPosition.z - 1) * timeToCross.z;
-    }
-    else
-    {
-        gridStep.z = 0;
-        timeToEscape.z = 3.402823466e+38;
-    }
-
-    float maxDepth = minVec3(timeToEscape) + depthBias;
-
-    int i = 0;
-
-    // Traversal
-
-    bool escaped = true;
-    vec3 stepMask;
-    do
-	{
-        stepMask = vec3(lessThanEqual(nextIntersectionTime.xyz, min(nextIntersectionTime.yzx, nextIntersectionTime.zxy)));
-
-        vec3 a = (stepMask * nextIntersectionTime);
-        depth = maxVec3(a) - depthBias;
-
-        nextIntersectionTime += stepMask * timeToCross;
-        voxelPosition += ivec3(stepMask) * gridStep;
-
-        i++;
-
-        if (depth > maxDepth) break;
-		
-        voxelValue = getVoxelValueAndBit(voxelPosition, voxelBit);
-
-        if (voxelBit == 0)
-        {
-            timeToClosestVoxel = voxelValue;
-        }
-        else 
-        {
-            escaped = false;
-            break;
-        }
-        
-	} while (true);
-
-    if (escaped) return 1;
-
-    depth += depthBias;
-    hitPos = origin + dir * depth;
-    hitMat = materialPalette[voxelValue];
-    if (stepMask.y > 0)
-    {
-        if (gridStep.y == -1)
-        {
-            side = 0;
-        }
-        else 
-        {
-            side = 1;
-        }
-    }
-    else if (stepMask.x > 0)
-    {
-        if (gridStep.x == 1)
-        {
-            side = 2;
-        }
-        else 
-        {
-            side = 3;
-        }
-    }
-    else if (stepMask.z > 0)
-    {
-        if (gridStep.z == 1)
-        {
-            side = 4;
-        }
-        else 
-        {
-            side = 5;
-        }
-    }
-    normal = side;
-    return 0;
-}
-
-vec3 scatter(int normal, int sampleIndex)
-{
-    vec2 randomSampler = fragPosition.xy * sampleIndex * 68.8;
-    float key1 = random(randomSampler); 
-    float key2 = random((randomSampler * key1));
-    float key3 = random(vec2(key1 * -12.3, key2 + 34));
-    return rotateVerticalByNormal(randomVector(vec3(key1, key2, key3), sampleIndex), normal);
-}
-
-vec3 rotateVerticalByNormal(vec3 vector, int normal)
-{
-    switch (normal)
-    {
-        case 0: return vector;
-        case 1: return vec3(vector.x, -vector.y, vector.z);
-        case 2: return vec3(-vector.y, vector.x, vector.z);
-        case 3: return vec3(vector.y, -vector.x, vector.z);
-        case 4: return vec3(vector.x, vector.z, -vector.y);
-        case 5: return vec3(vector.x, -vector.z, vector.y);
-    }
-    return vector;
-}
-
-vec3 vecNormal(int normal)
-{
-    switch (normal)
-    {
-        case 0: return vec3(0, 1, 0);
-        case 1: return vec3(0, -1, 0);
-        case 2: return vec3(-1, 0, 0);
-        case 3: return vec3(1, 0, 0);
-        case 4: return vec3(0, 0, -1);
-        case 5: return vec3(0, 0, 1);
-    }
-    return vec3(0, 1, 0);
-}
 
 void executePathTracing(vec3 origin, vec3 dir, out vec3 luminance, out float depth, out int normal)
 {
     vec3 firstHitPos;
+    ivec3 firstHitVoxel;
     material firstHitMat;
-
     material secondHitMat;
-    int secondHitResult;
+    vec3 firstHitNormal;
 
-    int firstHitResult = trace(origin, dir, firstHitPos, firstHitMat, normal, depth);
+    int firstHitResult = traceNew(origin, dir, firstHitPos, firstHitVoxel, normal);
+    firstHitPos += dir * depthBias;
+    firstHitMat = materialPalette[getVoxelValue(firstHitVoxel)];
+    firstHitNormal = vecNormal(normal);
+    int secondHitResult;
 
     if (firstHitResult == 1)
     {
@@ -452,41 +170,37 @@ void executePathTracing(vec3 origin, vec3 dir, out vec3 luminance, out float dep
         luminance = skySample(dir);
         return;
     }
-    if (firstHitResult == 2)
-    {
-        luminance = vec3(1, 0, 0);
-        return;
-    }
 
+    vec3 directLighting = firstHitMat.emission;
     vec3 indirectContribution = vec3(0);
-
-    vec3 fl_hpos; int fl_n; float fl_d;
-    int exposedToSun;
 
     int i = 1;
     while(i <= samples)
     {
         vec3 secondHitPos;
-        int secondNormal;
-        float secondDepth;
+        ivec3 secondHitVoxel;
+        int secondHitNormalInt;
 
-        vec3 scatteredDir = scatter(normal, i);
-        secondHitResult = trace(firstHitPos, scatteredDir, secondHitPos, secondHitMat, secondNormal, secondDepth);
+        vec3 scatteredDir;
+        scatteredDir = getDiffuseReflectionDir(normal, i);
         
+        secondHitResult = traceNew(firstHitPos, scatteredDir, secondHitPos, secondHitVoxel, secondHitNormalInt);
+        secondHitMat = materialPalette[getVoxelValue(secondHitVoxel)];
+
         if (secondHitResult == 0)
         {
-            float incomingCosineWeight = dot(vecNormal(normal), scatteredDir);
+            float incomingCosineWeight = clamp(dot(firstHitNormal, scatteredDir), 0, 1);
             indirectContribution += secondHitMat.emission * incomingCosineWeight;
 
-            float key1 = random(fragPosition.xy * 78.12 * i) * TWO_PI;
-            float key2 = random(vec2(key1 * 32.2, key1 * 51.1)) * sunDirectionJitter;
-            indirectContribution += sunSample(secondHitPos, jitterVector(sunDirection, key1, key2)) * secondHitMat.color * clamp(dot(vecNormal(secondNormal), sunDirection), 0, 1) * incomingCosineWeight;
+            float key1 = random(fragPosition.xy * invSamples * i) * TWO_PI;
+            float key2 = random(vec2(key1 * 1.23, key1 * 0.914)) * sunDirectionJitter;
+            indirectContribution += sunSample(secondHitPos, jitterVector(sunDirection, key1, key2)) * secondHitMat.color * clamp(dot(vecNormal(secondHitNormalInt), sunDirection), 0, 1) * incomingCosineWeight;
             i++;
             continue;
         }
         if (secondHitResult == 1)
         {
-            indirectContribution += skySample(scatteredDir) * dot(vecNormal(normal), scatteredDir);
+            indirectContribution += skySample(scatteredDir) * clamp(dot(firstHitNormal, scatteredDir), 0, 1);
             i++;
             continue;
         }
@@ -495,47 +209,195 @@ void executePathTracing(vec3 origin, vec3 dir, out vec3 luminance, out float dep
 
     float key1 = random(fragPosition.xy * 92.92) * TWO_PI;
     float key2 = random(vec2(key1 * 32.2, key1 * 51.1)) * sunDirectionJitter;
-    indirectContribution += sunSample(firstHitPos, jitterVector(sunDirection, key1, key2)) * clamp(dot(vecNormal(normal), sunDirection), 0, 1);
+    directLighting += sunSample(firstHitPos, jitterVector(sunDirection, key1, key2)) * clamp(dot(firstHitNormal, sunDirection), 0, 1);
 
-    luminance = firstHitMat.emission + indirectContribution * invSamples * firstHitMat.color;
-    return;
+    luminance = (directLighting + indirectContribution * invSamples) * firstHitMat.color;
 }
 
-uint getVoxelValueAndBit(ivec3 voxelPosition, out uint voxelBit) 
+int traceNew(vec3 origin, vec3 dir, out vec3 hitPosition, out ivec3 voxelHitPosition, out int normal)
 {
-    ivec3 brickIndexPosition = ivec3(voxelPosition.x >> 2, voxelPosition.y >> 2, voxelPosition.z >> 2);
-    int brickIndex = brickIndices[brickIndexPosition.y * voxelBrickmapSize.z * voxelBrickmapSize.x + 
-                                  brickIndexPosition.z * voxelBrickmapSize.x +
-                                  brickIndexPosition.x];
-    if (brickIndex == -1) 
+    ivec3 originVoxel = ivec3(origin);
+    ivec3 brickPosition = originVoxel >> 2;
+    vec3 brickSpaceOrigin = origin / 4;
+    uint brickIndex = getBrickIndexDirect(brickPosition);
+    ivec3 brickOffset = originVoxel & (~3);
+    vec3 entrance;
+    vec3 timeToCross = 1 / abs(dir);
+    ivec3 hitVoxel;
+    int lastAxis;
+    int lastWideAxis;
+    float lastWideDepth = 0;
+
+    ivec3 gridStep = ivec3(dir.x > 0 ? 1 : -1, dir.y > 0 ? 1 : -1, dir.z > 0 ? 1 : -1);
+    vec3 nextBrickIntersectionTime = vec3(
+            dir.x < 0 ? brickSpaceOrigin.x - brickPosition.x : brickPosition.x + 1 - brickSpaceOrigin.x,
+            dir.y < 0 ? brickSpaceOrigin.y - brickPosition.y : brickPosition.y + 1 - brickSpaceOrigin.y,
+            dir.z < 0 ? brickSpaceOrigin.z - brickPosition.z : brickPosition.z + 1 - brickSpaceOrigin.z);
+    nextBrickIntersectionTime *= timeToCross;
+
+    if (brickIndex != 0)
     {
-        voxelBit = 0;
-        return 0;
+        uint bitmask0 = brickList[brickIndex * brickSizeInUINTS];
+        uint bitmask1 = brickList[brickIndex * brickSizeInUINTS + 1];
+        entrance = origin - brickOffset;
+
+        bool hit = traverseBrick(bitmask0, bitmask1, entrance, originVoxel & 3, dir, timeToCross, brickIndex, hitVoxel, lastAxis);
+        if (hit)
+        {
+            if (lastAxis == -1)
+            {
+                hitPosition = origin;
+                voxelHitPosition = originVoxel;
+                normal = -1;
+            }
+            
+            float localDistance = abs((dir[lastAxis] > 0 ? hitVoxel[lastAxis] : hitVoxel[lastAxis] + 1) - entrance[lastAxis]) * timeToCross[lastAxis];
+
+            hitPosition = dir * localDistance + origin;
+            voxelHitPosition = hitVoxel + brickOffset;
+            normal = normalIndexFromDir(dir, lastAxis);
+            return 0;
+        }
     }
 
-    ivec3 voxelLocalPosition = (voxelPosition & 3);
-    int brickRootLocation = brickIndex * brickSizeInUINTS;
+    lastWideAxis = nextBrickIntersectionTime.x <= nextBrickIntersectionTime.y
+                ? nextBrickIntersectionTime.x <= nextBrickIntersectionTime.z ? 0 : 2
+                : nextBrickIntersectionTime.y <= nextBrickIntersectionTime.z ? 1 : 2;
 
-    uint voxelPack = brickList[brickRootLocation + 2 + ((voxelLocalPosition.y << 2) + voxelLocalPosition.z)];
-    if (voxelLocalPosition.y < 2)
+    if (lastWideAxis == 0)
     {
-        uint bitmask = brickList[brickRootLocation];
-        uint mask = 1 << ((voxelLocalPosition.y << 4) + (voxelLocalPosition.z << 2) + voxelLocalPosition.x);
-        voxelBit = bitmask & mask;
+        brickPosition.x += gridStep.x;
+        lastWideDepth = nextBrickIntersectionTime.x;
+        nextBrickIntersectionTime.x += timeToCross.x;
+    }
+    else if(lastWideAxis == 1)
+    {
+        brickPosition.y += gridStep.y;
+        lastWideDepth = nextBrickIntersectionTime.y;
+        nextBrickIntersectionTime.y += timeToCross.y;
     }
     else
     {
-        uint bitmask = brickList[brickRootLocation + 1];
-        voxelLocalPosition.y -= 2;
-        uint mask = 1 << ((voxelLocalPosition.y << 4) + (voxelLocalPosition.z << 2) + voxelLocalPosition.x);
-        voxelBit = bitmask & mask;
+        brickPosition.z += gridStep.z;
+        lastWideDepth = nextBrickIntersectionTime.z;
+        nextBrickIntersectionTime.z += timeToCross.z;
     }
-    int shift = voxelLocalPosition.x << 3;
-    
-    uint voxelValue = (voxelPack & (255 << shift)) >> shift;
-    
-    return voxelValue;
 
+    brickOffset = brickPosition << 2;
+
+    if (!(all(greaterThanEqual(brickPosition, ivec3(0))) && all(lessThan(brickPosition, voxelBrickmapSize))))
+    {
+        return 1;
+    }
+
+    // Traversing bricks along the ray direction
+    while (true)
+    {
+        brickIndex = getBrickIndexDirect(brickPosition);
+        if (brickIndex != -1)
+        {
+            uint bitmask0 = brickList[brickIndex * brickSizeInUINTS];
+            uint bitmask1 = brickList[brickIndex * brickSizeInUINTS + 1];
+            entrance = lastWideDepth * dir + brickSpaceOrigin;
+
+            entrance -= ivec3(entrance);
+            entrance[lastWideAxis] = dir[lastWideAxis] > 0 ? 0 : 1;
+            entrance *= 4;
+            ivec3 entranceVoxel = ivec3(entrance);
+            entranceVoxel[lastWideAxis] = dir[lastWideAxis] > 0 ? 0 : 3;
+
+            bool hit = traverseBrick(bitmask0, bitmask1, entrance, entranceVoxel, dir, timeToCross, brickIndex, hitVoxel, lastAxis);
+
+            if (hit)
+            {
+                lastAxis = lastAxis == -1 ? lastWideAxis : lastAxis;
+                normal = normalIndexFromDir(dir, lastAxis);
+
+                float localDistance = abs((dir[lastAxis] > 0 ? hitVoxel[lastAxis] : hitVoxel[lastAxis] + 1) - entrance[lastAxis]) * timeToCross[lastAxis];
+                hitPosition = dir * localDistance + entrance + brickOffset;
+                voxelHitPosition = hitVoxel + brickOffset;
+                return 0;
+            }
+        }
+        
+        lastWideAxis = nextBrickIntersectionTime.x <= nextBrickIntersectionTime.y
+                ? nextBrickIntersectionTime.x <= nextBrickIntersectionTime.z ? 0 : 2
+                : nextBrickIntersectionTime.y <= nextBrickIntersectionTime.z ? 1 : 2;
+
+        if (lastWideAxis == 0)
+        {
+            brickPosition.x += gridStep.x;
+            lastWideDepth = nextBrickIntersectionTime.x;
+            nextBrickIntersectionTime.x += timeToCross.x;
+        }
+        else if(lastWideAxis == 1)
+        {
+            brickPosition.y += gridStep.y;
+            lastWideDepth = nextBrickIntersectionTime.y;
+            nextBrickIntersectionTime.y += timeToCross.y;
+        }
+        else
+        {
+            brickPosition.z += gridStep.z;
+            lastWideDepth = nextBrickIntersectionTime.z;
+            nextBrickIntersectionTime.z += timeToCross.z;
+        }
+
+        brickOffset = brickPosition << 2;
+
+        if (!(all(greaterThanEqual(brickPosition, ivec3(0))) && all(lessThan(brickPosition, voxelBrickmapSize))))
+        {
+            return 1;
+        }
+    }
+}
+
+bool traverseBrick(uint bitmask0, uint bitmask1, vec3 startingPosition, ivec3 voxelPosition, vec3 dir, vec3 timeToCross, uint brickIndex, out ivec3 hitVoxel, out int lastAxis)
+{
+    vec3 nextIntersectionTime = vec3(
+        dir.x < 0 ? startingPosition.x - voxelPosition.x : voxelPosition.x + 1 - startingPosition.x,
+        dir.y < 0 ? startingPosition.y - voxelPosition.y : voxelPosition.y + 1 - startingPosition.y,
+        dir.z < 0 ? startingPosition.z - voxelPosition.z : voxelPosition.z + 1 - startingPosition.z);
+    nextIntersectionTime *= timeToCross;
+
+    uint voxelIndex = (voxelPosition.y << 4) + (voxelPosition.z << 2) + voxelPosition.x;
+
+    if (getVoxelBit(bitmask0, bitmask1, voxelIndex) > 0)
+    {
+        hitVoxel = voxelPosition;
+        lastAxis = -1;
+        return true;
+    }
+
+    int axisToStep;
+
+    while (true)
+    {
+        axisToStep = nextIntersectionTime.x <= nextIntersectionTime.y ?
+        (nextIntersectionTime.x <= nextIntersectionTime.z ? 0 : 2) :
+        (nextIntersectionTime.y <= nextIntersectionTime.z ? 1 : 2);
+
+        int way = int(sign(dir[axisToStep]));
+
+        if (voxelPosition[axisToStep] == (way < 0 ? 0 : 3))
+            break;
+                
+        voxelIndex += (1 << ((axisToStep == 2 ? 1 : (axisToStep == 1 ? 2 : 0)) << 1)) * way;
+        voxelPosition[axisToStep] += way;
+
+        nextIntersectionTime[axisToStep] += timeToCross[axisToStep];
+
+        if (getVoxelBit(bitmask0, bitmask1, voxelIndex) > 0)
+        {
+            hitVoxel = voxelPosition;
+            lastAxis = axisToStep;
+            return true;
+        }
+    }
+
+    hitVoxel = voxelPosition;
+    lastAxis = axisToStep;
+    return false;
 }
 
 uint getVoxelValue(ivec3 voxelPosition) 
@@ -545,49 +407,34 @@ uint getVoxelValue(ivec3 voxelPosition)
     ivec3 voxelLocalPosition = (voxelPosition & 3);
     uint voxelPack = brickList[brickIndex * brickSizeInUINTS + 2 + ((voxelLocalPosition.y << 2) + voxelLocalPosition.z)];
     int shift = voxelLocalPosition.x << 3;
-    return (voxelPack & (255 << shift)) >> shift;
+    return (voxelPack >> shift) & 255;
 }
 
 uint getBrickIndex(ivec3 voxelPosition) 
 {
-    ivec3 brickIndexPosition = ivec3(voxelPosition.x >> 2, voxelPosition.y >> 2, voxelPosition.z >> 2);
-    return brickIndices[brickIndexPosition.y * voxelBrickmapSize.x * voxelBrickmapSize.z + 
-                        brickIndexPosition.z * voxelBrickmapSize.x +
-                        brickIndexPosition.x];
+    ivec3 brickPosition = ivec3(voxelPosition.x >> 2, voxelPosition.y >> 2, voxelPosition.z >> 2);
+    return brickIndices[brickPosition.y * voxelBrickmapSize.x * voxelBrickmapSize.z + 
+                        brickPosition.z * voxelBrickmapSize.x +
+                        brickPosition.x];
 }
 
-vec3 randomVector(vec3 key, int sampleIndex)
+uint getBrickIndexDirect(ivec3 brickPosition) 
 {
-    float theta = jitterArc * key.x + jitterArc * sampleIndex + TWO_PI * key.z;
-    float phi = (-1 * sqrt(1 - key.y * key.y) + 1) * 1.370796 + 0.2;
-    float cosPhi = cos(phi);
-    return vec3(sin(theta) * cosPhi, sin(phi), cos(theta) * cosPhi);
+    return brickIndices[brickPosition.y * voxelBrickmapSize.x * voxelBrickmapSize.z + 
+                        brickPosition.z * voxelBrickmapSize.x +
+                        brickPosition.x];
 }
 
-float random (vec2 point) 
+uint getVoxelBit(uint bitmask0, uint bitmask1, uint voxelIndex)
 {
-    point *= randSaltLocal;
-    return fract(sin(dot(point.xy, vec2(12.9898,78.233))) * 43758.5453123);
-}
-
-float minVec3(vec3 vect)
-{
-    return min(min(vect.x, vect.y), vect.z);
-}
-
-float maxVec3(vec3 vect)
-{
-    return max(max(vect.x, vect.y), vect.z);
-}
-
-float cart2Sph_Phi(vec3 vect)
-{
-    return atan(sqrt(vect.x * vect.x + vect.y * vect.y), vect.z) * 2;
-}
-
-float cart2Sph_Theta(vec3 vect)
-{
-    return atan(vect.y, vect.x) * 2;
+    if (voxelIndex < 32)
+    {
+        return bitmask0 & (1 << voxelIndex);
+    }
+    else 
+    {
+        return bitmask1 & (1 << (voxelIndex - 32));
+    }
 }
 
 vec3 skySample(vec3 dir)
@@ -603,8 +450,78 @@ vec3 skySample(vec3 dir)
 
 vec3 sunSample(vec3 pos, vec3 dir)
 {
-    vec3 fl_hpos; int fl_n; float fl_d; material fl_mat;
-    return sunColor * trace(pos, dir, fl_hpos, fl_mat, fl_n, fl_d);
+    vec3 fl_hpos; ivec3 fl_vhpos; int fl_n;
+    return sunColor * traceNew(pos, dir, fl_hpos, fl_vhpos, fl_n);
+}
+
+vec3 getDiffuseReflectionDir(int normal, int sampleIndex)
+{
+    float key1 = random(uv * sampleIndex); 
+    float key2 = random((key1 + uv) * 0.5);
+    return rotateVerticalByNormal(randomVector(vec2(key1, key2), sampleIndex), normal);
+}
+
+int normalIndexFromDir(vec3 dir, int axis)
+{
+    return dir[axis] > 0 ? (axis << 1) : (axis << 1) + 1;
+}
+
+vec3 rotateVerticalByNormal(vec3 vector, int normal)
+{
+    switch (normal)
+    {
+        case 0: return vec3(-vector.y, vector.x, vector.z);
+        case 1: return vec3(vector.y, -vector.x, vector.z);
+        case 2: return -vector;
+        case 3: return vector;
+        case 4: return vec3(vector.x, vector.z, -vector.y);
+        case 5: return vec3(vector.x, -vector.z, vector.y);
+    }
+    return vector;
+}
+
+vec3 vecNormal(int normal)
+{
+    switch (normal)
+    {
+        case 0: return vec3(-1, 0, 0);
+        case 1: return vec3(1, 0, 0);
+        case 2: return vec3(0, -1, 0);
+        case 3: return vec3(0, 1, 0);
+        case 4: return vec3(0, 0, -1);
+        case 5: return vec3(0, 0, 1);
+    }
+    return vec3(0, 10, 0);
+}
+
+vec3 randomVector(vec2 key, int sampleIndex)
+{
+    float phi = jitterArc * sampleIndex + jitterArc * key.x + arcDisplacement;
+    float cosTheta = sqrt(1.0f - key.y);
+    float sinTheta = sqrt(key.y);
+    return vec3(cos(phi) * cosTheta, sinTheta, sin(phi) * cosTheta);
+}
+
+float random (vec2 point) 
+{
+    point *= randSaltLocal;
+    return fract(sin(dot(point.xy, vec2(12.9898,75.233))) * 43758.5453123);
+}
+
+float minVec3(vec3 vect)
+{
+    return min(min(vect.x, vect.y), vect.z);
+}
+
+float maxVec3(vec3 vect)
+{
+    return max(max(vect.x, vect.y), vect.z);
+}
+
+vec3 sph2Cart(float phi, float theta)
+{
+    float cosTheta = cos(theta);
+    return vec3(cos(phi) * cosTheta, sin(theta), sin(phi) * cosTheta);
 }
 
 vec3 rodriguesRotation(vec3 v, vec3 axis, float theta)
@@ -621,3 +538,5 @@ vec3 jitterVector(vec3 v, float theta, float amount)
 {
     return rodriguesRotation(simpleRodriguesRotation(v, cross(v, vec3(1, 0, 0)), amount), v, theta);
 }
+
+

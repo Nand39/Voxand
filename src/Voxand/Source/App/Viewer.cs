@@ -9,7 +9,6 @@ using Voxand.Engine.Systems.ScriptableObjects;
 using Voxand.Engine.Systems.Voxels;
 using Voxand.Helpers;
 using Voxand.App.VoxelEditing;
-using System.Diagnostics;
 
 namespace Voxand.App;
 public class Viewer : BaseObject
@@ -78,15 +77,15 @@ public class Viewer : BaseObject
 
         if (Win.KeyboardState.IsKeyPressed(Keys.R))
         {
-            (uint value, ulong bit, int brickIndex) = (EngineState.VoxelMap.RawStructure).Examine((Vector3i)Camera.position, false);
+            (uint value, ulong bit, int brickIndex) = EngineState.VoxelMap.RawStructure.Examine((Vector3i)Camera.position, false);
             Console.WriteLine($"! CPU SIDE: voxel data at {(Vector3i)Camera.position}: value={value}; empty={bit == 0}; brick={brickIndex}");
-            (value, bit, brickIndex) = (EngineState.VoxelMap.RawStructure).Examine((Vector3i)Camera.position, true);
+            (value, bit, brickIndex) = EngineState.VoxelMap.RawStructure.Examine((Vector3i)Camera.position, true);
             Console.WriteLine($"* GPU SIDE: voxel data at {(Vector3i)Camera.position}: value={value}; empty={bit == 0}; brick={brickIndex}");
         }
 
         if (Win.KeyboardState.IsKeyPressed(Keys.Y))
         {
-            Vector3[] unitHits = RayDistributionTest(64, Util.Random.NextSingle());
+            Vector3[] unitHits = RayDistributionTest_CosineStratified(64, Util.Random.NextSingle() + 1);
             Vector3i[] voxelHits = new Vector3i[unitHits.Length];
             for (int i = 0; i < unitHits.Length; i++)
             {
@@ -101,7 +100,7 @@ public class Viewer : BaseObject
     }
     void OnRenderRenewed()
     {
-        EngineState.RenderingPipeline.antiAliasingSettings.Intensity = 0.987f;
+        EngineState.RenderingPipeline.antiAliasingSettings.Intensity = 0.95f;
         EngineState.RenderingPipeline.voxelPathTracingSettings.Samples = 1;
     }
     void OnRenderInterupted()
@@ -213,16 +212,13 @@ public class Viewer : BaseObject
                     uv: Win.MouseState.Position / Win.ClientSize,
                     aspectRatio: (float)Win.ClientSize.X / Win.ClientSize.Y);
 
-                Stopwatch sw = Stopwatch.StartNew();
                 DDAOut result = EngineState.VoxelMap.RawStructure.Raycast(Camera.position, raycastDir);
-                sw.Stop();
-                Console.WriteLine($"Raycast time: {sw.Elapsed.TotalMilliseconds} ms");
+
                 if (result.hit)
                 {
                     if (placeVoxels)
                     {
-                        VoxelTool.PlaceSphere(
-                            result.voxelHitPos + (Vector3i)Util.RotateUnitYByNormalIndex(Vector3.UnitY, result.normal), buildingRadius);
+                        VoxelTool.PlaceSphere(result.voxelHitPos + Util.VectorFromNormalIndex(result.normal), buildingRadius);
                     }
                     else
                     {
@@ -277,5 +273,25 @@ public class Viewer : BaseObject
         point *= randSalt;
         float val = MathF.Sin(Vector2.Dot(point, new (12.9898f, 78.233f))) * 43758.5453123f;
         return val - (int)val;
+    }
+    Vector3[] RayDistributionTest_CosineStratified(int samples, float randSalt)
+    {
+        Vector3[] results = new Vector3[samples];
+        float jitterArc = MathF.Tau / samples;
+        float invSamples = 1 / samples;
+
+        for (int i = 0; i < samples; i++)
+        {
+            float phi = jitterArc * i + jitterArc * (randSalt - 1);
+            Vector2 randomSampler = new Vector2(200) * i * 68.8f;
+            float key1 = random(randomSampler, randSalt);
+            
+            float cosTheta = MathF.Sqrt(1.0f - key1);
+            float sinTheta = MathF.Sqrt(key1);
+
+            results[i] = new(MathF.Cos(phi) * cosTheta, sinTheta, MathF.Sin(phi) * cosTheta);
+        }
+
+        return results;
     }
 }

@@ -220,6 +220,8 @@ public static class VectorTKExtensions
     }
     #endregion
 
+    #region Bitwise operators
+
     #region Bitshift
 
     #region To the right
@@ -232,6 +234,17 @@ public static class VectorTKExtensions
     public static Vector2i BitshiftLeft(this Vector2i vect, int n) => new(vect.X << n, vect.Y << n);
     public static Vector3i BitshiftLeft(this Vector3i vect, int n) => new(vect.X << n, vect.Y << n, vect.Z << n);
     public static Vector4i BitshiftLeft(this Vector4i vect, int n) => new(vect.X << n, vect.Y << n, vect.Z << n, vect.W << n);
+    #endregion
+
+    #endregion
+
+    #region And
+    public static Vector2i BitwiseAnd(this Vector2i vect, int n) => new(vect.X & n, vect.Y & n);
+    public static Vector3i BitwiseAnd(this Vector3i vect, int n) => new(vect.X & n, vect.Y & n, vect.Z & n);
+    public static Vector4i BitwiseAnd(this Vector4i vect, int n) => new(vect.X & n, vect.Y & n, vect.Z & n, vect.W & n);
+    public static Vector2i BitwiseAnd(this Vector2i vect, Vector2i other) => new(vect.X & other.X, vect.Y & other.Y);
+    public static Vector3i BitwiseAnd(this Vector3i vect, Vector3i other) => new(vect.X & other.X, vect.Y & other.Y, vect.Z & other.Z);
+    public static Vector4i BitwiseAnd(this Vector4i vect, Vector4i other) => new(vect.X & other.X, vect.Y & other.Y, vect.Z & other.Z, vect.W & other.W);
     #endregion
 
     #endregion

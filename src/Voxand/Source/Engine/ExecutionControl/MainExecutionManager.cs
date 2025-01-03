@@ -1,11 +1,7 @@
-﻿using System.Diagnostics;
-
-using OpenTK.Windowing.Common;
+﻿using OpenTK.Windowing.Common;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.GraphicsLibraryFramework;
-
-using ImGuiNET;
 
 using DisposableExt;
 
@@ -173,6 +169,7 @@ public sealed class MainExecutionManager : ExecutionManager,
         engineState.MainCamera = new Camera();
         engineState.MainCamera.position = new Vector3(numberOfChunks.X * 2, numberOfChunks.Y * 3.7f, numberOfChunks.Z * 2);
         engineState.MainCamera.FOV = 90;
+        engineState.MainCamera.rotation = new(0, 45, 0);
         
         VoxelMaterial[] materials =
         {
