@@ -8,11 +8,12 @@ using Voxand.Engine.Systems.Graphics.GLUtil;
 using Voxand.Engine.Systems.Graphics.Tools.ShaderServices;
 
 namespace Voxand.Engine.ExecutionControl;
-public class TestingState(Window game) : ExecutionManager(game)
+public class TestingState(Window win) : ExecutionManager
 {
     VertexArray vao;
     ShaderController shader;
     Texture2D texture;
+    Window window = win;
     public override void Load()
     {
         GL.ClearColor(0.2f, 0.3f, 0.3f, 1);
@@ -27,8 +28,8 @@ public class TestingState(Window game) : ExecutionManager(game)
         ];
         vao = new();
         vao.Alloc(ref viewRectVertices, V_PositionUV.vertexInfo, BufferUsageHint.StaticDraw);
-        shader = new(main.Content, true, "Graphics.Shaders.Testing.TestVert.vert", "Graphics.Shaders.Testing.TestFrag.frag");
-        texture = main.Content.LoadTexture("Graphics/Textures/router.png", false);
+        shader = new(window.Content, true, "Graphics.Shaders.Testing.TestVert.vert", "Graphics.Shaders.Testing.TestFrag.frag");
+        texture = window.Content.LoadTexture("Graphics/Textures/router.png");
 
         texture.BindTex(0);
     }

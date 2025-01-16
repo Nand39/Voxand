@@ -1,10 +1,7 @@
-﻿using System.Runtime.CompilerServices;
-
+﻿using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
-using OpenTK.Graphics.OpenGL4;
-
+using System.Runtime.CompilerServices;
 using Voxand.Engine.Systems.Voxels;
-using Voxand.Engine.Systems.Graphics;
 using Voxand.Helpers.UtilityObjects;
 
 namespace Voxand.Helpers;
@@ -53,6 +50,13 @@ public static class Util
             case 5: return new(0, 0, 1);
         }
     }
+
+    public static Vector3i NormalIncrement(Vector3i vect, int normalIndex)
+    {
+        vect[normalIndex >> 2] += (normalIndex & 1) > 0 ? 1 : -1;
+        return vect;
+    }
+
     public static Vector3 RotateUnitYByNormalIndex(Vector3 vect, int normalIndex)
     {
         switch (normalIndex)
@@ -65,6 +69,21 @@ public static class Util
             case 4: return new(vect.X, vect.Z, -vect.Y);
             case 5: return new(vect.X, -vect.Z, vect.Y);
         }
+    }
+
+    public static void OrderBounds(Vector3i vect0, Vector3i vect1, out Vector3i min, out Vector3i max)
+    {
+        min = new(Math.Min(vect0.X, vect1.X), Math.Min(vect0.Y, vect1.Y), Math.Min(vect0.Z, vect1.Z));
+        max = new(Math.Max(vect0.X, vect1.X), Math.Max(vect0.Y, vect1.Y), Math.Max(vect0.Z, vect1.Z));
+    }
+
+    public static void Loop3(Vector3i min, Vector3i max, Action<Vector3i> action)
+    {
+        Vector3i pos = default;
+        for (pos.Y = min.Y; pos.Y <= max.Y; pos.Y++)
+            for (pos.Z = min.Z; pos.Z <= max.Z; pos.Z++)
+                for (pos.X = min.X; pos.X <= max.X; pos.X++)
+                    action(pos);
     }
 
     #region Math Helper

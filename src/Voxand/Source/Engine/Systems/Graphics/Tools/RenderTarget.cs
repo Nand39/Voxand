@@ -2,7 +2,7 @@
 using OpenTK.Mathematics;
 
 using GLAV.Types;
-using GLAV.Systems;
+using GLAV;
 
 using Voxand.Helpers;
 using DisposableExt;

@@ -1,8 +1,7 @@
 ﻿using System.Runtime.CompilerServices;
 
 using GLAV.Types;
-
-using Voxand.Helpers.Exceptions.GLAVExceptions;
+using GLAV.Helpers.Public.Exceptions;
 
 namespace Voxand.Engine.Systems.Graphics.Pipelines.DefaultVoxelPTRP.Helpers;
 

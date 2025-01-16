@@ -16,7 +16,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GLAV", "packages\GLAV\GLAV.
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DisposeExt", "packages\DisposeExt\DisposeExt.csproj", "{FC7A7E50-DAC9-4C38-AA49-19B047D9089E}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "packages", "packages", "{1537D9D7-9A90-4643-9655-2D6095B33D10}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Libs", "Libs", "{1537D9D7-9A90-4643-9655-2D6095B33D10}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

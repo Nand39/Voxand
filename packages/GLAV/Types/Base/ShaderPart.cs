@@ -1,5 +1,4 @@
-﻿using GLAV.Systems;
-using OpenTK.Graphics.OpenGL4;
+﻿using OpenTK.Graphics.OpenGL4;
 
 namespace GLAV.Types;
 public class ShaderPart : GLResource

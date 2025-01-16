@@ -1,9 +1,8 @@
 ﻿using OpenTK.Windowing.Common;
 
 namespace Voxand.Engine.ExecutionControl;
-public abstract class ExecutionManager(Window window)
+public abstract class ExecutionManager()
 {
-    protected Window main = window;
     public abstract void Load();
     public abstract void Update(FrameEventArgs args);
     public abstract void Render(FrameEventArgs args);

@@ -39,18 +39,7 @@ public static class VectorTKExtensions
 
     #region Min
 
-    // Float-based vectors
-    public static float Min(this Vector2 vect)
-    {
-        return vect.X < vect.Y ? vect.X : vect.Y;
-    }
-    public static float Min(this Vector3 vect)
-    {
-        return vect.X < vect.Y ? vect.X < vect.Z ? vect.X : vect.Z
-                               : vect.Y < vect.Z ? vect.Y : vect.Z;
-    }
-
-    // Integer-based vectors
+    // Integer vectors
     public static int Min(this Vector2i vect)
     {
         return vect.X < vect.Y ? vect.X : vect.Y;
@@ -60,23 +49,42 @@ public static class VectorTKExtensions
         return vect.X < vect.Y ? vect.X < vect.Z ? vect.X : vect.Z
                                : vect.Y < vect.Z ? vect.Y : vect.Z;
     }
+    public static int Min(this Vector4i vect)
+    {
+        if (vect.X < vect.Y)
+            if (vect.X < vect.Z)
+                return vect.X < vect.W ? vect.X : vect.W;
+        else
+            if (vect.Y < vect.Z)
+                return vect.Y < vect.W ? vect.Y : vect.W;
+        return vect.Z < vect.W ? vect.Z : vect.W;
+    }
 
+    // Float vectors
+    public static float Min(this Vector2 vect)
+    {
+        return vect.X < vect.Y ? vect.X : vect.Y;
+    }
+    public static float Min(this Vector3 vect)
+    {
+        return vect.X < vect.Y ? vect.X < vect.Z ? vect.X : vect.Z
+                               : vect.Y < vect.Z ? vect.Y : vect.Z;
+    }
+    public static float Min(this Vector4 vect)
+    {
+        if (vect.X < vect.Y)
+            if (vect.X < vect.Z)
+                return vect.X < vect.W ? vect.X : vect.W;
+        else
+            if (vect.Y < vect.Z)
+                return vect.Y < vect.W ? vect.Y : vect.W;
+        return vect.Z < vect.W ? vect.Z : vect.W;
+    }
     #endregion
 
     #region Max
 
-    // Float-based vectors
-    public static float Max(this Vector2 vect)
-    {
-        return vect.X > vect.Y ? vect.X : vect.Y;
-    }
-    public static float Max(this Vector3 vect)
-    {
-        return vect.X > vect.Y ? vect.X > vect.Z ? vect.X : vect.Z
-                               : vect.Y > vect.Z ? vect.Y : vect.Z;
-    }
-
-    // Integer-based vectors
+    // Integer vectors
     public static int Max(this Vector2i vect)
     {
         return vect.X > vect.Y ? vect.X : vect.Y;
@@ -86,43 +94,200 @@ public static class VectorTKExtensions
         return vect.X > vect.Y ? vect.X > vect.Z ? vect.X : vect.Z
                                : vect.Y > vect.Z ? vect.Y : vect.Z;
     }
+    public static int Max(this Vector4i vect)
+    {
+        if (vect.X > vect.Y)
+            if (vect.X > vect.Z)
+                return vect.X > vect.W ? vect.X : vect.W;
+        else
+            if (vect.Y > vect.Z)
+                return vect.Y > vect.W ? vect.Y : vect.W;
+        return vect.Z > vect.W ? vect.Z : vect.W;
+    }
 
+    // Float vectors
+    public static float Max(this Vector2 vect)
+    {
+        return vect.X > vect.Y ? vect.X : vect.Y;
+    }
+    public static float Max(this Vector3 vect)
+    {
+        return vect.X > vect.Y ? vect.X > vect.Z ? vect.X : vect.Z
+                               : vect.Y > vect.Z ? vect.Y : vect.Z;
+    }
+    public static float Max(this Vector4 vect)
+    {
+        if (vect.X > vect.Y)
+            if (vect.X > vect.Z)
+                return vect.X > vect.W ? vect.X : vect.W;
+            else
+            if (vect.Y > vect.Z)
+                return vect.Y > vect.W ? vect.Y : vect.W;
+        return vect.Z > vect.W ? vect.Z : vect.W;
+    }
     #endregion
 
-    // Lacks implementation for certain types
-    #region IndexMin
+    #region IndexOfMin
+
+    // Integer vectors
+    public static int IndexOfMin(this Vector2i vect)
+    {
+        return vect.X < vect.Y ? 0 : 1;
+    }
     public static int IndexOfMin(this Vector3i vect)
     {
         return vect.X < vect.Y ? vect.X < vect.Z ? 0 : 2
                                : vect.Y < vect.Z ? 1 : 2;
+    }
+    public static int IndexOfMin(this Vector4i vect)
+    {
+        if (vect.X < vect.Y)
+            if (vect.X < vect.Z)
+                return vect.X < vect.W ? 0 : 3;
+        else
+            if (vect.Y < vect.Z)
+                return vect.Y < vect.W ? 1 : 3;
+        return vect.Z < vect.W ? 2 : 3;
+    }
+
+    // Float vectors
+    public static int IndexOfMin(this Vector2 vect)
+    {
+        return vect.X < vect.Y ? 0 : 1;
     }
     public static int IndexOfMin(this Vector3 vect)
     {
         return vect.X < vect.Y ? vect.X < vect.Z ? 0 : 2
                                : vect.Y < vect.Z ? 1 : 2;
     }
+    public static int IndexOfMin(this Vector4 vect)
+    {
+        if (vect.X < vect.Y)
+            if (vect.X < vect.Z)
+                return vect.X < vect.W ? 0 : 3;
+        else
+            if (vect.Y < vect.Z)
+                return vect.Y < vect.W ? 1 : 3;
+        return vect.Z < vect.W ? 2 : 3;
+    }
     #endregion
 
-    // Lacks implementation for certain types
+    #region IndexOfMax
+
+    // Integer-based vectors
+    public static int IndexOfMax(this Vector2i vect)
+    {
+        return vect.X > vect.Y ? 0 : 1;
+    }
+    public static int IndexOfMax(this Vector3i vect)
+    {
+        return vect.X > vect.Y ? vect.X > vect.Z ? 0 : 2
+                               : vect.Y > vect.Z ? 1 : 2;
+    }
+    public static int IndexOfMax(this Vector4i vect)
+    {
+        if (vect.X > vect.Y)
+            if (vect.X > vect.Z)
+                return vect.X > vect.W ? 0 : 3;
+            else
+            if (vect.Y > vect.Z)
+                return vect.Y > vect.W ? 1 : 3;
+        return vect.Z > vect.W ? 2 : 3;
+    }
+
+    // Float-based vectors
+    public static int IndexOfMax(this Vector2 vect)
+    {
+        return vect.X > vect.Y ? 0 : 1;
+    }
+    public static int IndexOfMax(this Vector3 vect)
+    {
+        return vect.X > vect.Y ? vect.X > vect.Z ? 0 : 2
+                               : vect.Y > vect.Z ? 1 : 2;
+    }
+    public static int IndexOfMax(this Vector4 vect)
+    {
+        if (vect.X > vect.Y)
+            if (vect.X > vect.Z)
+                return vect.X > vect.W ? 0 : 3;
+            else
+            if (vect.Y > vect.Z)
+                return vect.Y > vect.W ? 1 : 3;
+        return vect.Z > vect.W ? 2 : 3;
+    }
+    #endregion
+
     #region Abs
+
+    #region Mutable
+
+    // Integer-based vectors
+    public static void Abs(this Vector2i vect)
+    {
+        vect.X = Math.Abs(vect.X);
+        vect.Y = Math.Abs(vect.Y);
+    }
     public static void Abs(this Vector3i vect)
     {
-        vect.X = vect.X < 0 ? -vect.X : vect.X;
-        vect.Y = vect.Y < 0 ? -vect.Y : vect.Y;
-        vect.Z = vect.Z < 0 ? -vect.Z : vect.Z;
+        vect.X = Math.Abs(vect.X);
+        vect.Y = Math.Abs(vect.Y);
+        vect.Z = Math.Abs(vect.Z);
     }
-    public static Vector3i AsAbs(this Vector3i vect)
+    public static void Abs(this Vector4i vect)
     {
-        return new Vector3i(
-            vect.X < 0 ? -vect.X : vect.X,
-            vect.Y < 0 ? -vect.Y : vect.Y,
-            vect.Z < 0 ? -vect.Z : vect.Z);
+        vect.X = Math.Abs(vect.X);
+        vect.Y = Math.Abs(vect.Y);
+        vect.Z = Math.Abs(vect.Z);
+        vect.W = Math.Abs(vect.W);
+    }
+
+    // Float-based vectors
+    public static void Abs(this Vector2 vect)
+    {
+        vect.X = Math.Abs(vect.X);
+        vect.Y = Math.Abs(vect.Y);
+    }
+    public static void Abs(this Vector3 vect)
+    {
+        vect.X = Math.Abs(vect.X);
+        vect.Y = Math.Abs(vect.Y);
+        vect.Z = Math.Abs(vect.Z);
+    }
+    public static void Abs(this Vector4 vect)
+    {
+        vect.X = Math.Abs(vect.X);
+        vect.Y = Math.Abs(vect.Y);
+        vect.Z = Math.Abs(vect.Z);
+        vect.W = Math.Abs(vect.W);
     }
     #endregion
 
-    // Lacks implementation for certain types
+    #region Immutable
+
+    // Integer-based vectors
+    public static Vector2i AsAbs(this Vector2i vect) => new Vector2i(Math.Abs(vect.X), Math.Abs(vect.Y));
+    public static Vector3i AsAbs(this Vector3i vect) => new Vector3i(Math.Abs(vect.X), Math.Abs(vect.Y), Math.Abs(vect.Z));
+    public static Vector4i AsAbs(this Vector4i vect) => new Vector4i(Math.Abs(vect.X), Math.Abs(vect.Y), Math.Abs(vect.Z), Math.Abs(vect.W));
+
+    // Float-based vectors
+    public static Vector2 AsAbs(this Vector2 vect) => new Vector2(Math.Abs(vect.X), Math.Abs(vect.Y));
+    public static Vector3 AsAbs(this Vector3 vect) => new Vector3(Math.Abs(vect.X), Math.Abs(vect.Y), Math.Abs(vect.Z));
+    public static Vector4 AsAbs(this Vector4 vect) => new Vector4(Math.Abs(vect.X), Math.Abs(vect.Y), Math.Abs(vect.Z), Math.Abs(vect.W));
+    #endregion
+
+    #endregion
+
     #region Sum
+
+    // Integer-based vectors
+    public static int Sum(this Vector2i vect) => vect.X + vect.Y;
     public static int Sum(this Vector3i vect) => vect.X + vect.Y + vect.Z;
+    public static int Sum(this Vector4i vect) => vect.X + vect.Y + vect.Z + vect.W;
+
+    // Float-based vectors
+    public static float Sum(this Vector2 vect) => vect.X + vect.Y;
+    public static float Sum(this Vector3 vect) => vect.X + vect.Y + vect.Z;
+    public static float Sum(this Vector4 vect) => vect.X + vect.Y + vect.Z + vect.W;
     #endregion
 
     #region AsIndex
@@ -182,6 +347,7 @@ public static class VectorTKExtensions
     #endregion
 
     #region Inbounds
+
     // Integer-based vectors
     public static bool Inbounds(this Vector2i vect, Vector2i min, Vector2i max)
     {
@@ -220,7 +386,12 @@ public static class VectorTKExtensions
     }
     #endregion
 
-    #region Bitwise operators
+    #region Axis ratio
+    public static float Ratio(this Vector2i vect) => (float)vect.X / vect.Y;
+    public static float Ratio(this Vector2 vect) => vect.X / vect.Y;
+    #endregion
+
+    #region Bitwise operations
 
     #region Bitshift
 
@@ -245,6 +416,36 @@ public static class VectorTKExtensions
     public static Vector2i BitwiseAnd(this Vector2i vect, Vector2i other) => new(vect.X & other.X, vect.Y & other.Y);
     public static Vector3i BitwiseAnd(this Vector3i vect, Vector3i other) => new(vect.X & other.X, vect.Y & other.Y, vect.Z & other.Z);
     public static Vector4i BitwiseAnd(this Vector4i vect, Vector4i other) => new(vect.X & other.X, vect.Y & other.Y, vect.Z & other.Z, vect.W & other.W);
+    #endregion
+
+    #endregion
+
+    #region Per component arithmetic
+    
+    #region Add
+
+    // Integer-based vectors
+    public static Vector2i Add(this Vector2i vect, int n) => new(vect.X + n, vect.Y + n);
+    public static Vector3i Add(this Vector3i vect, int n) => new(vect.X + n, vect.Y + n, vect.Z + n);
+    public static Vector4i Add(this Vector4i vect, int n) => new(vect.X + n, vect.Y + n, vect.Z + n, vect.W + n);
+
+    // Float-based vectors
+    public static Vector2 Add(this Vector2 vect, float n) => new(vect.X + n, vect.Y + n);
+    public static Vector3 Add(this Vector3 vect, float n) => new(vect.X + n, vect.Y + n, vect.Z + n);
+    public static Vector4 Add(this Vector4 vect, float n) => new(vect.X + n, vect.Y + n, vect.Z + n, vect.W + n);
+    #endregion
+
+    #region Sub
+
+    // Integer-based vectors
+    public static Vector2i Sub(this Vector2i vect, int n) => new(vect.X - n, vect.Y - n);
+    public static Vector3i Sub(this Vector3i vect, int n) => new(vect.X - n, vect.Y - n, vect.Z - n);
+    public static Vector4i Sub(this Vector4i vect, int n) => new(vect.X - n, vect.Y - n, vect.Z - n, vect.W - n);
+
+    // Float-based vectors
+    public static Vector2 Sub(this Vector2 vect, float n) => new(vect.X - n, vect.Y - n);
+    public static Vector3 Sub(this Vector3 vect, float n) => new(vect.X - n, vect.Y - n, vect.Z - n);
+    public static Vector4 Sub(this Vector4 vect, float n) => new(vect.X - n, vect.Y - n, vect.Z - n, vect.W - n);
     #endregion
 
     #endregion

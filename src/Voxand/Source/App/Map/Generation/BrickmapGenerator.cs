@@ -2,7 +2,7 @@
 
 using OpenTK.Mathematics;
 
-using GLAV.Systems;
+using GLAV;
 
 using Voxand.Engine.Systems.Voxels;
 using Voxand.Helpers;

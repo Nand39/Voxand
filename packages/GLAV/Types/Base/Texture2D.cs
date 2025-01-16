@@ -3,8 +3,6 @@
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 
-using GLAV.Systems;
-
 namespace GLAV.Types;
 public readonly struct TexParam(TextureParameterName param, int value)
 {
@@ -52,7 +50,7 @@ public class Texture2D : GLResource
         GL.TexImage2D(TextureTarget.Texture2D, 0, format.internalFormat, textureSize.X, textureSize.Y, 0, format.format, format.pixelType, dataPtr);
         Size = textureSize; Format = format; 
     }
-    public unsafe void Alloc<T>(Vector2i textureSize, TextureFormat format, ref T[] data)
+    public unsafe void Alloc<T>(Vector2i textureSize, TextureFormat format, T[] data)
     where T : struct
     {
         fixed (void* dataPtr = data)
@@ -61,7 +59,7 @@ public class Texture2D : GLResource
         }
     }
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe void Alloc<T>(Vector2i textureSize, TextureFormat format, ref T[,] data)
+    public unsafe void Alloc<T>(Vector2i textureSize, TextureFormat format, T[,] data)
         where T : struct
     {
         fixed (void* dataPtr = data)
@@ -92,7 +90,7 @@ public class Texture2D : GLResource
         BindTex(0);
         GL.TexParameter(TextureTarget.Texture2D, param.textureParameterName, param.parameterValue);
     }
-    public void SetParams(ref TexParam[] parameters)
+    public void SetParams(TexParam[] parameters)
     {
         BindTex(0);
         foreach (var param in parameters)

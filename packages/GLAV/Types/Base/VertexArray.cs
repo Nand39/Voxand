@@ -1,8 +1,4 @@
 ﻿using OpenTK.Graphics.OpenGL4;
-
-using DisposableExt;
-
-using GLAV.Systems;
 using GLAV.Data;
 
 namespace GLAV.Types;

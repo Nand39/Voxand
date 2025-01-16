@@ -20,7 +20,7 @@ public abstract class VoxelMap : IDisposableExt
     public abstract bool IsSolid(Vector3i position);
     public void SaveMap(string mapName) => persistenceModule.Export(mapName);
     public void LoadMap(string mapName) => persistenceModule.Import(mapName);
-    public abstract DDAOut Raycast(Vector3 origin, Vector3 dir);
+    public abstract RaycastResult Raycast(Vector3 origin, Vector3 dir);
     public abstract long GetMemoryUsage();
     public abstract long GetGraphicsMemoryUsage();
     protected abstract void Free();

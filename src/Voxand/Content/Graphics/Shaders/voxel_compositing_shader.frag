@@ -4,11 +4,8 @@ in vec2 uv;
 
 out vec4 outColor;
 
-uniform sampler2D luminance;
-uniform sampler2D depth_motion;
-uniform isampler2D normal;
-
-uniform float wp;
+uniform sampler2D luminance_depthTex;
+uniform sampler2D normalCompound_motionTex;
 
 ivec2 targetTextureSize;
 
@@ -22,11 +19,11 @@ vec3 fogColor = vec3(0.75, 1.3, 1.9);
 
 void main() 
 {
+    ivec2 texelCoord = ivec2(uv * textureSize(luminance_depthTex, 0));
     
-    targetTextureSize = textureSize(luminance, 0);
-    ivec2 frag = ivec2(uv * targetTextureSize);
-    
-    vec3 lum = texelFetch(luminance, frag, 0).xyz;
+    vec4 lumDepth = texelFetch(luminance_depthTex, texelCoord, 0);
+
+    vec3 lum = lumDepth.xyz;//lumDepth.w == -1 ? vec3(0, 1, 1) : lumDepth.xyz;
     
 //    float fogIntensity = texelFetch(depth_motion, frag, 0).x;
 //    float fogShift = fogIntensity - 50;
@@ -35,6 +32,14 @@ void main()
 
     vec3 toneMappedLum = toneMap_IDKWHAT(lum, 6);
     vec3 gammaCorrectedLum = vec3(pow(toneMappedLum.r, 0.4545), pow(toneMappedLum.g, 0.4545), pow(toneMappedLum.b, 0.4545));
+//    vec2 motion = texture2D(depth_motion, uv).gb;
+//    vec2 reprojection = uv + motion;
+//    vec4 motionColoring = vec4(motion * 2, 0, 0);
+//    if ()
+//    {
+//        motionColoring = vec4(0, 0, 1, 0);
+//    }
+//    outColor = vec4(gammaCorrectedLum, 1) * 0.5 + motionColoring;
     outColor = vec4(gammaCorrectedLum, 1);
     
     //outColor = vec4(clamp(lum, vec3(0), vec3(1)), 1);
@@ -55,33 +60,4 @@ vec3 toneMap_IDKWHAT(vec3 color, float max_white_l)
 vec3 toneMap_ExtendedReinhard(vec3 color, float whitePoint)
 {
     return clamp(color * (1 + color / (whitePoint * whitePoint)) / (color + 1), vec3(0), vec3(1));
-}
-
-vec3 denoiseLuminance(ivec2 targetTexel)
-{
-    ivec2 maxTexel = ivec2(targetTexel.x + blurKernelSize, targetTexel.y + blurKernelSize);
-    vec3 sum = vec3(0);
-    ivec2 texel;
-    int CN = texelFetch(normal, targetTexel, 0).r;
-    float CD = texelFetch(depth_motion, targetTexel, 0).r;
-    int pixCount = 0;
-
-    for (texel.x = targetTexel.x - blurKernelSize; texel.x <= maxTexel.x; texel.x++)
-    {
-        for (texel.y = targetTexel.y - blurKernelSize; texel.y <= maxTexel.y; texel.y++)
-        {
-            if (texelFetch(normal, texel, 0).r != CN)
-            {
-                continue;
-            }
-            if (abs(texelFetch(depth_motion, texel, 0).r - CD) > 0.9)
-            {
-                continue;
-            }
-            sum += texelFetch(luminance, texel, 0).xyz;
-            pixCount++;
-        }
-    }
-    //return pixCount < 24 ? vec3(1, 1, 1) : vec3(0.2, 0.2, 0.2);
-    return sum / pixCount;
 }

@@ -9,6 +9,7 @@ using Voxand.Engine.Systems.ScriptableObjects;
 using Voxand.Engine.Systems.Voxels;
 using Voxand.Helpers;
 using Voxand.App.VoxelEditing;
+using Voxand.Helpers.ExtensionMethods;
 
 namespace Voxand.App;
 public class Viewer : BaseObject
@@ -21,8 +22,7 @@ public class Viewer : BaseObject
     public bool cameraFollow;
     public bool hideCursorWhenRotatingCamera;
     public float sensitivity = 0.0038f;
-    float speed = 14;
-    float buildingRadius = 4;
+    float speed = 8;
     bool isRenderInterupted = false;
     bool wasRenderInterupted = false;
     Vector2i screenCenter;
@@ -33,6 +33,7 @@ public class Viewer : BaseObject
     {
         Win.Resize += (args) => screenCenter = args.Size / 2;
         HandleMapLoading();
+        OnRenderRenewed();
     }
     public override void Update(FrameEventArgs args)
     {
@@ -61,17 +62,10 @@ public class Viewer : BaseObject
             OnRenderRenewed();
         }
 
-        bool materialIncremented = Win.KeyboardState.IsKeyPressed(Keys.Z);
-        bool materialDecremented = Win.KeyboardState.IsKeyPressed(Keys.X);
-
-        if (materialIncremented || materialDecremented)
-        {
-            if (materialIncremented != materialDecremented)
-            {
-                int materialChange = materialIncremented ? 1 : -1;
-                VoxelTool.ActiveMaterial = (VoxelTool.ActiveMaterial + materialChange) % EngineState.VoxelPalette.MaterialCount;
-            }
-        }
+        if (Win.KeyboardState.IsKeyPressed(Keys.X))
+            VoxelTool.NextTechnique();
+        if (Win.KeyboardState.IsKeyPressed(Keys.Z))
+            VoxelTool.PreviousTechnique();
 
         HandleBuilding();
 
@@ -82,21 +76,6 @@ public class Viewer : BaseObject
             (value, bit, brickIndex) = EngineState.VoxelMap.RawStructure.Examine((Vector3i)Camera.position, true);
             Console.WriteLine($"* GPU SIDE: voxel data at {(Vector3i)Camera.position}: value={value}; empty={bit == 0}; brick={brickIndex}");
         }
-
-        if (Win.KeyboardState.IsKeyPressed(Keys.Y))
-        {
-            Vector3[] unitHits = RayDistributionTest_CosineStratified(64, Util.Random.NextSingle() + 1);
-            Vector3i[] voxelHits = new Vector3i[unitHits.Length];
-            for (int i = 0; i < unitHits.Length; i++)
-            {
-                voxelHits[i] = (Vector3i)((unitHits[i] * 40) + EngineState.VoxelMap.Dimensions / 2);
-                Console.WriteLine($"unitHit * 40 ={unitHits[i] * 40}; voxelHit = {voxelHits[i]}.");
-            }
-            for (int i = 0; i < voxelHits.Length; i++)
-            {
-                VoxelTool.PlaceSingle(voxelHits[i]);
-            }
-        }
     }
     void OnRenderRenewed()
     {
@@ -105,7 +84,7 @@ public class Viewer : BaseObject
     }
     void OnRenderInterupted()
     {
-        EngineState.RenderingPipeline.antiAliasingSettings.Intensity = 0f;
+        EngineState.RenderingPipeline.antiAliasingSettings.Intensity = 0.95f;
         EngineState.RenderingPipeline.voxelPathTracingSettings.Samples = 1;
     }
     bool HandleMovement(float deltaTime)
@@ -196,34 +175,21 @@ public class Viewer : BaseObject
     }
     void HandleBuilding()
     {
-        if (Win.KeyboardState.IsKeyPressed(Keys.B))
-            VoxelTool.PlaceSingle((Vector3i)Camera.position);
-
-        if (!ImGui.IsAnyItemHovered() && !ImGui.IsWindowHovered(ImGuiHoveredFlags.AnyWindow | ImGuiHoveredFlags.None | ImGuiHoveredFlags.RootWindow))
+        if (Win.MouseState.IsButtonPressed(MouseButton.Left))
         {
-            bool placeVoxels = Win.MouseState.IsButtonDown(MouseButton.Right);
-            bool removeVoxels = Win.MouseState.IsButtonDown(MouseButton.Left);
-
-            if (placeVoxels || removeVoxels)
+            if (!ImGui.IsAnyItemHovered() && !ImGui.IsWindowHovered(ImGuiHoveredFlags.AnyWindow | ImGuiHoveredFlags.None | ImGuiHoveredFlags.RootWindow))
             {
                 isRenderInterupted = true;
 
                 Vector3 raycastDir = Camera.PixelToRay(
                     uv: Win.MouseState.Position / Win.ClientSize,
-                    aspectRatio: (float)Win.ClientSize.X / Win.ClientSize.Y);
+                    aspectRatio: Win.ClientSize.Ratio());
 
-                DDAOut result = EngineState.VoxelMap.RawStructure.Raycast(Camera.position, raycastDir);
+                RaycastResult result = EngineState.VoxelMap.RawStructure.Raycast(Camera.position, raycastDir);
 
                 if (result.hit)
                 {
-                    if (placeVoxels)
-                    {
-                        VoxelTool.PlaceSphere(result.voxelHitPos + Util.VectorFromNormalIndex(result.normal), buildingRadius);
-                    }
-                    else
-                    {
-                        VoxelTool.RemoveSphere(result.voxelHitPos, buildingRadius);
-                    }
+                    VoxelTool.Use(result);
                 }
             }
         }
@@ -244,54 +210,5 @@ public class Viewer : BaseObject
                 EngineState.VoxelMap.StartLoadingChunkIfUnloaded(chunk);
             }
         }
-    }
-    Vector3[] RayDistributionTest(int samples, float randSalt)
-    {
-        Vector3[] results = new Vector3[samples];
-        float jitterArc = (MathF.PI * 2) / samples;
-
-        for (int i = 1; i <= samples; i++)
-        {
-            Vector2 randomSampler = new Vector2(200) * i * 68.8f;
-            float key1 = random(randomSampler, randSalt);
-            float key2 = random(randomSampler * key1, randSalt);
-            float key3 = random(new Vector2(key1 * -12.3f, key2 + 34), randSalt);
-            results[i - 1] = randomVector(new Vector3(key1, key2, key3), jitterArc, i);
-        }
-
-        return results;
-    }
-    Vector3 randomVector(Vector3 key, float jitterArc, int sampleIndex)
-    {
-        float theta = jitterArc * key.X + jitterArc * sampleIndex + (MathF.PI * 2) * key.Z;
-        float phi = (-1 * MathF.Sqrt(1 - key.Y * key.Y) + 1) * 1.370796f + 0.2f;
-        float cosPhi = MathF.Cos(phi);
-        return new Vector3(MathF.Sin(theta) * cosPhi, MathF.Sin(phi), MathF.Cos(theta) * cosPhi);
-    }
-    float random(Vector2 point, float randSalt)
-    {
-        point *= randSalt;
-        float val = MathF.Sin(Vector2.Dot(point, new (12.9898f, 78.233f))) * 43758.5453123f;
-        return val - (int)val;
-    }
-    Vector3[] RayDistributionTest_CosineStratified(int samples, float randSalt)
-    {
-        Vector3[] results = new Vector3[samples];
-        float jitterArc = MathF.Tau / samples;
-        float invSamples = 1 / samples;
-
-        for (int i = 0; i < samples; i++)
-        {
-            float phi = jitterArc * i + jitterArc * (randSalt - 1);
-            Vector2 randomSampler = new Vector2(200) * i * 68.8f;
-            float key1 = random(randomSampler, randSalt);
-            
-            float cosTheta = MathF.Sqrt(1.0f - key1);
-            float sinTheta = MathF.Sqrt(key1);
-
-            results[i] = new(MathF.Cos(phi) * cosTheta, sinTheta, MathF.Sin(phi) * cosTheta);
-        }
-
-        return results;
     }
 }

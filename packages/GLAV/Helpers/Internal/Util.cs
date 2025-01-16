@@ -2,15 +2,15 @@
 
 using GLAV.Types;
 
-namespace GLAV.Helpers.Util;
-public static class Util
+namespace GLAV.Helpers.Internal;
+internal static class Util
 {
     public static void LabelResource(GLResourceHandle handle, string name)
     {
-        ObjectLabelIdentifier objLabelId = GLResourceTypeToLabelIdentifier(handle.resourceType);
+        ObjectLabelIdentifier objLabelId = GetLabelIdentifier(handle.resourceType);
         GL.ObjectLabel(objLabelId, handle.id, name.Length, name);
     }
-    public static ObjectLabelIdentifier GLResourceTypeToLabelIdentifier(GLResourceType type)
+    public static ObjectLabelIdentifier GetLabelIdentifier(GLResourceType type)
     {
         switch (type)
         {

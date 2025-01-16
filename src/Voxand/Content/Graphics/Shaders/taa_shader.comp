@@ -1,0 +1,39 @@
+﻿#version 430 core
+layout (local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+
+uniform sampler2D lum_depthTex;
+uniform sampler2D lum_depthAccumTex;
+uniform sampler2D normalCompound_motionTex;
+
+layout(rgba32f, binding = 0) uniform image2D outputImg;
+layout(rgba32f, binding = 1) uniform image2D normalCompound_motionImg;
+
+uniform float intensity;
+
+void main() 
+{
+    ivec2 texelCoord = ivec2(gl_GlobalInvocationID);
+    ivec2 resolution = textureSize(lum_depthTex, 0);
+    vec2 uv = vec2(texelCoord) / resolution;
+
+    vec4 color;
+
+    vec4 normalCompound_motion = texelFetch(normalCompound_motionTex, texelCoord, 0);
+    vec4 lumDepthNew = texelFetch(lum_depthTex, texelCoord, 0);
+
+    vec2 reprojectionUV = uv + normalCompound_motion.zw + vec2(0.5 / resolution.x, 0.5 / resolution.y);
+
+    if (any(lessThanEqual(reprojectionUV, vec2(0.0001))) || any(greaterThanEqual(reprojectionUV, vec2(0.9999))))
+    {
+        color = lumDepthNew;
+        color.w = -1;
+    }
+    else 
+    {
+        vec4 lumDepthOld = texture2D(lum_depthAccumTex, reprojectionUV);
+        color = vec4(mix(lumDepthNew.xyz, lumDepthOld.xyz, intensity), lumDepthNew.w);
+    }
+    
+    imageStore(outputImg, texelCoord, color);
+    imageStore(normalCompound_motionImg, texelCoord, vec4(normalCompound_motion.x, lumDepthNew.w, normalCompound_motion.zw));
+}

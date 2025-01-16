@@ -3,63 +3,52 @@
 using OpenTK.Graphics.OpenGL4;
 
 using GLAV.Types;
+using GLAV.Helpers.Public.Exceptions;
 
 using Voxand.Engine.Systems.Graphics.Meshes.Primitives;
 using Voxand.Engine.Systems.Graphics.Pipelines.DefaultVoxelPTRP.Helpers;
 using Voxand.Engine.Systems.Graphics.Tools.ShaderServices;
 using Voxand.Engine.Systems.Graphics.Tools;
-using Voxand.Helpers.Exceptions.GLAVExceptions;
 
 namespace Voxand.Engine.Systems.Graphics.Pipelines.Modules;
 public sealed class CompositingModule : RenderingPipeline
 {
     ShaderController compositingShaderController;
-    Texture2D luminanceInput, depth_motionInput, normalInput;
+    Texture2D luminance_depthInput, normalCompound_motionInput;
     RenderTarget renderTarget;
-    public Texture2D LuminanceInput
+    public Texture2D Luminance_depthInput
     {
-        get => luminanceInput;
+        get => luminance_depthInput;
         set
         {
             VoxelPTRPHelper.ThrowIfTextureInvalid(value);
-            luminanceInput = value;
-            ThrowIfTextureSizesNotEqual();
+            luminance_depthInput = value;
+            ExceptionConstructor.ThrowIfTextureSizeNotEqual(luminance_depthInput, normalCompound_motionInput);
         }
     }
-    public Texture2D Depth_motionInput
+    public Texture2D NormalCompound_motionInput
     {
-        get => depth_motionInput;
+        get => normalCompound_motionInput;
         set
         {
             VoxelPTRPHelper.ThrowIfTextureInvalid(value);
-            depth_motionInput = value;
-            ThrowIfTextureSizesNotEqual();
+            normalCompound_motionInput = value;
+            ExceptionConstructor.ThrowIfTextureSizeNotEqual(luminance_depthInput, normalCompound_motionInput);
         }
     }
-    public Texture2D NormalInput
-    {
-        get => normalInput;
-        set
-        {
-            VoxelPTRPHelper.ThrowIfTextureInvalid(value);
-            normalInput = value;
-            ThrowIfTextureSizesNotEqual();
-        }
-    }
-    public RenderTarget Output
+    public RenderTarget RenderTarget
     {
         get => renderTarget;
         set => renderTarget = value;
     }
-    public CompositingModule(ShaderController shaderController, Texture2D luminanceInput,
-        Texture2D depth_motionInput, Texture2D normalInput, RenderTarget output)
+    public CompositingModule(ShaderController shaderController, Texture2D luminance_depthInput,
+        Texture2D normalCompound_motionInput, RenderTarget output)
     {
         compositingShaderController = shaderController;
-        compositingShaderController.SetUniform("luminance", 0);
-        compositingShaderController.SetUniform("depth_motion", 1);
-        compositingShaderController.SetUniform("normal", 2);
+        compositingShaderController.SetUniform("luminance_depthTex", 0);
+        compositingShaderController.SetUniform("normalCompound_motionTex", 1);
 
-        SetInput(luminanceInput, depth_motionInput, normalInput);
+        SetInput(luminance_depthInput, normalCompound_motionInput);
         renderTarget = output;
     }
     public override void Execute()
@@ -69,22 +58,17 @@ public sealed class CompositingModule : RenderingPipeline
 
         compositingShaderController.Shader.Use();
 
-        LuminanceInput.BindTex(0);
-        Depth_motionInput.BindTex(1);
-        NormalInput.BindTex(2);
+        luminance_depthInput.BindTex(0);
+        normalCompound_motionInput.BindTex(1);
 
         Primitives.ScreenQuad.Bind();
         GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
     }
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    void ThrowIfTextureSizesNotEqual() =>
-        ExceptionConstructor.ThrowIfTextureSizeNotEqual(luminanceInput, depth_motionInput, normalInput);
-    public void SetInput(Texture2D luminanceInput, Texture2D depth_motionInput, Texture2D normalInput)
+    public void SetInput(Texture2D luminance_depthInput, Texture2D normalCompound_motionInput)
     {
-        VoxelPTRPHelper.ThrowIfAnyTextureInvalid(luminanceInput, depth_motionInput, normalInput);
-        this.luminanceInput = luminanceInput;
-        this.depth_motionInput = depth_motionInput;
-        this.normalInput = normalInput;
+        VoxelPTRPHelper.ThrowIfAnyTextureInvalid(luminance_depthInput, normalCompound_motionInput);
+        this.luminance_depthInput = luminance_depthInput;
+        this.normalCompound_motionInput = normalCompound_motionInput;
     }
     protected override void Free() { }
 }

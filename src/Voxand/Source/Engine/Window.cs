@@ -7,7 +7,7 @@ using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 
-using GLAV.Systems;
+using GLAV;
 
 using Voxand.Content;
 using Voxand.Engine.ExecutionControl;
@@ -26,8 +26,7 @@ public sealed class Window : GameWindow
     public ContentManager Content { get; private set; }
     public ImGuiController ImGuiController { get; private set; }
 
-    GLFWCallbacks.CharCallback charCallback;
-
+    public bool IsMinimized { get; private set; }
     Window(GameWindowSettings windowSettings, NativeWindowSettings nativeWindowSettings)
         : base(windowSettings, nativeWindowSettings)
     {
@@ -40,12 +39,6 @@ public sealed class Window : GameWindow
 
     protected override void OnLoad()
     {
-        unsafe
-        {
-            charCallback = (winPtr, codepoint) => ImGuiController.PressChar((char)codepoint);
-            GLFW.SetCharCallback(WindowPtr, charCallback);
-        }
-
         AppDomain.CurrentDomain.UnhandledException += OnException;
         GLRegistry.Initialize(Context);
         
@@ -57,9 +50,7 @@ public sealed class Window : GameWindow
 
         string? AsmName = Assembly.GetExecutingAssembly().GetName().Name;
 
-        Content = new ContentManager(
-            basePath: Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Content"), 
-            asmBasePath: string.Join('.', AsmName, "Content"));
+        Content = new ContentManager("Content");
 
         ImGuiController = new ImGuiController(ClientSize.X, ClientSize.Y);
 
@@ -94,9 +85,6 @@ public sealed class Window : GameWindow
         base.OnRenderFrame(args);
     }
 
-    //======================================================
-    //additional functionality
-    //======================================================
     public T TryAccessExecutionManager<T>() where T : class
     {
         return ExecutionManager as T ??
@@ -117,5 +105,17 @@ public sealed class Window : GameWindow
         ImGuiController.WindowResized(ClientSize.X, ClientSize.Y);
         GL.Viewport(0, 0, args.Width, args.Height);
         ExecutionManager.OnResize(args);
+    }
+
+    protected override void OnTextInput(TextInputEventArgs e)
+    {
+        ImGuiController.PressChar((uint)e.Unicode);
+        base.OnTextInput(e);
+    }
+
+    protected override void OnMinimized(MinimizedEventArgs e)
+    {
+        IsMinimized = e.IsMinimized;
+        base.OnMinimized(e);
     }
 }

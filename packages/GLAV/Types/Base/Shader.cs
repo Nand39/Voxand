@@ -3,8 +3,6 @@ using OpenTK.Mathematics;
 
 using DisposableExt;
 
-using GLAV.Systems;
-
 namespace GLAV.Types;
 public class Shader : GLResource
 {

@@ -7,68 +7,46 @@ using OpenTK.Graphics.OpenGL4;
 
 using GLAV.Types;
 using Voxand.Helpers;
-using static System.Runtime.InteropServices.JavaScript.JSType;
-using System.IO;
 
 namespace Voxand.Content;
-public class ContentManager(string basePath, string asmBasePath)
+public class ContentManager
 {
-    readonly string basePath = basePath;
-    readonly string asmBasePath = asmBasePath;
+    readonly string basePath;
 
     static ContentManager()
     {
         StbImage.stbi_set_flip_vertically_on_load(1);
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Stream OpenEmbedded(string path)
+    public ContentManager(string indepBasePath)
     {
-        path = string.Join('.', asmBasePath, path);
-        return Assembly.GetExecutingAssembly().GetManifestResourceStream(path);
+        basePath = PlatformFilePath(indepBasePath);
     }
 
-    #region Basic text manipulations
-    public string ReadFile(string path, bool embedded, out bool succeeded)
+    FileStream OpenStream(string path, FileMode mode, FileAccess access) => new FileStream(CompleteFilePath(path), mode, access);
+
+
+    #region Basic reading/writing text
+    public bool ReadFile(string path, out string result)
     {
-        return embedded ? ReadEmbedded(path, out succeeded) : ReadFile(path, out succeeded);
-    }
-    public string ReadFile(string path, out bool succeeded)
-    {
-        path = ExtendFilePath(basePath, path);
-        succeeded = true;
+        path = CompleteFilePath(path);
         try
         {
             using StreamReader reader = new(path);
-            return reader.ReadToEnd();
+            result = reader.ReadToEnd();
+            return true;
         }
         catch
         {
-            succeeded = false;
-            return string.Empty;
-        }
-    }
-    public string ReadEmbedded(string path, out bool succeeded)
-    {
-        using Stream stream = OpenEmbedded(path);
-        succeeded = true;
-        try 
-        {
-            using StreamReader reader = new(stream);
-            return reader.ReadToEnd();
-        }
-        catch 
-        {
-            succeeded = false;
-            return string.Empty;
+            result = string.Empty;
+            return false;
         }
     }
     public bool WriteFile(string path, string text)
     {
-        path = ExtendFilePath(basePath, path);
         try
         {
-            using FileStream stream = new(path, FileMode.OpenOrCreate);
+            using Stream stream = OpenStream(path, FileMode.OpenOrCreate, FileAccess.Write);
             using StreamWriter writer = new(stream);
             writer.Write(text);
             return true;
@@ -81,17 +59,10 @@ public class ContentManager(string basePath, string asmBasePath)
     #endregion
 
     #region Asset loading
-    public Texture2D LoadTexture(string path, bool embedded)
+    public Texture2D LoadTexture(string path)
     {
         Stream stream;
-        if (embedded)
-        {
-            stream = OpenEmbedded(ToEmbeddedResourcePath(path));
-        }
-        else
-        {
-            stream = new FileStream(ExtendFilePath(basePath, path), FileMode.Open);
-        }
+        stream = OpenStream(path, FileMode.Open, FileAccess.Read);
 
         string? extension = Path.GetExtension(path);
         if (extension is null or "")
@@ -124,7 +95,7 @@ public class ContentManager(string basePath, string asmBasePath)
         ImageResult image = ImageResult.FromStream(imageFileStream, ColorComponents.RedGreenBlueAlpha);
         byte[] data = image.Data;
         Texture2D texture = new Texture2D();
-        texture.Alloc(new Vector2i(image.Width, image.Height), new(PixelInternalFormat.Rgba, PixelFormat.Rgba, PixelType.UnsignedByte), ref data);
+        texture.Alloc(new Vector2i(image.Width, image.Height), new(PixelInternalFormat.Rgba, PixelFormat.Rgba, PixelType.UnsignedByte), data);
         return texture;
     }
     Texture2D LoadHDRTexture(Stream imageFileStream)
@@ -132,14 +103,14 @@ public class ContentManager(string basePath, string asmBasePath)
         ImageResultFloat image = ImageResultFloat.FromStream(imageFileStream, ColorComponents.RedGreenBlueAlpha);
         float[] data = image.Data;
         Texture2D texture = new Texture2D();
-        texture.Alloc(new Vector2i(image.Width, image.Height), new(PixelInternalFormat.Rgba32f, PixelFormat.Rgba, PixelType.Float), ref data);
+        texture.Alloc(new Vector2i(image.Width, image.Height), new(PixelInternalFormat.Rgba32f, PixelFormat.Rgba, PixelType.Float), data);
         return texture;
     }
-    public Shader LoadShader(bool embedded, params string[] sourcePaths)
+    public Shader LoadShader(params string[] sourcePaths)
     {
         ShaderPart[] shaderAttachments = new ShaderPart[sourcePaths.Length];
         for (int i = 0; i < shaderAttachments.Length; i++)
-            shaderAttachments[i] = LoadShaderPart(sourcePaths[i], embedded);
+            shaderAttachments[i] = LoadShaderPart(sourcePaths[i]);
 
         Shader shader = new();
         bool succeeded = shader.Create(shaderAttachments);
@@ -152,19 +123,19 @@ Parts: {string.Join(";\n", sourcePaths)}");
 
         return shader;
     }
-    public ShaderPart LoadShaderPart(string sourcePath, bool embedded)
+    public ShaderPart LoadShaderPart(string sourcePath)
     {
-        string source = embedded ? ReadEmbedded(sourcePath, out bool succeeded) : ReadFile(sourcePath, out succeeded);
+        string source;
+        bool succeeded;
+        succeeded = ReadFile(sourcePath, out source);
 
-        if (!succeeded)
-            throw new Exception(
-@$"Cannot load shader part source code.
-Path: {sourcePath}; embedded = {embedded}");
+        if (!ReadFile(sourcePath, out source))
+            throw new Exception($"Cannot load shader source code. Path: {sourcePath}");
 
         ShaderType? type = Util.IdentifyShaderSource(sourcePath);
 
         if (type is null)
-            throw new Exception($"Cannot identify shader source; path: {sourcePath}");
+            throw new Exception($"Cannot infer shader type from code file extension. Path: {sourcePath}");
 
         ShaderPart shaderPart = new ShaderPart(source, type.Value);
         shaderPart.Lable = "Unnamed shader part";
@@ -175,20 +146,7 @@ Path: {sourcePath}; embedded = {embedded}");
     #endregion
 
     #region Formatting
-    public static string ExtendFilePath(string basePath, string subpath)
-    {
-        string[] subDirs = subpath.Split('/');
-        return Path.Combine(basePath, Path.Combine(subDirs));
-    }
-    public static string PlatformFilePath(string indepPath)
-    {
-        string[] dirs = indepPath.Split('/');
-        return Path.Combine(dirs);
-    }
-    public static string ToEmbeddedResourcePath(string indepPath)
-    {
-        string[] subs = indepPath.Split('/');
-        return string.Join('.', subs);
-    }
+    string CompleteFilePath(string indepPath) => Path.Combine(basePath, PlatformFilePath(indepPath));
+    string PlatformFilePath(string indepPath) => Path.Combine(indepPath.Split('/'));
     #endregion
 }

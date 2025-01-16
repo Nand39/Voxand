@@ -21,8 +21,7 @@ public static class UI_Manager
     {
         windows = new List<UI_Window>();
 
-        string styleJSON = content.ReadFile("Graphics/UI/ImGuiStyles/style.json", out bool status);
-        if (status) 
+        if (content.ReadFile("Graphics/UI/ImGuiStyles/style.json", out string styleJSON)) 
             ImGuiController.SetStyle(styleJSON);
     }
     

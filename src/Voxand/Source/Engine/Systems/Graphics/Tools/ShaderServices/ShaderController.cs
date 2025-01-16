@@ -13,7 +13,7 @@ public class ShaderController : IDisposableExt
 
     public ShaderController(ContentManager content, bool embedded, params string[] sourcePaths)
     {
-        Shader = content.LoadShader(embedded, sourcePaths);
+        Shader = content.LoadShader(sourcePaths);
         ShaderInfo = new ShaderInfo(Shader);
         DisposeHelper = new(this);
     }

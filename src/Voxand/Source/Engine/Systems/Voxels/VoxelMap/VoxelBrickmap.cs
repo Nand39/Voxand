@@ -1,12 +1,10 @@
-﻿using System.Diagnostics;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 
 using GLAV.Types;
-using GLAV.Systems;
 using DisposableExt;
 
 using Voxand.Engine.Systems.Structures;
@@ -188,7 +186,7 @@ public class VoxelBrickmap : VoxelMap, ISinglePlaceable
     }
 
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-    public override unsafe DDAOut Raycast(Vector3 origin, Vector3 dir)
+    public override unsafe RaycastResult Raycast(Vector3 origin, Vector3 dir)
     {
         Vector3i originVoxel = (Vector3i)origin;
         Vector3i brickPosition = originVoxel.BitshiftRight(2);
@@ -216,34 +214,45 @@ public class VoxelBrickmap : VoxelMap, ISinglePlaceable
             {
                 if (traversalResult.lastAxis == -1)
                 {
-                    return new DDAOut()
+                    return new RaycastResult()
                     {
                         hit = true,
                         hitPos = origin,
+                        voxelHitPos = traversalResult.lastVoxelPosition + brickOffset,
                         normal = 0,
-                        voxelHitPos = traversalResult.lastVoxelPosition + brickOffset
+                        depth = 0
                     };
                 }
 
                 int normal = NormalIndex(dir, traversalResult.lastAxis);
 
-                float localDistance = MathF.Abs((dir[traversalResult.lastAxis] > 0 ? traversalResult.lastVoxelPosition[traversalResult.lastAxis] : traversalResult.lastVoxelPosition[traversalResult.lastAxis] + 1) - entrance[traversalResult.lastAxis]) * dda.TimeToCross[traversalResult.lastAxis];
-                return new DDAOut()
+                float localDepth = MathF.Abs((dir[traversalResult.lastAxis] > 0 ? traversalResult.lastVoxelPosition[traversalResult.lastAxis] : traversalResult.lastVoxelPosition[traversalResult.lastAxis] + 1) - entrance[traversalResult.lastAxis]) * dda.TimeToCross[traversalResult.lastAxis];
+                return new RaycastResult()
                 {
                     hit = true,
-                    hitPos = dir * localDistance + origin,
+                    hitPos = dir * localDepth + origin,
                     normal = normal,
-                    voxelHitPos = traversalResult.lastVoxelPosition + brickOffset
+                    voxelHitPos = traversalResult.lastVoxelPosition + brickOffset,
+                    depth = localDepth
                 };
             }
         }
-
-        dda.Step();
-        brickOffset = dda.CurrentVoxelPos.BitshiftLeft(2);
         
         // Traversing bricks along the ray direction
         while (true)
         {
+            dda.Step();
+            if (!dda.CurrentVoxelPos.Inbounds(Vector3i.Zero, brickmapSize))
+            {
+                return new RaycastResult()
+                {
+                    hit = false,
+                    depth = dda.LastHitDepth,
+                    normal = -1,
+                };
+            }
+            brickOffset = dda.CurrentVoxelPos.BitshiftLeft(2);
+
             brickIndex = GetBrickIndexDirect(dda.CurrentVoxelPos);
             if (brickIndex != -1)
             {
@@ -264,25 +273,18 @@ public class VoxelBrickmap : VoxelMap, ISinglePlaceable
 
                     int normal = NormalIndex(dir, traversalResult.lastAxis);
 
-                    float localDistance = MathF.Abs((dir[traversalResult.lastAxis] > 0 ? traversalResult.lastVoxelPosition[traversalResult.lastAxis] : traversalResult.lastVoxelPosition[traversalResult.lastAxis] + 1) - entrance[traversalResult.lastAxis]) * dda.TimeToCross[traversalResult.lastAxis];
-                    return new DDAOut()
+                    float localDepth = MathF.Abs((dir[traversalResult.lastAxis] > 0 ? traversalResult.lastVoxelPosition[traversalResult.lastAxis] : traversalResult.lastVoxelPosition[traversalResult.lastAxis] + 1) - entrance[traversalResult.lastAxis]) * dda.TimeToCross[traversalResult.lastAxis];
+
+                    Vector3 hitPos = dir * localDepth + entrance + brickOffset;
+                    return new RaycastResult()
                     {
                         hit = true,
-                        hitPos = (dir * (localDistance) + entrance) + brickOffset,
+                        hitPos = hitPos,
                         normal = normal,
-                        voxelHitPos = traversalResult.lastVoxelPosition + brickOffset
+                        voxelHitPos = traversalResult.lastVoxelPosition + brickOffset,
+                        depth = (hitPos - origin).Length
                     };
                 }
-            }
-            dda.Step();
-            brickOffset = dda.CurrentVoxelPos.BitshiftLeft(2);
-
-            if (!dda.CurrentVoxelPos.Inbounds(Vector3i.Zero, brickmapSize))
-            {
-                return new DDAOut()
-                {
-                    hit = false,
-                };
             }
         }
     }

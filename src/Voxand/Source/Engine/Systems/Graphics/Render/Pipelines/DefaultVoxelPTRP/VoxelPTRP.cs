@@ -11,7 +11,6 @@ using Voxand.Content;
 using Voxand.Engine.Systems.Graphics.Tools.ShaderServices;
 using Voxand.Engine.Systems.Graphics.Pipelines.Modules;
 using Voxand.Engine.Systems.Graphics.Tools;
-using Voxand.Engine.Systems.Voxels;
 using Voxand.App.Map;
 
 namespace Voxand.Engine.Systems.Graphics.Pipelines.DefaultVoxelPTRP;
@@ -19,10 +18,10 @@ namespace Voxand.Engine.Systems.Graphics.Pipelines.DefaultVoxelPTRP;
 public sealed class VoxelPTRP : RenderingPipeline
 {
     Camera Camera;
-    Texture2D luminancePT, depth_motionPT, normalPT;
+    Texture2D luminance_depthPT, normalCompound_motionPT;
     Texture2D skyTex;
     RenderTarget renderTarget;
-    ShaderController pathTracingShaderController, TAAShaderController, copyTex8ShaderController, compositingShaderController;
+    ShaderController pathTracingShaderController, TAAShaderController, compositingShaderController;
 
     DisposalList lifetimeResources;
     // Stores textures and framebuffers to carry data between pipeline stages and that need to be reallocated
@@ -34,14 +33,14 @@ public sealed class VoxelPTRP : RenderingPipeline
     CompositingModule compositingModule;
     public IAntiAliasingBasicModuleSettings antiAliasingSettings => antiAliasingModule;
     public IVoxelPathTracingSettings voxelPathTracingSettings => voxelPathTracingModule;
-    public Vector2i RenderingResolution { get; set; }
+    public Vector2i RenderingResolution { get; private set; }
     public RenderTarget RenderTarget
     {
         get => renderTarget;
         set
         {
             renderTarget = value;
-            compositingModule.Output = value;
+            compositingModule.RenderTarget = value;
         }
     }
     public VoxelPTRP(ContentManager content, Camera camera, ChunkMap map, RenderTarget output, Vector2i renderingResolution)
@@ -53,39 +52,35 @@ public sealed class VoxelPTRP : RenderingPipeline
 
         CreateVaryingRenderDataStorage(renderingResolution);
 
-        varyingRenderDataStorage.Add(luminancePT, depth_motionPT, normalPT);
+        varyingRenderDataStorage.Add(luminance_depthPT, normalCompound_motionPT);
 
-        skyTex = content.LoadTexture("Graphics/Textures/env.hdr", false);
+        skyTex = content.LoadTexture("Graphics/Textures/env.hdr");
 
-        pathTracingShaderController = new(content, true, "Graphics.Shaders.voxelRenderComputeBrickmap.comp");
-        pathTracingShaderController.Shader.Lable = "compute render shader";
+        pathTracingShaderController = new(content, false, "Graphics/Shaders/voxel_path_tracing_shader.comp");
+        pathTracingShaderController.Shader.Lable = "* voxel PT shader";
 
-        TAAShaderController = new(content, true, "Graphics.Shaders.tempAntiAliasingBasicShader.comp");
-        TAAShaderController.Shader.Lable = "anti-aliasing basic shader";
+        TAAShaderController = new(content, false, "Graphics/Shaders/taa_shader.comp");
+        TAAShaderController.Shader.Lable = "* TAA shader";
 
-        copyTex8ShaderController = new(content, true, "Graphics.Shaders.copyTex8.comp");
-        copyTex8ShaderController.Shader.Lable = "copyTex8 shader";
-
-        compositingShaderController = new(content, true,
-            "Graphics.Shaders.voxelCompositing.vert",
-            "Graphics.Shaders.voxelCompositing.frag");
-        compositingShaderController.Shader.Lable = "compositing shader";
+        compositingShaderController = new(content, false,
+            "Graphics/Shaders/voxel_compositing_shader.vert",
+            "Graphics/Shaders/voxel_compositing_shader.frag");
+        compositingShaderController.Shader.Lable = "* Compositing shader";
 
         voxelPathTracingModule = new VoxelPathTracingModule(
             shaderControllerPT: pathTracingShaderController,
             camera: Camera,
             mapSize: map.Dimensions,
             skyTexture: skyTex,
-            luminanceOutput: luminancePT,
-            depth_motionOutput: depth_motionPT,
-            normalOutput: normalPT);
+            luminance_depthOutput: luminance_depthPT,
+            normalCompound_motionOutput: normalCompound_motionPT);
 
-        antiAliasingModule = new(TAAShaderController, luminancePT);
+        antiAliasingModule = new(TAAShaderController, luminance_depthPT, normalCompound_motionPT);
 
-        compositingModule = new(compositingShaderController, luminancePT, depth_motionPT, normalPT, output);
+        compositingModule = new(compositingShaderController, luminance_depthPT, normalCompound_motionPT, output);
 
         lifetimeResources.Add(
-            pathTracingShaderController, TAAShaderController, copyTex8ShaderController, compositingShaderController,
+            pathTracingShaderController, TAAShaderController, compositingShaderController,
             voxelPathTracingModule, antiAliasingModule, compositingModule);
     }
     public override void Execute()
@@ -111,15 +106,18 @@ public sealed class VoxelPTRP : RenderingPipeline
 
         CreateVaryingRenderDataStorage(resolution);
 
-        varyingRenderDataStorage.Add(luminancePT, depth_motionPT, normalPT);
+        varyingRenderDataStorage.Add(luminance_depthPT, normalCompound_motionPT);
 
-        voxelPathTracingModule.SetOutput(luminancePT, depth_motionPT, normalPT);
-        antiAliasingModule.Luminance = luminancePT;
-        compositingModule.SetInput(luminancePT, depth_motionPT, normalPT);
+        voxelPathTracingModule.SetOutput(luminance_depthPT, normalCompound_motionPT);
+        antiAliasingModule.SetInputOutput(luminance_depthPT, normalCompound_motionPT);
+        compositingModule.SetInput(luminance_depthPT, normalCompound_motionPT);
+
+        RenderingResolution = resolution;
     }
+    
     void CreateVaryingRenderDataStorage(Vector2i resolution)
     {
-        Console.WriteLine($"Rendering output resolution set to {resolution}");
+        Console.WriteLine($"Rendering resolution set to {resolution}");
 
         TexParam[] texParams;
         TextureFormat format;
@@ -133,40 +131,29 @@ public sealed class VoxelPTRP : RenderingPipeline
             pixelType = PixelType.Float
         };
 
-        luminancePT = new Texture2D();
-        luminancePT.Alloc(resolution, format, nint.Zero);
-        luminancePT.SetParams(ref texParams);
-        luminancePT.BindTex(0);
-        luminancePT.Lable = "lumPT";
+        luminance_depthPT = new Texture2D();
+        luminance_depthPT.Alloc(resolution, format, nint.Zero);
+        luminance_depthPT.SetParams(texParams);
+        luminance_depthPT.BindTex(0);
+        luminance_depthPT.Lable = "lum_depthPT";
 
         format.internalFormat = PixelInternalFormat.Rgba32f;
         format.format = PixelFormat.Rgb;
 
-        depth_motionPT = new Texture2D();
-        depth_motionPT.Alloc(resolution, format, nint.Zero);
-        depth_motionPT.SetParams(ref texParams);
-        depth_motionPT.BindTex(1);
-        depth_motionPT.Lable = "depth_motionPT";
-
-        format.internalFormat = PixelInternalFormat.R32i;
-        format.format = PixelFormat.RedInteger;
-        format.pixelType = PixelType.Int;
-
-        normalPT = new Texture2D();
-        normalPT.Alloc(resolution, format, nint.Zero);
-        normalPT.SetParams(ref texParams);
-        normalPT.BindTex(2);
-        normalPT.Lable = "normalPT";
+        normalCompound_motionPT = new Texture2D();
+        normalCompound_motionPT.Alloc(resolution, format, nint.Zero);
+        normalCompound_motionPT.SetParams(texParams);
+        normalCompound_motionPT.BindTex(1);
+        normalCompound_motionPT.Lable = "normal_motionPT";
     }
+    
     public void MapSizeChanged(Vector3i newSize)
     {
         voxelPathTracingModule.OnMapSizeChanged(newSize);
     }
+
     protected override void Free()
     {
-        voxelPathTracingModule.Dispose();
-        antiAliasingModule.Dispose();
-        compositingModule.Dispose();
         lifetimeResources.Dispose();
         varyingRenderDataStorage.Dispose();
         skyTex.Dispose();

@@ -22,49 +22,9 @@
     <None Remove="Content\ava6.png" />
     <None Remove="Content\Graphics\Shaders\Test.comp" />
     <None Remove="Content\Graphics\Shaders\TestFrag.frag" />
-    <None Remove="Content\Graphics\Shaders\Testing\TestVert.vert" />
-    <None Remove="Content\Graphics\Shaders\voxelCompositing.frag" />
-    <None Remove="Content\Graphics\Shaders\voxelCompositing.vert" />
     <None Remove="Content\Graphics\Shaders\voxelRender.frag" />
     <None Remove="Content\Graphics\Shaders\voxelRender.vert" />
     <None Remove="Content\Graphics\Shaders\voxelRenderFlat.frag" />
-    <None Remove="Content\Graphics\Textures\router.png" />
-    <None Remove="Content\Graphics\UI\ImGuiStyles\style.json" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Content Include="Content\Graphics\UI\ImGuiStyles\style.json">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
-
-  <ItemGroup>
-    <EmbeddedResource Include="Content\Graphics\Shaders\tempAntiAliasingBasicShader.comp">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Content\Graphics\Shaders\tempAntiAliasingReprojectionShader.comp">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Content\Graphics\Shaders\copyTex8.comp">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Content\Graphics\Shaders\Testing\TestFrag.frag">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Content\Graphics\Shaders\Testing\Test.comp" />
-    <EmbeddedResource Include="Content\Graphics\Shaders\Testing\TestVert.vert">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Content\Graphics\Shaders\voxelRenderComputeBrickmap.comp" />
-    <EmbeddedResource Include="Content\Graphics\Textures\router.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Content\Graphics\Shaders\voxelCompositing.frag">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Content\Graphics\Shaders\voxelCompositing.vert">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </EmbeddedResource>
   </ItemGroup>
 
   <ItemGroup>
@@ -79,6 +39,21 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="Content\Graphics\Shaders\copy_tex8_shader.comp">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Content\Graphics\Shaders\taa_shader.comp">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Content\Graphics\Shaders\voxel_compositing_shader.frag">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Content\Graphics\Shaders\voxel_compositing_shader.vert">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Content\Graphics\Shaders\voxel_path_tracing_shader.comp">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="Content\Graphics\Textures\env.hdr">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
@@ -86,6 +61,9 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="Content\Graphics\Textures\map_hdr.hdr">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Content\Graphics\UI\ImGuiStyles\style.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>

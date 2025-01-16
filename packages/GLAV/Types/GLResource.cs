@@ -1,10 +1,8 @@
 ﻿using OpenTK.Graphics.OpenGL4;
-using OpenTK.Graphics;
 
 using DisposableExt;
 
-using GLAV.Helpers.Util;
-using GLAV.Systems;
+using GLAV.Helpers.Internal;
 
 namespace GLAV.Types;
 public abstract class GLResource : IDisposableExt
@@ -16,7 +14,7 @@ public abstract class GLResource : IDisposableExt
     {
         get
         {
-            GL.GetObjectLabel(Util.GLResourceTypeToLabelIdentifier(Handle.resourceType), Handle.id, 200, out int length, out string label);
+            GL.GetObjectLabel(Util.GetLabelIdentifier(Handle.resourceType), Handle.id, 200, out int length, out string label);
             if (label == "") label = "UnnamedResource";
             return label;
         }

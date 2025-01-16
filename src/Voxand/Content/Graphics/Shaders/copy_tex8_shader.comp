@@ -7,6 +7,5 @@ layout(rgba32f, binding = 0) uniform image2D destination;
 void main() 
 {
     ivec2 texelCoord = ivec2(gl_GlobalInvocationID);
-    vec2 uv = vec2(texelCoord) / imageSize(destination); 
-    imageStore(destination, texelCoord, texture2D(source, uv));
+    imageStore(destination, texelCoord, texelFetch(source, texelCoord, 0));
 }

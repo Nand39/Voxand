@@ -5,14 +5,15 @@ using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 
 using GLAV.Types;
+using GLAV.Helpers.Public.Exceptions;
 
 using Voxand.Engine.Systems.Graphics.Pipelines.DefaultVoxelPTRP.Helpers;
 using Voxand.Engine.Systems.Graphics.Tools.ShaderServices;
-using Voxand.Helpers.Exceptions.GLAVExceptions;
 
 using Buffer = GLAV.Types.Buffer;
 using Voxand.Helpers;
 using DisposableExt;
+using Voxand.Helpers.ExtensionMethods;
 
 namespace Voxand.Engine.Systems.Graphics.Pipelines.Modules;
 public interface IVoxelPathTracingSettings
@@ -22,41 +23,33 @@ public interface IVoxelPathTracingSettings
 public sealed class VoxelPathTracingModule : RenderingPipeline, IVoxelPathTracingSettings
 {
     ShaderController pathTracingShaderController;
-    Texture2D luminanceOutput, depth_motionOutput, normalOutput;
-    public Texture2D SkyTex { get; set; }
-    public Texture2D LuminanceOutput
-    {
-        get => luminanceOutput;
-        set
-        {
-            VoxelPTRPHelper.ThrowIfTextureInvalid(value);
-            luminanceOutput = value;
-            ThrowIfTextureSizesNotEqual();
-        }
-    }
-    public Texture2D Depth_motionOutput
-    {
-        get => depth_motionOutput;
-        set
-        {
-            VoxelPTRPHelper.ThrowIfTextureInvalid(value);
-            depth_motionOutput = value;
-            ThrowIfTextureSizesNotEqual();
-        }
-    }
-    public Texture2D NormalOutput
-    {
-        get => normalOutput;
-        set
-        {
-            VoxelPTRPHelper.ThrowIfTextureInvalid(value);
-            normalOutput = value;
-            ThrowIfTextureSizesNotEqual();
-        }
-    }
-
+    Texture2D luminance_depthOutput, normalCompound_motionOutput;
     Buffer shaderInputSSBO;
     ShaderInputStreaming shaderInputStreaming = new();
+    int samples;
+    int cycle = 0;
+    public Camera Camera { get; set; }
+    public Texture2D SkyTex { get; set; }
+    public Texture2D Luminance_depthOutput
+    {
+        get => luminance_depthOutput;
+        set
+        {
+            VoxelPTRPHelper.ThrowIfTextureInvalid(value);
+            luminance_depthOutput = value;
+            ExceptionConstructor.ThrowIfTextureSizeNotEqual(Luminance_depthOutput, NormalCompound_motionOutput);
+        }
+    }
+    public Texture2D NormalCompound_motionOutput
+    {
+        get => normalCompound_motionOutput;
+        set
+        {
+            VoxelPTRPHelper.ThrowIfTextureInvalid(value);
+            normalCompound_motionOutput = value;
+            ExceptionConstructor.ThrowIfTextureSizeNotEqual(Luminance_depthOutput, NormalCompound_motionOutput);
+        }
+    }
 
     [StructLayout(LayoutKind.Sequential)]
     struct ShaderInputStreaming
@@ -65,12 +58,11 @@ public sealed class VoxelPathTracingModule : RenderingPipeline, IVoxelPathTracin
 
         public Matrix4 cameraMatrix = Matrix4.Identity;
         public Matrix4 invCameraMatrix = Matrix4.Identity;
-        public Matrix4 prevInvCameraMatrix = Matrix4.Identity;
+        public Matrix4 prevCameraMatrix = Matrix4.Identity;
         public Vector3 cameraPosition = default;
         public float randSalt = 1;
+        public Vector3 prevCameraPosition = default;
     }
-    public Camera Camera { get; set; }
-    int samples;
     public int Samples
     {
         get => samples;
@@ -81,13 +73,12 @@ public sealed class VoxelPathTracingModule : RenderingPipeline, IVoxelPathTracin
         }
     }
 
-    public VoxelPathTracingModule(ShaderController shaderControllerPT, Camera camera, Vector3i mapSize, Texture2D skyTexture, Texture2D luminanceOutput, Texture2D depth_motionOutput, Texture2D normalOutput)
+    public VoxelPathTracingModule(ShaderController shaderControllerPT, Camera camera, Vector3i mapSize, Texture2D skyTexture, Texture2D luminance_depthOutput, Texture2D normalCompound_motionOutput)
     {
         pathTracingShaderController = shaderControllerPT;
-        pathTracingShaderController.SetUniform("luminanceTexture", 0);
-        pathTracingShaderController.SetUniform("depthTexture", 1);
-        pathTracingShaderController.SetUniform("normalTexture", 2);
-        pathTracingShaderController.SetUniform("skyTex", 8);
+        pathTracingShaderController.SetUniform("luminance_depthImg", 0);
+        pathTracingShaderController.SetUniform("normalCompound_motionImg", 1);
+        pathTracingShaderController.SetUniform("skyTex", 2);
         
         Samples = 1;
 
@@ -100,7 +91,7 @@ public sealed class VoxelPathTracingModule : RenderingPipeline, IVoxelPathTracin
         }
         shaderInputSSBO.BindEntireBuffer(new(BufferRangeTarget.ShaderStorageBuffer, 3));
 
-        SetOutput(luminanceOutput, depth_motionOutput, normalOutput);
+        SetOutput(luminance_depthOutput, normalCompound_motionOutput);
         OnMapSizeChanged(mapSize);
     }
     public unsafe override void Execute()
@@ -108,39 +99,42 @@ public sealed class VoxelPathTracingModule : RenderingPipeline, IVoxelPathTracin
         StreamShaderInput();
 
         pathTracingShaderController.Shader.Use();
-        SkyTex.BindTex(8);
 
+        pathTracingShaderController.SetUniform("cycle", cycle);
+        Console.WriteLine("Cycle: " + cycle);
 
-        LuminanceOutput.BindAsImage(0, TextureAccess.WriteOnly, SizedInternalFormat.Rgba32f);
-        Depth_motionOutput.BindAsImage(1, TextureAccess.WriteOnly, SizedInternalFormat.Rgba32f);
-        NormalOutput.BindAsImage(2, TextureAccess.WriteOnly, SizedInternalFormat.R32i);
+        SkyTex.BindTex(2);
+        Luminance_depthOutput.BindAsImage(0, TextureAccess.ReadWrite, SizedInternalFormat.Rgba32f);
+        NormalCompound_motionOutput.BindAsImage(1, TextureAccess.ReadWrite, SizedInternalFormat.Rgba32f);
 
-        GL.DispatchCompute(LuminanceOutput.Size.X / 8, LuminanceOutput.Size.Y / 8, 1);
+        GL.DispatchCompute(Luminance_depthOutput.Size.X / 8, Luminance_depthOutput.Size.Y / 8, 1);
+
+        cycle++; 
+        cycle &= 1;
     }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    void ThrowIfTextureSizesNotEqual() =>
-        ExceptionConstructor.ThrowIfTextureSizeNotEqual(luminanceOutput, depth_motionOutput, normalOutput);
-    public void SetOutput(Texture2D luminanceOutput, Texture2D depthOutput, Texture2D normalOutput)
+    public void SetOutput(Texture2D luminance_depthOutput, Texture2D normalCompound_motionOutput)
     {
-        ExceptionConstructor.ThrowIfTextureSizeNotEqual(luminanceOutput, depthOutput, normalOutput);
-        VoxelPTRPHelper.ThrowIfAnyTextureInvalid(luminanceOutput, depthOutput, normalOutput);
-        this.luminanceOutput = luminanceOutput;
-        this.depth_motionOutput = depthOutput;
-        this.normalOutput = normalOutput;
+        ExceptionConstructor.ThrowIfTextureSizeNotEqual(luminance_depthOutput, normalCompound_motionOutput);
+        VoxelPTRPHelper.ThrowIfAnyTextureInvalid(luminance_depthOutput, normalCompound_motionOutput);
+        this.luminance_depthOutput = luminance_depthOutput;
+        this.normalCompound_motionOutput = normalCompound_motionOutput;
     }
     public void OnMapSizeChanged(Vector3i newSize)
     {
         pathTracingShaderController.SetUniform("mapSize", newSize);
-        Vector3i brickmapSize = new Vector3i(newSize.X >> 2, newSize.Y >> 2, newSize.Z >> 2);
+        Vector3i brickmapSize = newSize.BitshiftRight(2);
         pathTracingShaderController.SetUniform("voxelBrickmapSize", brickmapSize);
     }
     void StreamShaderInput()
     {
-        Matrix4 cameraMat = Camera.CreateCameraMatrix((float)LuminanceOutput.Size.X / LuminanceOutput.Size.Y);
+        Matrix4 cameraMat = Camera.CreateCameraMatrix(luminance_depthOutput.Size.Ratio());
+        shaderInputStreaming.prevCameraMatrix = shaderInputStreaming.cameraMatrix;
         shaderInputStreaming.cameraMatrix = cameraMat;
-        shaderInputStreaming.prevInvCameraMatrix = shaderInputStreaming.invCameraMatrix;
         shaderInputStreaming.invCameraMatrix = Matrix4.Invert(cameraMat);
 
+        shaderInputStreaming.prevCameraPosition = shaderInputStreaming.cameraPosition;
         shaderInputStreaming.cameraPosition = Camera.position;
         shaderInputStreaming.randSalt = Util.Random.NextSingle() + 1;
         shaderInputSSBO.Store(ref shaderInputStreaming, 0);

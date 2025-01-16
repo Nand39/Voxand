@@ -2,20 +2,12 @@
 using System.Runtime.CompilerServices;
 
 namespace Voxand.Engine.Systems.Voxels;
-public struct DDAContext
-{
-    public Vector3i voxelPosition;
-    public Vector3 timeToCross;
-    public Vector3 nextIntersectionTime;
-    public Vector3i gridStep;
-    public int lastAxis;
-    public float lastDepth;
-}
-public struct DDAOut
+public struct RaycastResult
 {
     public bool hit;
     public Vector3 hitPos;
     public Vector3i voxelHitPos;
+    public float depth;
     public int normal;
 }
 
@@ -27,6 +19,16 @@ public class DDAUnit()
     public Vector3 NextIntersectionTime => data.nextIntersectionTime;
     public int LastAxis => data.lastAxis;
     public Vector3 TimeToCross => data.timeToCross;
+
+    struct DDAContext
+    {
+        public Vector3i voxelPosition;
+        public Vector3 timeToCross;
+        public Vector3 nextIntersectionTime;
+        public Vector3i gridStep;
+        public int lastAxis;
+        public float lastDepth;
+    }
 
     public void Begin(Vector3 origin, Vector3 dir)
     {

@@ -7,7 +7,7 @@ using OpenTK.Windowing.GraphicsLibraryFramework;
 using System.Diagnostics;
 using ErrorCode = OpenTK.Graphics.OpenGL4.ErrorCode;
 using System.Text.Json;
-using GLAV.Systems;
+using GLAV;
 
 namespace Voxand.UI;
 public class ImGuiController : IDisposable
@@ -245,7 +245,7 @@ void main()
         io.DeltaTime = deltaSeconds; // DeltaTime is in seconds.
     }
 
-    readonly List<char> PressedChars = new List<char>();
+    readonly List<uint> PressedChars = [];
 
     private void UpdateImGuiInput(GameWindow wnd)
     {
@@ -282,10 +282,7 @@ void main()
         PressedChars.Clear();
     }
 
-    internal void PressChar(char keyChar)
-    {
-        PressedChars.Add(keyChar);
-    }
+    public void PressChar(uint codepoint) => PressedChars.Add(codepoint);
 
     internal void MouseScroll(Vector2 offset)
     {

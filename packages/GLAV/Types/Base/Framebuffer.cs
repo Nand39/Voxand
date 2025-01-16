@@ -1,5 +1,4 @@
-﻿using GLAV.Systems;
-using OpenTK.Graphics.OpenGL4;
+﻿using OpenTK.Graphics.OpenGL4;
 
 namespace GLAV.Types;
 public struct FramebufferAttachmentInfo(Texture2D texture, FramebufferAttachment attahcmentType, TextureTarget textureTarget)

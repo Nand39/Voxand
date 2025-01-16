@@ -2,15 +2,16 @@
 
 using OpenTK.Graphics.OpenGL4;
 
-using GLAV.Helpers.ExtensionMethods;
+using GLAV.Helpers.Internal.ExtensionMethods;
 using GLAV.Types;
 using OpenTK.Windowing.Desktop;
 using System.Collections.Concurrent;
+using GLAV.Helpers.Public;
 
-namespace GLAV.Systems;
+namespace GLAV;
 public sealed class GLRegistry
 {
-    static GLRegistry instance = null;
+    static GLRegistry instance;
     public static GLRegistry Instance => instance;
 
     Texture2D[] textureUnits = new Texture2D[GL.GetInteger(GetPName.MaxCombinedTextureImageUnits)];

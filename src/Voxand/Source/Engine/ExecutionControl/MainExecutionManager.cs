@@ -18,6 +18,9 @@ using Voxand.App;
 using Voxand.App.VoxelEditing;
 using Voxand.App.Map.Generation;
 using Voxand.App.Map;
+using Voxand.Engine.Systems.Graphics.Tools.Utility;
+using Voxand.Helpers.ExtensionMethods;
+using ErrorCode = OpenTK.Graphics.OpenGL4.ErrorCode;
 
 namespace Voxand.Engine.ExecutionControl;
 
@@ -108,6 +111,7 @@ public class ObjectRegistry : IObjectRegistry, IDisposableExt
             DeleteObject(objects[0]);
     }
 }
+
 public interface IWindowState
 {
     public Window Window { get; }
@@ -155,7 +159,7 @@ public sealed class MainExecutionManager : ExecutionManager,
 
     Viewer viewer;
 
-    public MainExecutionManager(Window win) : base(win)
+    public MainExecutionManager(Window win)
     {
         windowState = new WindowState(win);
         engineState = new();
@@ -164,11 +168,13 @@ public sealed class MainExecutionManager : ExecutionManager,
     
     public override void Load()
     {
-        GL.ClearColor(0.6f, 0.3f, 0.2f, 1);
+        GL.ClearColor(0.2f, 0.3f, 0.3f, 1);
+
+        ComputeUtility.Initialize(windowState.Window.Content, "Graphics/Shaders/copy_tex8_shader.comp");
 
         engineState.MainCamera = new Camera();
         engineState.MainCamera.position = new Vector3(numberOfChunks.X * 2, numberOfChunks.Y * 3.7f, numberOfChunks.Z * 2);
-        engineState.MainCamera.FOV = 90;
+        engineState.MainCamera.FOV = 90 * Util.DEG2RAD;
         engineState.MainCamera.rotation = new(0, 45, 0);
         
         VoxelMaterial[] materials =
@@ -234,7 +240,7 @@ public sealed class MainExecutionManager : ExecutionManager,
             camera: engineState.MainCamera,
             map: engineState.VoxelMap,
             output: DefaultRenderTarget.Instance,
-            renderingResolution: new((main.ClientSize.X / 2) & ~7, (main.ClientSize.Y / 2) & ~7));
+            renderingResolution: new((windowState.Window.ClientSize.X / 2) & ~7, (windowState.Window.ClientSize.Y / 2) & ~7));
 
         objectRegistry.AddObjects(viewer, voxelTool);
 
@@ -253,12 +259,29 @@ public sealed class MainExecutionManager : ExecutionManager,
     {
         objectRegistry.Update(args);
 
+        if (windowState.Window.IsKeyPressed(Keys.M))
+        {
+            MarkReprojectionTarget();
+        }
+
+        if (windowState.Window.IsKeyPressed(Keys.Q))
+        {
+            //Console.WriteLine("UV: " + FindCorrespondingUV(engineState.MainCamera.position));
+            Vector2 targetUV = windowState.Window.MousePosition / windowState.Window.ClientSize;
+            engineState.MainCamera.PixelToRay(targetUV, engineState.RenderingPipeline.RenderingResolution.Ratio());
+        }
+
         fps.Tick(args);
     }
     public override void Render(FrameEventArgs args)
     {
-        engineState.RenderingPipeline.Execute();
+        if (!WindowState.Window.IsMinimized)
+            engineState.RenderingPipeline.Execute();
 
+        ErrorCode error = GL.GetError();
+        if (error != ErrorCode.NoError)
+            Console.WriteLine(error);
+        
         UI_Manager.Display();
     }
     public override void Unload()
@@ -272,6 +295,23 @@ public sealed class MainExecutionManager : ExecutionManager,
     }
     public override void OnResize(ResizeEventArgs args)
     {
-        engineState.RenderingPipeline.SetRenderingResolution(new((args.Size.X / 2) & ~7, (args.Size.Y / 2) & ~7));
+        engineState.RenderingPipeline.SetRenderingResolution(new((args.Size.X) & ~7, (args.Size.Y) & ~7));
+    }
+
+
+    Vector3 reprojectionTarget;
+    public void MarkReprojectionTarget()
+    {
+        Vector2 uv = windowState.Window.MouseState.Position / windowState.Window.ClientSize;
+        Vector3 rayDir = engineState.MainCamera.PixelToRay(uv, windowState.Window.ClientSize.Ratio());
+        RaycastResult raycastResult = engineState.VoxelMap.RawStructure.Raycast(engineState.MainCamera.position, rayDir);
+        reprojectionTarget = raycastResult.hitPos;
+        Console.WriteLine("Marked: " + reprojectionTarget);
+    }
+
+    public Vector2 FindCorrespondingUV(Vector3 cameraPosition)
+    {
+        Vector3 cameraToTarget = reprojectionTarget - cameraPosition;
+        return engineState.MainCamera.RayToPixel(cameraToTarget, windowState.Window.ClientSize.X / windowState.Window.ClientSize.Y);
     }
 }

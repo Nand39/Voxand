@@ -2,7 +2,7 @@
 
 using OpenTK.Graphics.OpenGL4;
 
-using GLAV.Systems;
+using GLAV;
 using System.Text;
 
 namespace GLAV.Types;

@@ -1,10 +1,12 @@
-﻿using OpenTK.Mathematics;
+﻿using GLAV.Types;
+using OpenTK.Mathematics;
 
-using GLAV.Types;
-
-namespace Voxand.Helpers.Exceptions.GLAVExceptions;
+namespace GLAV.Helpers.Public.Exceptions;
 public static class ExceptionConstructor
 {
+    /// <summary>
+    /// Throws <see cref="ArgumentException"/> if the dimensions of <paramref name="tex1"/> do not match <paramref name="tex2"/>.
+    /// </summary>
     public static void ThrowIfTextureSizeNotEqual(Texture2D tex1, Texture2D tex2)
     {
         if (tex1.Size != tex2.Size)
@@ -14,9 +16,7 @@ public static class ExceptionConstructor
     /// Throws <see cref="ArgumentException"/> if dimensions of any <see cref="Texture2D"/> in <paramref name="textures"/> 
     /// are not equal to the dimensions of the first texture in the array. Requires at least 2 textures.
     /// </summary>
-    /// <exception cref="InvalidOperationException">
-    /// Thrown if length of <paramref name="textures"/> array is less that two.
-    /// </exception>
+    /// <exception cref="InvalidOperationException"/>
     public static void ThrowIfTextureSizeNotEqual(params Texture2D[] textures)
     {
         if (textures is null || textures.Length < 2)
