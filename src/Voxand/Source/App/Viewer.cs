@@ -23,8 +23,6 @@ public class Viewer : BaseObject
     public bool hideCursorWhenRotatingCamera;
     public float sensitivity = 0.0038f;
     float speed = 8;
-    bool isRenderInterupted = false;
-    bool wasRenderInterupted = false;
     Vector2i screenCenter;
     int chunkLoadingDistance = 42;
 
@@ -33,7 +31,6 @@ public class Viewer : BaseObject
     {
         Win.Resize += (args) => screenCenter = args.Size / 2;
         HandleMapLoading();
-        OnRenderRenewed();
     }
     public override void Update(FrameEventArgs args)
     {
@@ -50,18 +47,6 @@ public class Viewer : BaseObject
 
         HandleCameraMouseFollow();
 
-        if (isRenderInterupted)
-        {
-            isRenderInterupted = false;
-            wasRenderInterupted = true;
-            OnRenderInterupted();
-        }
-        else if (wasRenderInterupted)
-        {
-            wasRenderInterupted = false;
-            OnRenderRenewed();
-        }
-
         if (Win.KeyboardState.IsKeyPressed(Keys.X))
             VoxelTool.NextTechnique();
         if (Win.KeyboardState.IsKeyPressed(Keys.Z))
@@ -76,16 +61,6 @@ public class Viewer : BaseObject
             (value, bit, brickIndex) = EngineState.VoxelMap.RawStructure.Examine((Vector3i)Camera.position, true);
             Console.WriteLine($"* GPU SIDE: voxel data at {(Vector3i)Camera.position}: value={value}; empty={bit == 0}; brick={brickIndex}");
         }
-    }
-    void OnRenderRenewed()
-    {
-        EngineState.RenderingPipeline.antiAliasingSettings.Intensity = 0.95f;
-        EngineState.RenderingPipeline.voxelPathTracingSettings.Samples = 1;
-    }
-    void OnRenderInterupted()
-    {
-        EngineState.RenderingPipeline.antiAliasingSettings.Intensity = 0.95f;
-        EngineState.RenderingPipeline.voxelPathTracingSettings.Samples = 1;
     }
     bool HandleMovement(float deltaTime)
     {
@@ -130,7 +105,6 @@ public class Viewer : BaseObject
                 Camera.position += tangent * movement.X * speed;
                 Camera.position += Vector3.UnitY * movement.Y * speed;
                 Camera.position = Vector3.Clamp(Camera.position, Vector3.Zero, new(EngineState.VoxelMap.Dimensions.X - 1, EngineState.VoxelMap.Dimensions.Y - 1, EngineState.VoxelMap.Dimensions.Z - 1));
-                isRenderInterupted = true;
                 return true;
             }
         }
@@ -149,6 +123,7 @@ public class Viewer : BaseObject
             }
             else
             {
+                Win.MousePosition = screenCenter;
                 cameraFollow = true;
                 if (hideCursorWhenRotatingCamera)
                     WindowState.CursorMode = CursorModeValue.CursorHidden;
@@ -163,13 +138,11 @@ public class Viewer : BaseObject
             {
                 Camera.rotation.Y += mouseShift.X;
                 Camera.rotation.Y %= MathF.Tau;
-                isRenderInterupted = true;
             }
             if (mouseShift.Y != 0)
             {
                 Camera.rotation.X += mouseShift.Y;
                 Camera.rotation.X = Math.Clamp(Camera.rotation.X, -MathF.PI / 2, MathF.PI / 2);
-                isRenderInterupted = true;
             }
         }
     }
@@ -179,8 +152,6 @@ public class Viewer : BaseObject
         {
             if (!ImGui.IsAnyItemHovered() && !ImGui.IsWindowHovered(ImGuiHoveredFlags.AnyWindow | ImGuiHoveredFlags.None | ImGuiHoveredFlags.RootWindow))
             {
-                isRenderInterupted = true;
-
                 Vector3 raycastDir = Camera.PixelToRay(
                     uv: Win.MouseState.Position / Win.ClientSize,
                     aspectRatio: Win.ClientSize.Ratio());

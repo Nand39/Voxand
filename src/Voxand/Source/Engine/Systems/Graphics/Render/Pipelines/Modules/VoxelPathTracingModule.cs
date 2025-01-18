@@ -100,9 +100,6 @@ public sealed class VoxelPathTracingModule : RenderingPipeline, IVoxelPathTracin
 
         pathTracingShaderController.Shader.Use();
 
-        pathTracingShaderController.SetUniform("cycle", cycle);
-        Console.WriteLine("Cycle: " + cycle);
-
         SkyTex.BindTex(2);
         Luminance_depthOutput.BindAsImage(0, TextureAccess.ReadWrite, SizedInternalFormat.Rgba32f);
         NormalCompound_motionOutput.BindAsImage(1, TextureAccess.ReadWrite, SizedInternalFormat.Rgba32f);
@@ -111,6 +108,7 @@ public sealed class VoxelPathTracingModule : RenderingPipeline, IVoxelPathTracin
 
         cycle++; 
         cycle &= 1;
+        pathTracingShaderController.SetUniform("cycle", cycle);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

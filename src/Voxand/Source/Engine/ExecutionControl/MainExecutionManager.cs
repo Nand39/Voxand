@@ -228,9 +228,11 @@ public sealed class MainExecutionManager : ExecutionManager,
         UI_Manager.AddWindow(debugWindow);
 
         UI_Manager.Events.Subscribe("voxel_material_edited", engineState.VoxelPalette.SetMaterial);
-        UI_Manager.Events.Subscribe("voxel_material_selected", (args) =>
+        UI_Manager.Events.Subscribe("voxel_material_selected", (args) => { viewer.VoxelTool.ActiveMaterial = (int)args; });
+        UI_Manager.Events.Subscribe("renderSettings_TAA_switched", (args) => 
         {
-            viewer.VoxelTool.ActiveMaterial = (int)args;
+            engineState.RenderingPipeline.UseTAA = (bool)args;
+            engineState.RenderingPipeline.antiAliasingSettings.ResetAccumulated(); 
         });
 
         fps = new Framewatch(Util.FrameTimeData, 1);
@@ -253,23 +255,13 @@ public sealed class MainExecutionManager : ExecutionManager,
             engineState.VoxelMap = new(numberOfChunks.Xz, new(4), numberOfChunks.Y * 4);
         };
 
+        engineState.RenderingPipeline.antiAliasingSettings.Intensity = 0.95f;
+
         Console.WriteLine("Loaded");
     }
     public override void Update(FrameEventArgs args)
     {
         objectRegistry.Update(args);
-
-        if (windowState.Window.IsKeyPressed(Keys.M))
-        {
-            MarkReprojectionTarget();
-        }
-
-        if (windowState.Window.IsKeyPressed(Keys.Q))
-        {
-            //Console.WriteLine("UV: " + FindCorrespondingUV(engineState.MainCamera.position));
-            Vector2 targetUV = windowState.Window.MousePosition / windowState.Window.ClientSize;
-            engineState.MainCamera.PixelToRay(targetUV, engineState.RenderingPipeline.RenderingResolution.Ratio());
-        }
 
         fps.Tick(args);
     }
@@ -296,22 +288,5 @@ public sealed class MainExecutionManager : ExecutionManager,
     public override void OnResize(ResizeEventArgs args)
     {
         engineState.RenderingPipeline.SetRenderingResolution(new((args.Size.X) & ~7, (args.Size.Y) & ~7));
-    }
-
-
-    Vector3 reprojectionTarget;
-    public void MarkReprojectionTarget()
-    {
-        Vector2 uv = windowState.Window.MouseState.Position / windowState.Window.ClientSize;
-        Vector3 rayDir = engineState.MainCamera.PixelToRay(uv, windowState.Window.ClientSize.Ratio());
-        RaycastResult raycastResult = engineState.VoxelMap.RawStructure.Raycast(engineState.MainCamera.position, rayDir);
-        reprojectionTarget = raycastResult.hitPos;
-        Console.WriteLine("Marked: " + reprojectionTarget);
-    }
-
-    public Vector2 FindCorrespondingUV(Vector3 cameraPosition)
-    {
-        Vector3 cameraToTarget = reprojectionTarget - cameraPosition;
-        return engineState.MainCamera.RayToPixel(cameraToTarget, windowState.Window.ClientSize.X / windowState.Window.ClientSize.Y);
     }
 }

@@ -31,6 +31,9 @@ public sealed class VoxelPTRP : RenderingPipeline
     VoxelPathTracingModule voxelPathTracingModule;
     AntiAliasingBasicModule antiAliasingModule;
     CompositingModule compositingModule;
+
+    public bool UseTAA { get; set; } = true;
+
     public IAntiAliasingBasicModuleSettings antiAliasingSettings => antiAliasingModule;
     public IVoxelPathTracingSettings voxelPathTracingSettings => voxelPathTracingModule;
     public Vector2i RenderingResolution { get; private set; }
@@ -86,7 +89,7 @@ public sealed class VoxelPTRP : RenderingPipeline
     public override void Execute()
     {
         voxelPathTracingModule.Execute();
-        antiAliasingModule.Execute();
+        if (UseTAA) antiAliasingModule.Execute();
         compositingModule.Execute();
     }
     public void VPT() => voxelPathTracingModule.Execute();

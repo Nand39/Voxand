@@ -120,7 +120,7 @@ void main()
 {
     ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
     ivec2 resolution = imageSize(luminance_depthImg);
-    uv = vec2(texelCoord) / resolution;
+    uv = (vec2(texelCoord) + 0.5) / resolution;
     fragPosition = uv * 2 - 1;
 
     randSaltLocal = randSalt;
@@ -150,13 +150,13 @@ void main()
 
     int prevNormal = (int(normalCompound_Motion.x) >> 3 * cycle) & 7;
 
-    if (abs(length(prevCameraToHitPos) - prevDepth) < 0.2) // 0.5 * ((dot(vecNormal(normal), rayDirection) + 1) * 0.5 + 0.5)
+    if (abs(length(prevCameraToHitPos) - prevDepth) < 0.5 * ((dot(vecNormal(normal), rayDirection) + 1) * 0.5 + 0.5))
     {
         motion = prevNormal == normal ? prevUV - uv : vec2(3);
     }
     else
     {
-        motion = vec2(2);
+        motion = reprojectionCoord;
     }
 
     int normalCompound = (prevNormal << (cycle * 3)) | (normal << (cycle * -3 + 3));
@@ -263,6 +263,8 @@ int raycast(vec3 origin, vec3 dir, out vec3 hitPosition, out ivec3 voxelHitPosit
                 hitPosition = origin;
                 voxelHitPosition = originVoxel;
                 normal = -1;
+                depth = 0;
+                return 0;
             }
             
             float localDistance = abs((dir[lastAxis] > 0 ? hitVoxel[lastAxis] : hitVoxel[lastAxis] + 1) - entrance[lastAxis]) * timeToCross[lastAxis];

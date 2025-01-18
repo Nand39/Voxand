@@ -70,7 +70,7 @@ public sealed class UI_PaletteWindow : UI_Window
     }
 
     [ExportEvent("ui_events", "voxel_material_selected")] 
-    public event Action<object> OnMaterialSelected;
+    public event Action<object>? OnMaterialSelected;
 
     [ImportEvent("engine_state_events", "main_voxelPalette_changed")]
     public void SetPalette(object newPalette)
@@ -202,9 +202,23 @@ public sealed class UI_MaterialEditorWindow : UI_Window
 }
 public sealed class UI_SettingsWindow : UI_Window
 {
+    bool UseTAA = true;
+
+    [ExportEvent("ui_events", "renderSettings_TAA_switched")]
+    public event Action<object>? OnTAASwitched;
+
     protected override void Display()
     {
-        
+        ImGui.Begin("Render settings");
+
+        ImGui.SeparatorText("Settings");
+        if (ImGui.RadioButton("Use TAA", UseTAA))
+        {
+            UseTAA = !UseTAA;
+            OnTAASwitched?.Invoke(UseTAA);
+        }
+
+        ImGui.End();
     }
 }
 
