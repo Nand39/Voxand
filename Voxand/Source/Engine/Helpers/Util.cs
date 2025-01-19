@@ -86,6 +86,8 @@ public static class Util
                     action(pos);
     }
 
+    public static int Mod(int a, int b) => (a %= b) < 0 ? a + b : a;
+
     #region Math Helper
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

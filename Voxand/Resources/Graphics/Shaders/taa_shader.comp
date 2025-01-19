@@ -30,7 +30,7 @@ void main()
     }
     else 
     {
-        vec4 lumDepthOld = texture2D(lum_depthAccumTex, reprojectionUV);
+        vec4 lumDepthOld = texture(lum_depthAccumTex, reprojectionUV);
         color = vec4(mix(lumDepthNew.xyz, lumDepthOld.xyz, intensity), lumDepthNew.w);
     }
     

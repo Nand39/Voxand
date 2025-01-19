@@ -62,8 +62,8 @@ public class VoxelTool : BaseObject
         builders[activePlacementTechnique].Use(new(raycastResult, activeMaterial));
     }
 
-    public void NextTechnique() => ActivePlacementTechnique = (ActivePlacementTechnique + 1) % builders.Count;
-    public void PreviousTechnique() => ActivePlacementTechnique = (ActivePlacementTechnique - 1) % builders.Count;
+    public void NextTechnique() => ActivePlacementTechnique = Util.Mod(ActivePlacementTechnique + 1, builders.Count);
+    public void PreviousTechnique() => ActivePlacementTechnique = Util.Mod(ActivePlacementTechnique - 1, builders.Count);
 }
 
 public struct PlacementInput(RaycastResult raycastResult, int material)

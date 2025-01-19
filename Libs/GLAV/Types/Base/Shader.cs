@@ -6,22 +6,21 @@ using DisposableExt;
 namespace GLAV.Types;
 public class Shader : GLResource
 {
-    public Shader()
+    public Shader(out bool succeeded, params ShaderPart[] shaderAttachments)
     {
         Handle.resourceType = GLResourceType.ShaderProgram;
         Handle.id = GL.CreateProgram();
-        Console.WriteLine($"Shader created with id {Handle.id}");
-    }
-    public bool Create(params ShaderPart[] shaderAttachments)
-    {
+
         for (int i = 0; i < shaderAttachments.Length; i++)
             GL.AttachShader(Handle.id, shaderAttachments[i].Handle.id);
 
         GL.LinkProgram(Handle.id);
 
-        GL.GetProgram(Handle.id, GetProgramParameterName.LinkStatus, out int linkStatus);
-        if (linkStatus == (int)All.False)
-            return false;
+        if (GetParameter(GetProgramParameterName.LinkStatus) == (int)All.False)
+        {
+            succeeded = false;
+            return;
+        }
 
         for (int i = 0; i < shaderAttachments.Length; i++)
             GL.DetachShader(Handle.id, shaderAttachments[i].Handle.id);
@@ -29,8 +28,15 @@ public class Shader : GLResource
         for (int i = 0; i < shaderAttachments.Length; i++)
             shaderAttachments[i].Dispose();
 
-        return true;
+        succeeded = true;
     }
+
+    public int GetParameter(GetProgramParameterName param)
+    {
+        GL.GetProgram(Handle.id, param, out int result);
+        return result;
+    }
+
     public void Use() => GLRegistry.Instance.UseProgram(Handle.id);
 
     #region Introspection
@@ -303,6 +309,7 @@ public class Shader : GLResource
     }
 
     #endregion
+
     protected override void Free(bool hasContext)
     {
         if (hasContext)

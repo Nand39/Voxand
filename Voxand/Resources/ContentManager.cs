@@ -1,9 +1,7 @@
-﻿using System.Reflection;
-using System.Runtime.CompilerServices;
-using StbImageSharp;
-
-using OpenTK.Mathematics;
+﻿using OpenTK.Mathematics;
 using OpenTK.Graphics.OpenGL4;
+
+using StbImageSharp;
 
 using GLAV.Types;
 using Voxand.Helpers;
@@ -66,7 +64,7 @@ public class ContentManager
 
         string? extension = Path.GetExtension(path);
         if (extension is null or "")
-            throw new ArgumentException($"Cannot load texture at {path}; no extension found.");
+            throw new ArgumentException($"Cannot load texture at {path}; no file extension found.");
 
         Texture2D texture;
         switch (extension)
@@ -112,8 +110,7 @@ public class ContentManager
         for (int i = 0; i < shaderAttachments.Length; i++)
             shaderAttachments[i] = LoadShaderPart(sourcePaths[i]);
 
-        Shader shader = new();
-        bool succeeded = shader.Create(shaderAttachments);
+        Shader shader = new(out bool succeeded, shaderAttachments);
 
         if (!succeeded)
             throw new Exception(
@@ -126,8 +123,8 @@ Parts: {string.Join(";\n", sourcePaths)}");
     public ShaderPart LoadShaderPart(string sourcePath)
     {
         string source;
-        bool succeeded;
-        succeeded = ReadFile(sourcePath, out source);
+        bool sourceReadSucceeded;
+        sourceReadSucceeded = ReadFile(sourcePath, out source);
 
         if (!ReadFile(sourcePath, out source))
             throw new Exception($"Cannot load shader source code. Path: {sourcePath}");
@@ -137,7 +134,15 @@ Parts: {string.Join(";\n", sourcePaths)}");
         if (type is null)
             throw new Exception($"Cannot infer shader type from code file extension. Path: {sourcePath}");
 
-        ShaderPart shaderPart = new ShaderPart(source, type.Value);
+        ShaderPart shaderPart = new ShaderPart(source, type.Value, out bool compilationSucceeded);
+        if (!compilationSucceeded)
+        {
+            string infoLog = shaderPart.GetInfoLog();
+            throw new Exception(
+@$"Failed to compile shader source code in {sourcePath}
+Logs:
+{infoLog}");
+        }
         shaderPart.Lable = "Unnamed shader part";
 
         return shaderPart;

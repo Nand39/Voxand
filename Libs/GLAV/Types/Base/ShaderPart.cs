@@ -3,7 +3,7 @@
 namespace GLAV.Types;
 public class ShaderPart : GLResource
 {
-    public ShaderPart(string source, ShaderType type)
+    public ShaderPart(string source, ShaderType type, out bool succeeded)
     {
         Handle.resourceType = GLResourceType.ShaderPart;
         Handle.id = GL.CreateShader(type);
@@ -11,13 +11,17 @@ public class ShaderPart : GLResource
         GL.ShaderSource(Handle.id, source);
         GL.CompileShader(Handle.id);
 
-        GL.GetShader(Handle.id, ShaderParameter.CompileStatus, out int compileStatus);
-        if (compileStatus == (int)All.False)
-        {
-            string infoLog = GL.GetShaderInfoLog(Handle.id);
-            throw new Exception(infoLog);
-        }
+        succeeded = GetParameter(ShaderParameter.CompileStatus) == (int)All.True;
     }
+
+    public int GetParameter(ShaderParameter param)
+    {
+        GL.GetShader(Handle.id, param, out int result);
+        return result;
+    }
+
+    public string GetInfoLog() => GL.GetShaderInfoLog(Handle.id);
+
     protected override void Free(bool hasContext)
     {
         if (hasContext)

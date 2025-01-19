@@ -32,7 +32,7 @@ void main()
 
     vec3 toneMappedLum = toneMap_IDKWHAT(lum, 6);
     vec3 gammaCorrectedLum = vec3(pow(toneMappedLum.r, 0.4545), pow(toneMappedLum.g, 0.4545), pow(toneMappedLum.b, 0.4545));
-//    vec2 motion = texture2D(depth_motion, uv).gb;
+//    vec2 motion = texture(depth_motion, uv).gb;
 //    vec2 reprojection = uv + motion;
 //    vec4 motionColoring = vec4(motion * 2, 0, 0);
 //    if ()
