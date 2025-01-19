@@ -50,7 +50,7 @@ public sealed class Window : GameWindow
 
         string? AsmName = Assembly.GetExecutingAssembly().GetName().Name;
 
-        Content = new ContentManager("Content");
+        Content = new ContentManager("Resources");
 
         ImGuiController = new ImGuiController(ClientSize.X, ClientSize.Y);
 

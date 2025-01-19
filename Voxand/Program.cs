@@ -1,7 +1,6 @@
 ﻿using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
 using Voxand;
-using Voxand.Engine.ExecutionControl;
 
 Window.Initialize(GameWindowSettings.Default, new NativeWindowSettings()
 {
