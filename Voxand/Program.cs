@@ -11,7 +11,8 @@ Window.Initialize(GameWindowSettings.Default, new NativeWindowSettings()
     StartFocused = true,
     API = ContextAPI.OpenGL,
     APIVersion = new Version(4, 3),
-    Profile = ContextProfile.Core
+    Profile = ContextProfile.Core,
+    Flags = ContextFlags.Debug
 });
 
 Window.Instance.VSync = VSyncMode.On;

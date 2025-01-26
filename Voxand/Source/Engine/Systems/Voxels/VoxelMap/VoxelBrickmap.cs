@@ -67,15 +67,16 @@ public class VoxelBrickmap : VoxelMap, ISinglePlaceable
     public VoxelBrickmap(Vector3i dimensions, IVoxelMapPersistence persistenceModule) : base(dimensions, persistenceModule)
     {
         if (dimensions.X % 4 != 0 || dimensions.Y % 4 != 0 || dimensions.Z % 4 != 0)
-        {
             throw new ArgumentException("voxel brickmap dimensions should always be divisible by 4");
-        }
-        brickmapSize = VoxelPositionToBrickPosition(dimensions);
+
+        brickmapSize = dimensions.BitshiftRight(2);
         C_brickmap = new int[brickmapSize.Y, brickmapSize.Z, brickmapSize.X];
+
         for (int x = 0, lx = C_brickmap.GetLength(2); x < lx; x++)
             for (int y = 0, ly = C_brickmap.GetLength(0); y < ly; y++)
                 for (int z = 0, lz = C_brickmap.GetLength(1); z < lz; z++)
                     C_brickmap[y, z, x] = -1;
+
         C_brickList = new UnmanagedList<VoxelBrick>(1);
         
         G_BrickList = new G_HalfList<VoxelBrick>(
@@ -85,6 +86,7 @@ public class VoxelBrickmap : VoxelMap, ISinglePlaceable
             initialCapacity: 1, 
             itemSize: 16 * sizeof(uint) + 2 * sizeof(uint),
             usageHint: BufferUsageHint.DynamicDraw,
+            growthFunction: (capacity) => capacity < 24000 ? (int)MathF.Floor(-((capacity * 0.005f - 540) * capacity * 0.005f)) + 2 : (int)(capacity * 1.5f),
             lable: "*** Brick List"
             );
 
@@ -93,7 +95,7 @@ public class VoxelBrickmap : VoxelMap, ISinglePlaceable
             bufferTarget: BufferTarget.ShaderStorageBuffer,
             size: brickmapSize.X * brickmapSize.Y * brickmapSize.Z * sizeof(int), 
             usageHint: BufferUsageHint.DynamicDraw);
-        G_brickmap.BindEntireBuffer(new(BufferRangeTarget.ShaderStorageBuffer, 1));
+        G_brickmap.BindAsShaderStorage(new(BufferRangeTarget.ShaderStorageBuffer, 1));
         unsafe
         {
             fixed (int* initBrickmapPtr = C_brickmap)

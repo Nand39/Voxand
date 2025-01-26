@@ -89,7 +89,7 @@ public sealed class VoxelPathTracingModule : RenderingPipeline, IVoxelPathTracin
         {
             shaderInputSSBO.Alloc(BufferTarget.ShaderStorageBuffer, sizeof(ShaderInputStreaming), BufferUsageHint.StreamDraw);
         }
-        shaderInputSSBO.BindEntireBuffer(new(BufferRangeTarget.ShaderStorageBuffer, 3));
+        shaderInputSSBO.BindAsShaderStorage(new(BufferRangeTarget.ShaderStorageBuffer, 3));
 
         SetOutput(luminance_depthOutput, normalCompound_motionOutput);
         OnMapSizeChanged(mapSize);

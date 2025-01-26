@@ -29,7 +29,7 @@ public class TestingState(Window win) : ExecutionManager
         vao = new();
         vao.Alloc(ref viewRectVertices, V_PositionUV.vertexInfo, BufferUsageHint.StaticDraw);
         shader = new(window.Content, true, "Graphics.Shaders.Testing.TestVert.vert", "Graphics.Shaders.Testing.TestFrag.frag");
-        texture = window.Content.LoadTexture("Graphics/Textures/router.png");
+        texture = window.Content.LoadTexture("Graphics/Textures/router.png", PixelInternalFormat.Rgba);
 
         texture.BindTex(0);
     }

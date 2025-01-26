@@ -16,10 +16,9 @@ public readonly struct TexParam(TextureParameterName param, int value)
     public readonly TextureParameterName textureParameterName = param;
     public readonly int parameterValue = value;
 }
-public struct TextureFormat(PixelInternalFormat internalFormat, PixelFormat format, PixelType pixelType)
+public struct TexLoadFormat(PixelFormat channels, PixelType pixelType)
 {
-    public PixelInternalFormat internalFormat = internalFormat;
-    public PixelFormat format = format;
+    public PixelFormat channels = channels;
     public PixelType pixelType = pixelType;
 }
 public class Texture2D : GLResource
@@ -35,38 +34,48 @@ public class Texture2D : GLResource
     /// <summary>
     /// Storage format of the texture.
     /// </summary>
-    public TextureFormat Format { get; protected set; }
+    public PixelInternalFormat StorageFormat { get; protected set; } = PixelInternalFormat.Rgba32f;
 
     public Texture2D()
     {
         Handle.resourceType = GLResourceType.Texture2D;
         Handle.id = GL.GenTexture();
+        SetParams(TexParam.defaultTexParams);
     }
 
     #region Allocation
-    public void Alloc(Vector2i textureSize, TextureFormat format, nint dataPtr)
+    public void Alloc(Vector2i textureSize, PixelInternalFormat storageFormat, TexLoadFormat sourceFormat, nint sourcePtr)
     {
         BindTex(0);
-        GL.TexImage2D(TextureTarget.Texture2D, 0, format.internalFormat, textureSize.X, textureSize.Y, 0, format.format, format.pixelType, dataPtr);
-        Size = textureSize; Format = format; 
+        GL.TexImage2D(TextureTarget.Texture2D, 0, storageFormat, textureSize.X, textureSize.Y, 0, sourceFormat.channels, sourceFormat.pixelType, sourcePtr);
+        Size = textureSize; 
+        StorageFormat = storageFormat; 
     }
-    public unsafe void Alloc<T>(Vector2i textureSize, TextureFormat format, T[] data)
-    where T : struct
-    {
-        fixed (void* dataPtr = data)
-        {
-            Alloc(textureSize, format, (nint)dataPtr);
-        }
-    }
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe void Alloc<T>(Vector2i textureSize, TextureFormat format, T[,] data)
+
+    public unsafe void Alloc<T>(Vector2i textureSize, PixelInternalFormat storageFormat, TexLoadFormat sourceFormat, T[] data)
         where T : struct
     {
         fixed (void* dataPtr = data)
         {
-            Alloc(textureSize, format, (nint)dataPtr);
+            Alloc(textureSize, storageFormat, sourceFormat, (nint)dataPtr);
         }
     }
+
+    public unsafe void Alloc<T>(Vector2i textureSize, PixelInternalFormat storageFormat, TexLoadFormat sourceFormat, T[,] data)
+        where T : struct
+    {
+        fixed (void* dataPtr = data)
+        {
+            Alloc(textureSize, storageFormat, sourceFormat, (nint)dataPtr);
+        }
+    }
+
+    public void Alloc(Vector2i textureSize, PixelInternalFormat storageFormat)
+    {
+        Alloc(textureSize, storageFormat, GetSuitableTexLoadFormat(storageFormat), nint.Zero);
+    }
+
+    public void Realloc(Vector2i textureSize) => Alloc(textureSize, StorageFormat);
     #endregion
 
     #region Binding
@@ -103,7 +112,42 @@ public class Texture2D : GLResource
         BindTex(0);
         GL.GenerateMipmap(GenerateMipmapTarget.Texture2D);
     }
-    public void Realloc(Vector2i textureSize) => Alloc(textureSize, Format, nint.Zero);
+
+    //Written by chatGPT
+    public TexLoadFormat GetSuitableTexLoadFormat(PixelInternalFormat storageFormat)
+    {
+        return storageFormat switch
+        {
+            // Float formats
+            PixelInternalFormat.Rgba32f => new TexLoadFormat(PixelFormat.Rgba, PixelType.Float),
+            PixelInternalFormat.Rgb32f => new TexLoadFormat(PixelFormat.Rgb, PixelType.Float),
+            PixelInternalFormat.Rgba16f => new TexLoadFormat(PixelFormat.Rgba, PixelType.HalfFloat),
+            PixelInternalFormat.Rgb16f => new TexLoadFormat(PixelFormat.Rgb, PixelType.HalfFloat),
+
+            // Unsigned normalized formats
+            PixelInternalFormat.Rgba8 => new TexLoadFormat(PixelFormat.Rgba, PixelType.UnsignedByte),
+            PixelInternalFormat.Rgb8 => new TexLoadFormat(PixelFormat.Rgb, PixelType.UnsignedByte),
+
+            // Integer formats
+            PixelInternalFormat.Rgba8i => new TexLoadFormat(PixelFormat.RgbaInteger, PixelType.Byte),
+            PixelInternalFormat.Rgba8ui => new TexLoadFormat(PixelFormat.RgbaInteger, PixelType.UnsignedByte),
+            PixelInternalFormat.Rgb8i => new TexLoadFormat(PixelFormat.RgbInteger, PixelType.Byte),
+            PixelInternalFormat.Rgb8ui => new TexLoadFormat(PixelFormat.RgbInteger, PixelType.UnsignedByte),
+            PixelInternalFormat.Rgba32i => new TexLoadFormat(PixelFormat.RgbaInteger, PixelType.Int),
+            PixelInternalFormat.Rgba32ui => new TexLoadFormat(PixelFormat.RgbaInteger, PixelType.UnsignedInt),
+
+            // Depth formats
+            PixelInternalFormat.DepthComponent24 => new TexLoadFormat(PixelFormat.DepthComponent, PixelType.UnsignedInt),
+            PixelInternalFormat.DepthComponent32f => new TexLoadFormat(PixelFormat.DepthComponent, PixelType.Float),
+
+            // Depth-stencil formats
+            PixelInternalFormat.Depth24Stencil8 => new TexLoadFormat(PixelFormat.DepthStencil, PixelType.UnsignedInt248),
+            PixelInternalFormat.Depth32fStencil8 => new TexLoadFormat(PixelFormat.DepthStencil, PixelType.Float32UnsignedInt248Rev),
+
+            _ => throw new ArgumentException($"Unsupported storage format: {storageFormat}")
+        };
+    }
+
     public override string ToString() => $"\"{Lable}\" (id={Handle.id})";
     protected override void Free(bool hasContext)
     {

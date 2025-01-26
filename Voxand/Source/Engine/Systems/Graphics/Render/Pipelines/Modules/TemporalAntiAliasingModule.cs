@@ -93,13 +93,13 @@ public sealed class AntiAliasingBasicModule : RenderingPipeline, IAntiAliasingBa
     void CreateBufferTextures()
     {
         luminance_depthAccum = new();
-        luminance_depthAccum.Alloc(Luminance_depthToAccumulate.Size, Luminance_depthToAccumulate.Format, nint.Zero);
+        luminance_depthAccum.Alloc(Luminance_depthToAccumulate.Size, Luminance_depthToAccumulate.StorageFormat, new(PixelFormat.Rgba, PixelType.UnsignedByte), nint.Zero);
         luminance_depthAccum.SetParam(new(TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear));
         luminance_depthAccum.SetParam(new(TextureParameterName.TextureMinFilter, (int)TextureMagFilter.Linear));
         luminance_depthAccum.Lable = "luminance accum texture";
 
         luminance_depthBuffer = new();
-        luminance_depthBuffer.Alloc(Luminance_depthToAccumulate.Size, Luminance_depthToAccumulate.Format, nint.Zero);
+        luminance_depthBuffer.Alloc(Luminance_depthToAccumulate.Size, Luminance_depthToAccumulate.StorageFormat, new(PixelFormat.Rgba, PixelType.UnsignedByte), nint.Zero);
         luminance_depthBuffer.SetParam(new(TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest));
         luminance_depthBuffer.SetParam(new(TextureParameterName.TextureMinFilter, (int)TextureMagFilter.Nearest));
         luminance_depthBuffer.Lable = "luminance anti-aliasing buffer texture";

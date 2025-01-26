@@ -35,15 +35,8 @@ public class ShaderInfo
     void FetchSSBOs()
     {
         int SSBOCount = Shader.GetInterfaceProperty(ProgramInterface.ShaderStorageBlock, ProgramInterfaceParameter.ActiveResources);
-
-        ProgramProperty[] props = [ProgramProperty.NameLength, ProgramProperty.BlockIndex];
-
         for (int i = 0; i < SSBOCount; i++)
-        {
-            int[] info = Shader.GetResourceInfo(ProgramInterface.ShaderStorageBlock, i, ref props);
-            string name = Shader.GetResourceName(ProgramInterface.ShaderStorageBlock, i);
-            SSBOs[name] = info[1];
-        }
+            SSBOs[Shader.GetResourceName(ProgramInterface.ShaderStorageBlock, i)] = i;
     }
     public UniformInfo? GetUniformInfo(string uniformName)
     {

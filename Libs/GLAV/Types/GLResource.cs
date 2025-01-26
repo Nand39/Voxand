@@ -3,6 +3,7 @@
 using DisposableExt;
 
 using GLAV.Helpers.Internal;
+using System.Text;
 
 namespace GLAV.Types;
 public abstract class GLResource : IDisposableExt
@@ -14,9 +15,13 @@ public abstract class GLResource : IDisposableExt
     {
         get
         {
-            GL.GetObjectLabel(Util.GetLabelIdentifier(Handle.resourceType), Handle.id, 200, out int length, out string label);
-            if (label == "") label = "UnnamedResource";
-            return label;
+            GL.GetObjectLabel(
+                identifier: Util.GetLabelIdentifier(Handle.resourceType),
+                name: Handle.id,
+                bufSize: Encoding.UTF8.GetMaxByteCount(GL.GetInteger(GetPName.MaxLabelLength)),
+                length: out int length,
+                label: out string label);
+            return label == "" ? "UnnamedResource" : label;
         }
         set => Util.LabelResource(Handle, value);
     }

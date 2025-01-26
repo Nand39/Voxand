@@ -169,7 +169,7 @@ public class Viewer : BaseObject
     {
         Vector2i camChunk = new((int)Camera.position.X >> 2, (int)Camera.position.Z >> 2);
         Vector2i start = Vector2i.Clamp(new(camChunk.X - chunkLoadingDistance, camChunk.Y - chunkLoadingDistance), Vector2i.Zero, EngineState.VoxelMap.Dimensions.Xz / 4);
-        Vector2i finish = Vector2i.Clamp(new(camChunk.X + chunkLoadingDistance, camChunk.Y + chunkLoadingDistance), Vector2i.Zero, EngineState.VoxelMap.Dimensions.Xz / 4);
+        Vector2i finish = Vector2i.Clamp(new(camChunk.X + chunkLoadingDistance + 1, camChunk.Y + chunkLoadingDistance + 1), Vector2i.Zero, EngineState.VoxelMap.Dimensions.Xz / 4);
         Vector2i chunk;
         int chunkLoadingDistanceSquared = chunkLoadingDistance * chunkLoadingDistance;
 

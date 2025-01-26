@@ -2,7 +2,6 @@
 
 using OpenTK.Graphics.OpenGL4;
 
-using GLAV;
 using System.Text;
 
 namespace GLAV.Types;
@@ -21,54 +20,55 @@ public class Buffer : GLResource
     {
         Handle.resourceType = GLResourceType.Buffer;
         Handle.id = GL.GenBuffer();
+        Bind(BufferTarget.ShaderStorageBuffer);
     }
 
     public void Alloc(BufferTarget bufferTarget, int size, BufferUsageHint usageHint)
     {
         Size = size;
-        Use(bufferTarget);
+        Bind(bufferTarget);
         GL.BufferData(bufferTarget, size, IntPtr.Zero, usageHint);
     }
     public void Alloc<T>(BufferTarget bufferTarget, ref T data, int size, BufferUsageHint usageHint) 
         where T : struct
     {
         Size = size;
-        Use(bufferTarget);
+        Bind(bufferTarget);
         GL.BufferData(this.bufferTarget, size, ref data, usageHint);
     }
     public unsafe void Alloc<T>(BufferTarget bufferTarget, ref T[] data, int size, BufferUsageHint usageHint) 
         where T : struct
     {
         Size = size;
-        Use(bufferTarget);
+        Bind(bufferTarget);
         GL.BufferData(this.bufferTarget, size, data, usageHint);
     }
 
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void Use() => GLRegistry.Instance.BindBuffer(bufferTarget, Handle.id);
+    public void Bind() => GLRegistry.Instance.BindBuffer(bufferTarget, Handle.id);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void Use(BufferTarget target) 
+    public void Bind(BufferTarget target) 
     {
         bufferTarget = target;
-        Use();
+        Bind();
     }
     public unsafe void Store(int offsetInBytes, nint dataPtr, int size)
     {
-        Use();
+        Bind();
         GL.BufferSubData(bufferTarget, offsetInBytes, size, dataPtr);
     }
     public unsafe void Store<T>(ref T data, int offsetInBytes)
         where T : struct
     {
-        Use();
+        Bind();
         GL.BufferSubData(bufferTarget, offsetInBytes, sizeof(T), ref data);
     }
     public unsafe void Store<T>(T[] data, int readingOffsetInBytes, int sizeInBytes, int writingOffsetInBytes)
         where T : struct
     {
-        Use();
+        Bind();
         fixed (T* arrayStart = &data[0])
             GL.BufferSubData(bufferTarget, writingOffsetInBytes, sizeInBytes, (nint)arrayStart + readingOffsetInBytes);
     }
@@ -103,18 +103,18 @@ public class Buffer : GLResource
         BufferTarget sourceOriginalTarget = bufferTarget;
         BufferTarget destinationOriginalTarget = destinationBuffer.bufferTarget;
 
-        Use(BufferTarget.CopyReadBuffer);
-        destinationBuffer.Use(BufferTarget.CopyWriteBuffer);
+        Bind(BufferTarget.CopyReadBuffer);
+        destinationBuffer.Bind(BufferTarget.CopyWriteBuffer);
 
         GL.CopyBufferSubData(BufferTarget.CopyReadBuffer, BufferTarget.CopyWriteBuffer, readingOffsetInBytes, writingOffsetInBytes, size);
 
-        Use(sourceOriginalTarget);
-        destinationBuffer.Use(destinationOriginalTarget);
+        Bind(sourceOriginalTarget);
+        destinationBuffer.Bind(destinationOriginalTarget);
     }
 
     public unsafe T[] Retrieve<T>(int readingOffsetInBytes, int count) where T : struct
     {
-        Use();
+        Bind();
         int size = sizeof(T) * count;
         T[] output = new T[count];
         fixed (T* outputPtr = output)
@@ -134,7 +134,7 @@ public class Buffer : GLResource
                          $"should not exceed buffer bounds. Tried accessing bytes from {readingOffsetInBytes} to {readingOffsetInBytes + size} out of {Size}.");
 
         T output = new T();
-        Use();
+        Bind();
         GL.GetBufferSubData(bufferTarget, readingOffsetInBytes, size, (nint)(&output));
         return output;
     }
@@ -144,7 +144,7 @@ public class Buffer : GLResource
         return Retrieve<T>(index * sizeof(T));
     }
 
-    public void BindEntireBuffer(BufferBindingInfo bindingInfo)
+    public void BindAsShaderStorage(BufferBindingInfo bindingInfo)
     {
         this.bindingInfo = bindingInfo;
         GL.BindBufferBase(bindingInfo.target, bindingInfo.index, Handle.id);

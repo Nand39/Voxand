@@ -17,7 +17,7 @@ public class VoxelPalette : IDisposableExt
         set
         {
             bufferBinding = value;
-            materialPaletteSSBO.BindEntireBuffer(new(BufferRangeTarget.ShaderStorageBuffer, value));
+            materialPaletteSSBO.BindAsShaderStorage(new(BufferRangeTarget.ShaderStorageBuffer, value));
         }
     }
     public DisposeHelper DisposeHelper { get; }

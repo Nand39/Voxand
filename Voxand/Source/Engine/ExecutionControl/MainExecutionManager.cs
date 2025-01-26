@@ -21,6 +21,8 @@ using Voxand.App.Map;
 using Voxand.Engine.Systems.Graphics.Tools.Utility;
 using Voxand.Helpers.ExtensionMethods;
 using ErrorCode = OpenTK.Graphics.OpenGL4.ErrorCode;
+using System.Runtime.InteropServices;
+using System.Text;
 
 namespace Voxand.Engine.ExecutionControl;
 
@@ -158,7 +160,7 @@ public sealed class MainExecutionManager : ExecutionManager,
     public IObjectRegistry ObjectRegistry => objectRegistry;
 
     Viewer viewer;
-
+    DebugProc debugCallback;
     public MainExecutionManager(Window win)
     {
         windowState = new WindowState(win);
@@ -168,6 +170,11 @@ public sealed class MainExecutionManager : ExecutionManager,
     
     public override void Load()
     {
+        debugCallback = GLDebugCallback;
+        GL.Enable(EnableCap.DebugOutput);
+        GL.Enable(EnableCap.DebugOutputSynchronous);
+        GL.DebugMessageCallback(debugCallback, nint.Zero);
+
         GL.ClearColor(0.2f, 0.3f, 0.3f, 1);
 
         ComputeUtility.Initialize(windowState.Window.Content, "Graphics/Shaders/copy_tex8_shader.comp");
@@ -176,7 +183,7 @@ public sealed class MainExecutionManager : ExecutionManager,
         engineState.MainCamera.position = new Vector3(numberOfChunks.X * 2, numberOfChunks.Y * 3.7f, numberOfChunks.Z * 2);
         engineState.MainCamera.FOV = 90 * Util.DEG2RAD;
         engineState.MainCamera.rotation = new(0, 45, 0);
-        
+
         VoxelMaterial[] materials =
         {
             new(Util.Hex2Vec("#50555c"), new(0, 0, 0)),
@@ -196,6 +203,7 @@ public sealed class MainExecutionManager : ExecutionManager,
             new(new(0.8f, 0.8f, 0.8f), new(0, 1, 0)),
             new(new(0.8f, 0.8f, 0.8f), new(0, 0, 1)),
         };
+
         engineState.VoxelPalette = new(materials, 2);
 
         engineState.VoxelMap = new(numberOfChunks.Xz, new(4), numberOfChunks.Y * 4);
@@ -262,7 +270,6 @@ public sealed class MainExecutionManager : ExecutionManager,
     public override void Update(FrameEventArgs args)
     {
         objectRegistry.Update(args);
-
         fps.Tick(args);
     }
     public override void Render(FrameEventArgs args)
@@ -270,10 +277,6 @@ public sealed class MainExecutionManager : ExecutionManager,
         if (!WindowState.Window.IsMinimized)
             engineState.RenderingPipeline.Execute();
 
-        ErrorCode error = GL.GetError();
-        if (error != ErrorCode.NoError)
-            Console.WriteLine(error);
-        
         UI_Manager.Display();
     }
     public override void Unload()
@@ -288,5 +291,16 @@ public sealed class MainExecutionManager : ExecutionManager,
     public override void OnResize(ResizeEventArgs args)
     {
         engineState.RenderingPipeline.SetRenderingResolution(new((args.Size.X) & ~7, (args.Size.Y) & ~7));
+    }
+    void GLDebugCallback(DebugSource source, DebugType type, int id, DebugSeverity severity, int messageLength, nint messagePtr, nint userParamPtr)
+    {
+        byte[] messageBytes = new byte[messageLength];
+        Marshal.Copy(messagePtr, messageBytes, 0, messageLength);
+        string message = Encoding.UTF8.GetString(messageBytes);
+        ConsoleColor color = Console.ForegroundColor;
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine(message);
+        Console.ForegroundColor = color;
+        Console.Beep();
     }
 }

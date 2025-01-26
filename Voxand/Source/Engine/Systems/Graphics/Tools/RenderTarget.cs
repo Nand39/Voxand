@@ -36,7 +36,7 @@ public class TexturedRenderTarget : RenderTarget, IDisposableExt
     }
     public override void Use()
     {
-        framebuffer.BindFramebuffer(FramebufferTarget.Framebuffer);
+        framebuffer.Bind(FramebufferTarget.Framebuffer);
         GL.Viewport(0, 0, Resolution.X, Resolution.Y);
     }
     void IDisposableExt.Free() => framebuffer.Dispose();

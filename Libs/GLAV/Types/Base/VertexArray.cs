@@ -11,6 +11,7 @@ public class VertexArray : GLResource
     {
         Handle.resourceType = GLResourceType.VertexArray;
         Handle.id = GL.GenVertexArray();
+        Bind();
     }
     public void Alloc<Vertex>(ref Vertex[] vertexArray, VertexInfo vertexInfo, BufferUsageHint usageHint) where Vertex : struct
     {

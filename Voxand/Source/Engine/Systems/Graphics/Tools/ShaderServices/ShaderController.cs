@@ -32,7 +32,7 @@ public class ShaderController : IDisposableExt
         }
         Shader.SetUniform(info.Value.location, info.Value.type, value);
     }
-    public void SetBufferBinding(string bufferName, int binding)
+    public void SetShaderStoreBinding(string bufferName, int binding)
     {
         int? index = ShaderInfo.GetShaderStorageBufferIndex(bufferName);
         if (index is null)

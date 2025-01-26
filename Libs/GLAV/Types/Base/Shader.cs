@@ -3,13 +3,16 @@ using OpenTK.Mathematics;
 
 using DisposableExt;
 
+using GLAV.Helpers.Public.Exceptions;
+
 namespace GLAV.Types;
 public class Shader : GLResource
 {
-    public Shader(out bool succeeded, params ShaderPart[] shaderAttachments)
+    public Shader(params ShaderPart[] shaderAttachments)
     {
         Handle.resourceType = GLResourceType.ShaderProgram;
         Handle.id = GL.CreateProgram();
+        Lable = "Unnamed shader";
 
         for (int i = 0; i < shaderAttachments.Length; i++)
             GL.AttachShader(Handle.id, shaderAttachments[i].Handle.id);
@@ -18,8 +21,8 @@ public class Shader : GLResource
 
         if (GetParameter(GetProgramParameterName.LinkStatus) == (int)All.False)
         {
-            succeeded = false;
-            return;
+            string infoLog = GL.GetProgramInfoLog(Handle.id);
+            throw new ShaderPartLinkingException(infoLog);
         }
 
         for (int i = 0; i < shaderAttachments.Length; i++)
@@ -27,8 +30,6 @@ public class Shader : GLResource
 
         for (int i = 0; i < shaderAttachments.Length; i++)
             shaderAttachments[i].Dispose();
-
-        succeeded = true;
     }
 
     public int GetParameter(GetProgramParameterName param)
@@ -49,6 +50,20 @@ public class Shader : GLResource
             @params: out int result);
         return result;
     }
+
+    public int GetResourceInfo(ProgramInterface targetInterface, int resourceIndex, ref ProgramProperty prop)
+    {
+        GL.GetProgramResource(
+                program: Handle.id,
+                programInterface: targetInterface,
+                index: resourceIndex,
+                propCount: 1,
+                props: ref prop,
+                bufSize: sizeof(ProgramProperty),
+                length: out int l,
+                @params: out int output);
+        return output;
+    }
     public int[] GetResourceInfo(ProgramInterface targetInterface, int resourceIndex, ref ProgramProperty[] props)
     {
         int[] output = new int[props.Length];
@@ -63,10 +78,11 @@ public class Shader : GLResource
                 @params: output);
         return output;
     }
+
     public string GetResourceName(ProgramInterface targetInterface, int resourceIndex)
     {
-        ProgramProperty[] prop = [ProgramProperty.NameLength];
-        int length = GetResourceInfo(targetInterface, resourceIndex, ref prop)[0];
+        ProgramProperty prop = ProgramProperty.NameLength;
+        int length = GetResourceInfo(targetInterface, resourceIndex, ref prop);
         GL.GetProgramResourceName(Handle.id, targetInterface, resourceIndex, length, out int l, out string name);
         return name;
     }

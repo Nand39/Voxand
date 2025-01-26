@@ -5,6 +5,7 @@ using StbImageSharp;
 
 using GLAV.Types;
 using Voxand.Helpers;
+using System.Runtime.CompilerServices;
 
 namespace Voxand.Content;
 public class ContentManager
@@ -24,13 +25,13 @@ public class ContentManager
     FileStream OpenStream(string path, FileMode mode, FileAccess access) => new FileStream(CompleteFilePath(path), mode, access);
 
 
-    #region Basic reading/writing text
+    #region Basic read/write string
     public bool ReadFile(string path, out string result)
     {
-        path = CompleteFilePath(path);
         try
         {
-            using StreamReader reader = new(path);
+            using Stream stream = OpenStream(path, FileMode.Open, FileAccess.Read);
+            using StreamReader reader = new(stream);
             result = reader.ReadToEnd();
             return true;
         }
@@ -57,7 +58,9 @@ public class ContentManager
     #endregion
 
     #region Asset loading
-    public Texture2D LoadTexture(string path)
+
+    #region Texture2D
+    public Texture2D LoadTexture(string path, PixelInternalFormat storageFormat)
     {
         Stream stream;
         stream = OpenStream(path, FileMode.Open, FileAccess.Read);
@@ -70,56 +73,65 @@ public class ContentManager
         switch (extension)
         {
             default: throw new ArgumentException
-                    ($"Cannot load image with extesion {extension}; supported extensions: .png, .jpg, .bmp, .tga, .hdr");
+                    ($"Cannot load image with format {extension}; supported image formats: .png, .jpg, .bmp, .tga, .hdr");
             
             case ".png":
             case ".jpg":
             case ".bmp":
             case ".tga":
-                texture = LoadSimpleTexture(stream); break;
+                texture = LoadSimpleTexture(stream, storageFormat); break;
 
             case ".hdr": 
-                texture = LoadHDRTexture(stream); break;
+                texture = LoadHDRTexture(stream, storageFormat); break;
         }
-        
-        texture.SetParam(new(TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest));
-        texture.SetParam(new(TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest));
 
         stream.Dispose();
         return texture;
     }
-    Texture2D LoadSimpleTexture(Stream imageFileStream)
+
+    Texture2D LoadSimpleTexture(Stream imageFileStream, PixelInternalFormat storageFormat)
     {
         ImageResult image = ImageResult.FromStream(imageFileStream, ColorComponents.RedGreenBlueAlpha);
-        byte[] data = image.Data;
-        Texture2D texture = new Texture2D();
-        texture.Alloc(new Vector2i(image.Width, image.Height), new(PixelInternalFormat.Rgba, PixelFormat.Rgba, PixelType.UnsignedByte), data);
-        return texture;
+        return CreateTexture(new Vector2i(image.Width, image.Height), storageFormat, new(PixelFormat.Rgba, PixelType.UnsignedByte), image.Data);
     }
-    Texture2D LoadHDRTexture(Stream imageFileStream)
+
+    Texture2D LoadHDRTexture(Stream imageFileStream, PixelInternalFormat storageFormat)
     {
         ImageResultFloat image = ImageResultFloat.FromStream(imageFileStream, ColorComponents.RedGreenBlueAlpha);
-        float[] data = image.Data;
+        return CreateTexture(new Vector2i(image.Width, image.Height), storageFormat, new(PixelFormat.Rgba, PixelType.UnsignedByte), image.Data);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    Texture2D CreateTexture<T>(Vector2i textureSize, PixelInternalFormat storageFormat, TexLoadFormat texLoadFormat, T[] data) where T : struct
+    {
         Texture2D texture = new Texture2D();
-        texture.Alloc(new Vector2i(image.Width, image.Height), new(PixelInternalFormat.Rgba32f, PixelFormat.Rgba, PixelType.Float), data);
+        texture.Alloc(textureSize, storageFormat, texLoadFormat, data);
         return texture;
     }
+    #endregion
+
+    #region Shader
     public Shader LoadShader(params string[] sourcePaths)
     {
         ShaderPart[] shaderAttachments = new ShaderPart[sourcePaths.Length];
         for (int i = 0; i < shaderAttachments.Length; i++)
             shaderAttachments[i] = LoadShaderPart(sourcePaths[i]);
 
-        Shader shader = new(out bool succeeded, shaderAttachments);
-
-        if (!succeeded)
+        try
+        {
+            Shader shader = new(shaderAttachments);
+            return shader;
+        }
+        catch (Exception e)
+        {
             throw new Exception(
-@$"Cannot load shader.
-Log: {GL.GetProgramInfoLog(shader.Handle.id)}
-Parts: {string.Join(";\n", sourcePaths)}");
-
-        return shader;
+                @$"Failed to create shader.
+                Log: {e.Message}
+                Parts:
+                {string.Join(";\n", sourcePaths)}", e);
+        }
     }
+
     public ShaderPart LoadShaderPart(string sourcePath)
     {
         string source;
@@ -134,19 +146,20 @@ Parts: {string.Join(";\n", sourcePaths)}");
         if (type is null)
             throw new Exception($"Cannot infer shader type from code file extension. Path: {sourcePath}");
 
-        ShaderPart shaderPart = new ShaderPart(source, type.Value, out bool compilationSucceeded);
-        if (!compilationSucceeded)
+        try
         {
-            string infoLog = shaderPart.GetInfoLog();
-            throw new Exception(
-@$"Failed to compile shader source code in {sourcePath}
-Logs:
-{infoLog}");
+            ShaderPart shaderPart = new ShaderPart(source, type.Value);
+            return shaderPart;
         }
-        shaderPart.Lable = "Unnamed shader part";
-
-        return shaderPart;
+        catch (Exception e)
+        {
+            throw new Exception(
+                @$"Failed to compile shader source code in {sourcePath}
+                Log:
+                {e.Message}", e);
+        }
     }
+    #endregion
 
     #endregion
 

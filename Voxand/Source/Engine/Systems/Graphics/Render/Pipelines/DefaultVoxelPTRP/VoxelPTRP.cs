@@ -57,7 +57,7 @@ public sealed class VoxelPTRP : RenderingPipeline
 
         varyingRenderDataStorage.Add(luminance_depthPT, normalCompound_motionPT);
 
-        skyTex = content.LoadTexture("Graphics/Textures/env.hdr");
+        skyTex = content.LoadTexture("Graphics/Textures/env.hdr", PixelInternalFormat.Rgba32f);
 
         pathTracingShaderController = new(content, false, "Graphics/Shaders/voxel_path_tracing_shader.comp");
         pathTracingShaderController.Shader.Lable = "* voxel PT shader";
@@ -122,31 +122,12 @@ public sealed class VoxelPTRP : RenderingPipeline
     {
         Console.WriteLine($"Rendering resolution set to {resolution}");
 
-        TexParam[] texParams;
-        TextureFormat format;
-
-        texParams = TexParam.defaultTexParams;
-
-        format = new TextureFormat()
-        {
-            internalFormat = PixelInternalFormat.Rgba32f,
-            format = PixelFormat.Rgba,
-            pixelType = PixelType.Float
-        };
-
         luminance_depthPT = new Texture2D();
-        luminance_depthPT.Alloc(resolution, format, nint.Zero);
-        luminance_depthPT.SetParams(texParams);
-        luminance_depthPT.BindTex(0);
+        luminance_depthPT.Alloc(resolution, PixelInternalFormat.Rgba32f);
         luminance_depthPT.Lable = "lum_depthPT";
 
-        format.internalFormat = PixelInternalFormat.Rgba32f;
-        format.format = PixelFormat.Rgb;
-
         normalCompound_motionPT = new Texture2D();
-        normalCompound_motionPT.Alloc(resolution, format, nint.Zero);
-        normalCompound_motionPT.SetParams(texParams);
-        normalCompound_motionPT.BindTex(1);
+        normalCompound_motionPT.Alloc(resolution, PixelInternalFormat.Rgba32f);
         normalCompound_motionPT.Lable = "normal_motionPT";
     }
     
