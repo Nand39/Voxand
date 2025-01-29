@@ -103,6 +103,8 @@ public sealed class VoxelPathTracingModule : RenderingPipeline, IVoxelPathTracin
         SkyTex.BindTex(2);
         Luminance_depthOutput.BindAsImage(0, TextureAccess.ReadWrite, SizedInternalFormat.Rgba32f);
         NormalCompound_motionOutput.BindAsImage(1, TextureAccess.ReadWrite, SizedInternalFormat.Rgba32f);
+        
+        Console.WriteLine($"cycle = {cycle}");
 
         GL.DispatchCompute(Luminance_depthOutput.Size.X / 8, Luminance_depthOutput.Size.Y / 8, 1);
 

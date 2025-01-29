@@ -4,7 +4,7 @@ using OpenTK.Graphics.OpenGL4;
 using DisposableExt;
 using GLAV.Types;
 
-using Voxand.Engine.Systems.Graphics.GLUtil;
+using Voxand.Engine.Systems.Graphics.Tools.Data;
 using Voxand.Engine.Systems.Graphics.Tools.ShaderServices;
 
 namespace Voxand.Engine.ExecutionControl;

@@ -2,7 +2,7 @@
 
 using GLAV.Types;
 
-using Voxand.Engine.Systems.Graphics.GLUtil;
+using Voxand.Engine.Systems.Graphics.Tools.Data;
 
 namespace Voxand.Engine.Systems.Graphics.Meshes.Primitives;
 public class Primitives

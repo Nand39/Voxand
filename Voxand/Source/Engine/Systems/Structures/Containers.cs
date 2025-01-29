@@ -70,7 +70,7 @@ namespace Voxand.Engine.Systems.Graphics
     }
 }
 
-namespace Voxand.Engine.Systems.Graphics.GLUtil
+namespace Voxand.Engine.Systems.Graphics.Tools.Data
 {
     #region Vertex Data
     public struct V_PositionUV

@@ -1,4 +1,7 @@
-﻿using OpenTK.Windowing.Common;
+﻿using System.Runtime.InteropServices;
+using System.Text;
+
+using OpenTK.Windowing.Common;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.GraphicsLibraryFramework;
@@ -11,6 +14,7 @@ using Voxand.Engine.Systems.General.Events;
 using Voxand.Engine.Systems.Graphics;
 using Voxand.Engine.Systems.Graphics.Tools;
 using Voxand.Engine.Systems.Graphics.Pipelines.DefaultVoxelPTRP;
+using Voxand.Engine.Systems.Graphics.Tools.Utility;
 using Voxand.Engine.Systems.Voxels;
 using Voxand.Engine.Systems.ScriptableObjects;
 using Voxand.UI;
@@ -18,11 +22,6 @@ using Voxand.App;
 using Voxand.App.VoxelEditing;
 using Voxand.App.Map.Generation;
 using Voxand.App.Map;
-using Voxand.Engine.Systems.Graphics.Tools.Utility;
-using Voxand.Helpers.ExtensionMethods;
-using ErrorCode = OpenTK.Graphics.OpenGL4.ErrorCode;
-using System.Runtime.InteropServices;
-using System.Text;
 
 namespace Voxand.Engine.ExecutionControl;
 
