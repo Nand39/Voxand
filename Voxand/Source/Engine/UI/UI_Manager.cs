@@ -10,6 +10,9 @@ using Voxand.UI.Components;
 using Voxand.Engine.Systems.General.Events;
 using Voxand.Helpers.ExtensionMethods;
 using Voxand.App.Map;
+using Voxand.App.VoxelEditing;
+using Voxand.Helpers.Reflection;
+using System.Reflection;
 
 namespace Voxand.UI;
 public static class UI_Manager
@@ -247,5 +250,40 @@ public sealed class UI_DebugWindow : UI_Window
         ImGui.Text($"VRAM usage: {Math.Round(Util.BytesConverter(voxelMap.GetGraphicsMemoryUsage(), 2), 3)} mb");
 
         ImGui.End();
+    }
+}
+
+public sealed class UI_VoxelToolSettingsWindow : UI_Window
+{
+    VoxelTool tool;
+
+    public UI_VoxelToolSettingsWindow(VoxelTool tool)
+    {
+        this.tool = tool;
+    }
+
+    protected override void Display()
+    {
+        ImGui.Begin("Voxel tool");
+
+        ImGui.SeparatorText("Modes");
+
+        if (ImGui.BeginCombo("", tool.ActivePlacementTechnique.Name))
+        {
+            for (int i = 0; i < tool.TechniqueCount; i++)
+            {
+                if (ImGui.Selectable(tool[i].Name, i == tool.ActivePlacementTechniqueIndex))
+                {
+                    tool.ActivePlacementTechniqueIndex = i;
+                }
+            }
+            ImGui.EndCombo();
+        }
+
+        ImGui.End();
+    }
+
+    void DisplaySettingsSection(object target)
+    {
     }
 }

@@ -10,6 +10,47 @@ layout(rgba32f, binding = 1) uniform image2D normalCompound_motionImg;
 
 uniform float intensity;
 
+vec3 filteredTexture(sampler2D tex, vec2 uv, float depthThreshold);
+vec3 linearFilter(ivec2 texelCoord);
+vec4 conditionalLinearFilter(sampler2D tex, vec2 uv, bool[4] consider);
+
+int getNormal(ivec2 coord)
+{
+    return int(texelFetch(normalCompound_motionTex, coord, 0).x) >> 9;
+}
+
+float getDepth(ivec2 coord)
+{
+    return texelFetch(normalCompound_motionTex, coord, 0).y;
+}
+
+bool nearCorner(ivec2 coord)
+{
+    int normal = getNormal(coord);
+    float depth = getDepth(coord);
+    float depthThreshold = 0.1;
+
+    ivec2 baseCoord = coord - ivec2(1, 1);
+
+    for (int i = 0; i < 4; i++)
+    {
+        for (int j = 0; j < 4; j++)
+        {
+            if (getNormal(baseCoord + ivec2(i, j)) != normal) return true;
+            if (abs(getDepth(baseCoord + ivec2(i, j)) - depth) > depthThreshold) return true;
+        }
+    }
+
+    return false;
+}
+
+vec3 vecNormal(int normal)
+{
+    vec3 vect = vec3(0);
+    vect[normal >> 1] = ((normal & 1) << 1) - 1;
+    return vect;
+}
+
 void main() 
 {
     ivec2 texelCoord = ivec2(gl_GlobalInvocationID);
@@ -21,7 +62,8 @@ void main()
     vec4 normalCompound_motion = texelFetch(normalCompound_motionTex, texelCoord, 0);
     vec4 lumDepthNew = texelFetch(lum_depthTex, texelCoord, 0);
 
-    vec2 reprojectionUV = uv + normalCompound_motion.zw + vec2(0.5 / resolution.x, 0.5 / resolution.y);
+    vec2 reprojectionUV = uv + normalCompound_motion.zw;
+    reprojectionUV += vec2(0.5) / resolution;
 
     if (any(lessThanEqual(reprojectionUV, vec2(0.0001))) || any(greaterThanEqual(reprojectionUV, vec2(0.9999))))
     {
@@ -30,10 +72,49 @@ void main()
     }
     else 
     {
-        vec4 lumDepthOld = texture(lum_depthAccumTex, reprojectionUV);
-        color = vec4(mix(lumDepthNew.xyz, lumDepthOld.xyz, intensity), lumDepthNew.w);
+        vec3 lumDepthOld = texture(lum_depthAccumTex, reprojectionUV).rgb;
+        color = vec4(mix(lumDepthNew.xyz, lumDepthOld, intensity), lumDepthNew.w);
     }
     
     imageStore(outputImg, texelCoord, color);
     imageStore(normalCompound_motionImg, texelCoord, vec4(normalCompound_motion.x, lumDepthNew.w, normalCompound_motion.zw));
+}
+
+vec3 linearFilter(ivec2 texelCoord) 
+{
+    vec2 texelCeil = texelCoord + ivec2(1);
+
+    vec2 frac = fract(texelCoord);
+
+    float depth = getDepth(texelCoord);
+    int normal = getNormal(texelCoord);
+    float threshold = 0.2;
+
+    int mask = (int(abs(getDepth(texelCoord + ivec2(1, 0)) - depth) < threshold && getNormal(texelCoord + ivec2(1, 0)) == normal)) 
+    | (int(abs(getDepth(texelCoord + ivec2(0, 1)) - depth) < threshold && getNormal(texelCoord + ivec2(0, 1)) == normal) << 1) 
+    | (int(abs(getDepth(texelCoord + ivec2(1, 1)) - depth) < threshold && getNormal(texelCoord + ivec2(1, 1)) == normal) << 2);
+
+    vec3 texel00 = texelFetch(lum_depthAccumTex, texelCoord + ivec2(texelFetch(normalCompound_motionTex, texelCoord, 0).zw), 0).rgb;
+    vec3 texel10 = (mask & 1) == 1 ? texelFetch(lum_depthAccumTex, texelCoord + ivec2(1, 0) - ivec2(texelFetch(normalCompound_motionTex, texelCoord + ivec2(1, 0), 0).zw), 0).rgb : texel00;
+    vec3 texel01 = (mask & 2) == 1 ? texelFetch(lum_depthAccumTex, texelCoord + ivec2(0, 1) - ivec2(texelFetch(normalCompound_motionTex, texelCoord + ivec2(0, 1), 0).zw), 0).rgb : vec3(-1);
+    vec3 texel11 = (mask & 4) == 1 ? texelFetch(lum_depthAccumTex, texelCoord + ivec2(1, 1) - ivec2(texelFetch(normalCompound_motionTex, texelCoord + ivec2(1, 1), 0).zw), 0).rgb : vec3(-1);
+
+    vec3 texel0 = mix(texel00, texel10, frac.x);
+
+    if (texel01.x == -1)
+    {
+        return texel11.x == -1 ? texel0 : mix(texel0, texel11, frac.y);
+    }
+    else
+    {
+        if (texel11.x == -1)
+        {
+            return mix(texel0, texel01, frac.y);
+        }
+        else
+        {
+            vec3 texel1 = mix(texel01, texel11, frac.x);
+            return mix(texel0, texel1, frac.y);
+        }
+    }
 }

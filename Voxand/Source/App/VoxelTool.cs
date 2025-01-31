@@ -11,28 +11,40 @@ public class VoxelTool : BaseObject
 {
     ChunkMap map;
     public EventDispatcher Events { get; private set; } = new("user_voxelTool_events");
-    int activeMaterial;
-    int activePlacementTechnique;
+    int activeMaterialIndex;
+    int activePlacementTechniqueIndex;
 
     List<PlacementTechnique> builders = [];
-    public int ActiveMaterial
+
+    public int TechniqueCount => builders.Count;
+
+    public PlacementTechnique this[int index]
     {
-        get => activeMaterial; 
-        set
-        {
-            activeMaterial = value;
-            Events.Invoke("activeMaterial_changed", ActiveMaterial);
-        }
+        get => builders[index];
+        set => builders[index] = value;
     }
-    public int ActivePlacementTechnique
+
+    public int ActivePlacementTechniqueIndex
     {
-        get => activePlacementTechnique;
+        get => activePlacementTechniqueIndex;
         set
         {
-            activePlacementTechnique = value;
+            activePlacementTechniqueIndex = value;
             Events.Invoke("activePlacementTechnique_changed", ActivePlacementTechnique);
         }
     }
+
+    public int ActiveMaterialIndex
+    {
+        get => activeMaterialIndex; 
+        set
+        {
+            activeMaterialIndex = value;
+            Events.Invoke("activeMaterial_changed", ActiveMaterialIndex);
+        }
+    }
+
+    public PlacementTechnique ActivePlacementTechnique => this[ActivePlacementTechniqueIndex];
 
     public override void Initialize()
     {
@@ -59,11 +71,11 @@ public class VoxelTool : BaseObject
 
     public void Use(RaycastResult raycastResult)
     {
-        builders[activePlacementTechnique].Use(new(raycastResult, activeMaterial));
+        ActivePlacementTechnique.Use(new(raycastResult, activeMaterialIndex));
     }
 
-    public void NextTechnique() => ActivePlacementTechnique = Util.Mod(ActivePlacementTechnique + 1, builders.Count);
-    public void PreviousTechnique() => ActivePlacementTechnique = Util.Mod(ActivePlacementTechnique - 1, builders.Count);
+    public void NextTechnique() => ActivePlacementTechniqueIndex = Util.Mod(ActivePlacementTechniqueIndex + 1, builders.Count);
+    public void PreviousTechnique() => ActivePlacementTechniqueIndex = Util.Mod(ActivePlacementTechniqueIndex - 1, builders.Count);
 }
 
 public struct PlacementInput(RaycastResult raycastResult, int material)
@@ -73,12 +85,24 @@ public struct PlacementInput(RaycastResult raycastResult, int material)
 }
 public abstract class PlacementTechnique
 {
+    protected abstract string DefaultName { get; }
+
+    string name;
+    public string? Name
+    {
+        get => name ?? DefaultName;
+        set => name = value;
+    }
     public abstract void Use(PlacementInput input);
 }
+
 public class SingleBuilder : PlacementTechnique
 {
     readonly ISinglePlaceable singlePlaceable;
     public SingleBuilder(ISinglePlaceable singlePlaceable) => this.singlePlaceable = singlePlaceable;
+
+    protected override string DefaultName => "Single voxel builder";
+
     public override void Use(PlacementInput input)
     {
         Vector3i position = input.raycastResult.voxelHitPos + Util.VectorFromNormalIndex(input.raycastResult.normal);
@@ -89,6 +113,9 @@ public class SingleRemover : PlacementTechnique
 {
     readonly ISinglePlaceable singlePlaceable;
     public SingleRemover(ISinglePlaceable singlePlaceable) => this.singlePlaceable = singlePlaceable;
+
+    protected override string DefaultName => "Single voxel remover";
+
     public override void Use(PlacementInput input)
     {
         singlePlaceable.RemoveSingle(input.raycastResult.voxelHitPos);
@@ -129,6 +156,9 @@ public class BlockBuilder : BatchPlacementTechnique
         this.singlePlaceable = singlePlaceable;
         this.mapSize = mapSize;
     }
+
+    protected override string DefaultName => "Block builder";
+
     protected override void OnBatchFull()
     {
         Vector3i start = Vector3i.Clamp(InputBatch[0].raycastResult.voxelHitPos, Vector3i.Zero, mapSize - Vector3i.One);
@@ -149,6 +179,9 @@ public class BlockRemover : BatchPlacementTechnique
         this.singlePlaceable = singlePlaceable;
         this.mapSize = mapSize;
     }
+
+    protected override string DefaultName => "Block remover";
+
     protected override void OnBatchFull()
     {
         Vector3i start = Vector3i.Clamp(InputBatch[0].raycastResult.voxelHitPos, Vector3i.Zero, mapSize - Vector3i.One);

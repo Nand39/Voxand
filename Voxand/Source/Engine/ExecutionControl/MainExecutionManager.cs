@@ -233,9 +233,10 @@ public sealed class MainExecutionManager : ExecutionManager,
         UI_Manager.AddWindow(paletteWindow);
         UI_Manager.AddWindow(renderSettingsWindow);
         UI_Manager.AddWindow(debugWindow);
+        UI_Manager.AddWindow(new UI_VoxelToolSettingsWindow(voxelTool));
 
         UI_Manager.Events.Subscribe("voxel_material_edited", engineState.VoxelPalette.SetMaterial);
-        UI_Manager.Events.Subscribe("voxel_material_selected", (args) => { viewer.VoxelTool.ActiveMaterial = (int)args; });
+        UI_Manager.Events.Subscribe("voxel_material_selected", (args) => { viewer.VoxelTool.ActiveMaterialIndex = (int)args; });
         UI_Manager.Events.Subscribe("renderSettings_TAA_switched", (args) => 
         {
             engineState.RenderingPipeline.UseTAA = (bool)args;
