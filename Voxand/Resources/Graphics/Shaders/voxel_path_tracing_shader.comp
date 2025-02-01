@@ -155,12 +155,13 @@ void main()
     if (normal == prevReprojectedNormal)
     {
         vec3 prevHit = prevRayDirection * prevDepth + prevCameraPosition;
-        if (abs(prevHit[normal >> 1] - hitPos[normal >> 1]) < 0.2)
+        if (abs(prevHit[normal >> 1] - hitPos[normal >> 1]) > 0.2)
         {
-            if (abs(distance(prevHit, hitPos)) < pow(dot(vecNormal(normal), rayDirection) + 1.3, 5) * 10)
-            {
-                motion = prevUV - uv;
-            }
+            motion = reprojectionCoord;
+        }
+        else if (abs(distance(prevHit, hitPos)) < pow(dot(vecNormal(normal), rayDirection) + 1.3, 5) * 10)
+        {
+            motion = prevUV - uv;
         }
         else
         {
@@ -171,15 +172,6 @@ void main()
     {
         motion = vec2(3);
     }
-
-//    if (abs(length(prevCameraToHitPos) - prevDepth) < pow(dot(vecNormal(normal), rayDirection) + 1.3, 5) * 10)
-//    {
-//        motion = prevReprojectedNormal == normal ? prevUV - uv : vec2(3);
-//    }
-//    else
-//    {
-//        motion = reprojectionCoord;
-//    }
 
     int normalCompound = (prevNormalAtCurrentPixel << (cycle * 3)) | (normal << (cycle * -3 + 3)) | (normal << 6) | (prevNormalAtCurrentPixel << 9);
     imageStore(normalCompound_motionImg, texelCoord, vec4(normalCompound, normalCompound_Motion.y, motion));
