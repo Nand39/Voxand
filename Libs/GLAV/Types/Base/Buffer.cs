@@ -88,7 +88,6 @@ public class Buffer : GLResource
         int itemSize; unsafe { itemSize = sizeof(Format); }
         Format[] data = Retrieve<Format>(startOffsetInBytes, count);
 
-        string log = "";
         StringBuilder stringBuilder = new();
         stringBuilder.Append($"Content of {Lable} from {startOffsetInBytes} to {startOffsetInBytes + count * itemSize} ({count} items)\n");
         for (int i = 0; i < data.Length; i++)

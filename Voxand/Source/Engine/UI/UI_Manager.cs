@@ -13,6 +13,7 @@ using Voxand.App.Map;
 using Voxand.App.VoxelEditing;
 using Voxand.Helpers.Reflection;
 using System.Reflection;
+using Voxand.Engine.Systems.Graphics.Tools.UI;
 
 namespace Voxand.UI;
 public static class UI_Manager
@@ -256,10 +257,14 @@ public sealed class UI_DebugWindow : UI_Window
 public sealed class UI_VoxelToolSettingsWindow : UI_Window
 {
     VoxelTool tool;
-
+    PropertyConfigMenu toolConfigMenu;
     public UI_VoxelToolSettingsWindow(VoxelTool tool)
     {
         this.tool = tool;
+        tool.OnActivePlacementTechniqueChanged += () =>
+        {
+            toolConfigMenu = new(tool.ActivePlacementTechnique);
+        };
     }
 
     protected override void Display()
@@ -280,10 +285,10 @@ public sealed class UI_VoxelToolSettingsWindow : UI_Window
             ImGui.EndCombo();
         }
 
-        ImGui.End();
-    }
+        ImGui.SeparatorText("Settings");
 
-    void DisplaySettingsSection(object target)
-    {
+        toolConfigMenu.Display();
+
+        ImGui.End();
     }
 }

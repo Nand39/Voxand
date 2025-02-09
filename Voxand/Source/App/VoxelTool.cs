@@ -2,6 +2,7 @@
 using Voxand.App.Map;
 using Voxand.Engine.Systems.General.Events;
 using Voxand.Engine.Systems.Graphics;
+using Voxand.Engine.Systems.Graphics.Tools.UI;
 using Voxand.Engine.Systems.ScriptableObjects;
 using Voxand.Engine.Systems.Voxels;
 using Voxand.Helpers;
@@ -11,6 +12,7 @@ public class VoxelTool : BaseObject
 {
     ChunkMap map;
     public EventDispatcher Events { get; private set; } = new("user_voxelTool_events");
+    public event Action? OnActivePlacementTechniqueChanged;
     int activeMaterialIndex;
     int activePlacementTechniqueIndex;
 
@@ -31,6 +33,7 @@ public class VoxelTool : BaseObject
         {
             activePlacementTechniqueIndex = value;
             Events.Invoke("activePlacementTechnique_changed", ActivePlacementTechnique);
+            OnActivePlacementTechniqueChanged?.Invoke();
         }
     }
 
@@ -57,6 +60,7 @@ public class VoxelTool : BaseObject
         });
         map = EngineState.VoxelMap;
         UpdateBuilders();
+        ActivePlacementTechniqueIndex = 0;
     }
 
     void UpdateBuilders()
@@ -67,6 +71,8 @@ public class VoxelTool : BaseObject
         builders.Add(new SingleRemover(singlePlaceable));
         builders.Add(new BlockBuilder(singlePlaceable, map.Dimensions));
         builders.Add(new BlockRemover(singlePlaceable, map.Dimensions));
+        builders.Add(new SphereBuilder(singlePlaceable, map.Dimensions));
+        builders.Add(new SphereRemover(singlePlaceable, map.Dimensions));
     }
 
     public void Use(RaycastResult raycastResult)
@@ -87,7 +93,7 @@ public abstract class PlacementTechnique
 {
     protected abstract string DefaultName { get; }
 
-    string name;
+    string? name;
     public string? Name
     {
         get => name ?? DefaultName;
@@ -173,14 +179,13 @@ public class BlockRemover : BatchPlacementTechnique
 {
     readonly ISinglePlaceable singlePlaceable;
     readonly Vector3i mapSize;
+    protected override string DefaultName => "Block remover";
 
     public BlockRemover(ISinglePlaceable singlePlaceable, Vector3i mapSize) : base(2)
     {
         this.singlePlaceable = singlePlaceable;
         this.mapSize = mapSize;
     }
-
-    protected override string DefaultName => "Block remover";
 
     protected override void OnBatchFull()
     {
@@ -189,5 +194,65 @@ public class BlockRemover : BatchPlacementTechnique
         Util.OrderBounds(start, finish, out Vector3i min, out Vector3i max);
         int material = InputBatch[0].material;
         Util.Loop3(min, max, singlePlaceable.RemoveSingle);
+    }
+}
+
+public class SphereBuilder : PlacementTechnique
+{
+    readonly ISinglePlaceable singlePlaceable;
+    readonly Vector3i mapSize;
+
+    [Configurable("Radius", "placeholder")]
+    public float Radius { get; set; } = 5;
+    protected override string DefaultName => "Sphere builder";
+
+    public SphereBuilder(ISinglePlaceable singlePlaceable, Vector3i mapSize)
+    {
+        this.singlePlaceable = singlePlaceable;
+        this.mapSize = mapSize;
+    }
+
+    public override void Use(PlacementInput input)
+    {
+        int radiusBoxSize = (int)MathF.Ceiling(Radius);
+        float radiusSq = Radius * Radius;
+        Vector3i start = Vector3i.Clamp(input.raycastResult.voxelHitPos - new Vector3i(radiusBoxSize), Vector3i.Zero, mapSize - Vector3i.One);
+        Vector3i finish = Vector3i.Clamp(input.raycastResult.voxelHitPos + new Vector3i(radiusBoxSize), Vector3i.Zero, mapSize - Vector3i.One);
+
+        Util.Loop3(start, finish, (pos) => 
+        {
+            if ((input.raycastResult.voxelHitPos - pos).EuclideanLengthSquared < radiusSq)
+                singlePlaceable.PlaceSingle(pos, input.material);
+        });
+    }
+}
+
+public class SphereRemover : PlacementTechnique
+{
+    readonly ISinglePlaceable singlePlaceable;
+    readonly Vector3i mapSize;
+
+    [Configurable("Radius", "placeholder")]
+    public float Radius { get; set; } = 5;
+    protected override string DefaultName => "Sphere remover";
+
+    public SphereRemover(ISinglePlaceable singlePlaceable, Vector3i mapSize)
+    {
+        this.singlePlaceable = singlePlaceable;
+        this.mapSize = mapSize;
+    }
+
+    public override void Use(PlacementInput input)
+    {
+        int radiusBoxSize = (int)MathF.Ceiling(Radius);
+        float radiusSq = Radius * Radius;
+        Vector3i start = Vector3i.Clamp(input.raycastResult.voxelHitPos - new Vector3i(radiusBoxSize), Vector3i.Zero, mapSize - Vector3i.One);
+        Vector3i finish = Vector3i.Clamp(input.raycastResult.voxelHitPos + new Vector3i(radiusBoxSize), Vector3i.Zero, mapSize - Vector3i.One);
+
+        Util.Loop3(start, finish, (pos) =>
+        {
+            if ((input.raycastResult.voxelHitPos - pos).EuclideanLengthSquared < radiusSq)
+                singlePlaceable.RemoveSingle(pos);
+        });
     }
 }

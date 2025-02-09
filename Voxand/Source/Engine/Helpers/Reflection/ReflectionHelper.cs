@@ -12,17 +12,22 @@ public static class ReflectionHelper
     }
     public static void ForEachEvent(object obj, BindingFlags bindingFlags, Action<EventInfo> action)
     {
-        Type t = obj.GetType();
-        EventInfo[] events = t.GetEvents(bindingFlags);
+        EventInfo[] events = obj.GetType().GetEvents(bindingFlags);
         foreach (EventInfo @event in events)
             action(@event);
+    }
+    public static void ForEachProperty(object obj, BindingFlags bindingFlags, Action<PropertyInfo> action)
+    {
+        PropertyInfo[] properties = obj.GetType().GetProperties(bindingFlags);
+        foreach (PropertyInfo property in properties)
+            action(property);
     }
     public static void ForEachAttrib<AttribType>(MemberInfo member, Action<AttribType> action) 
         where AttribType : Attribute
     {
-        var attribs = member.GetCustomAttributes(typeof(AttribType));
+        var attribs = member.GetCustomAttributes<AttribType>();
         foreach (var attrib in attribs)
-            action((AttribType)attrib);
+            action(attrib);
     }
 
     #region Composed operations
@@ -30,23 +35,65 @@ public static class ReflectionHelper
             where AttribType : Attribute
     {
         ForEachEvent(obj, bindingFlags, (@event) =>
-        {
             ForEachAttrib<AttribType>(@event, (attrib) =>
-            {
-                action(@event, attrib);
-            });
-        });
+                action(@event, attrib)));
     }
     public static void ForEachAttribOfEachMethod<AttribType>(object obj, BindingFlags bindingFlags, Action<MethodInfo, AttribType> action)
         where AttribType : Attribute
     {
         ForEachMethod(obj, bindingFlags, (method) =>
-        {
             ForEachAttrib<AttribType>(method, (attrib) =>
-            {
-                action(method, attrib);
-            });
-        });
+                action(method, attrib)));
+    }
+    public static void ForEachAttribOfEachProperty<AttribType>(object obj, BindingFlags bindingFlags, Action<PropertyInfo, AttribType> action)
+        where AttribType : Attribute
+    {
+        ForEachProperty(obj, bindingFlags, (property) =>
+            ForEachAttrib<AttribType>(property, (attrib) =>
+                action(property, attrib)));
     }
     #endregion
+
+    public static T[] InstantiateDerivedTypes<T>() where T : class
+    {
+        Type baseType = typeof(T);
+        List<T> instances = [];
+
+        Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
+
+        foreach (Assembly assembly in assemblies)
+        {
+            Type[] typesInAssembly = assembly.GetTypes();
+
+            foreach (Type type in typesInAssembly)
+            {
+                if (type.IsClass && baseType.IsAssignableFrom(type) && !type.IsAbstract)
+                {
+                    object? instance = Activator.CreateInstance(type);
+                    if (instance is not null)
+                        instances.Add((T)instance);
+                }
+            }
+        }
+
+        return instances.ToArray();
+    }
+    public static Type[] GetDerivedTypes<T>() where T : class
+    {
+        Type baseType = typeof(T);
+        List<Type> derivedTypes = [];
+
+        Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
+
+        foreach (Assembly assembly in assemblies)
+        {
+            Type[] typesInAssembly = assembly.GetTypes();
+
+            foreach (Type type in typesInAssembly)
+                if (type.IsClass && baseType.IsAssignableFrom(type) && !type.IsAbstract)
+                    derivedTypes.Add(type);
+        }
+
+        return derivedTypes.ToArray();
+    }
 }

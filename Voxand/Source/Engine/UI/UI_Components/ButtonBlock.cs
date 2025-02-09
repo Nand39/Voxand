@@ -1,6 +1,4 @@
 ﻿using ImGuiNET;
-using OpenTK.Compute.OpenCL;
-using System.Numerics;
 
 namespace Voxand.UI.Components;
 
