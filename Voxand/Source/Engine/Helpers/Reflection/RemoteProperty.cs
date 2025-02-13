@@ -1,19 +1,15 @@
 ﻿using System.Reflection;
 
 namespace Voxand.Helpers.Reflection;
-public struct RemoteProperty
+public struct RemoteProperty<T>
 {
-    object target;
-    PropertyInfo propInfo;
+    Func<T> get;
+    Action<T> set;
     public RemoteProperty(object target, PropertyInfo propInfo)
     {
-        ArgumentNullException.ThrowIfNull(target);
-        ArgumentNullException.ThrowIfNull(propInfo);
-
-        this.target = target;
-        this.propInfo = propInfo;
+        get = (Func<T>)propInfo.GetGetMethod()!.CreateDelegate(typeof(Func<T>), target);
+        set = (Action<T>)propInfo.GetSetMethod()!.CreateDelegate(typeof(Action<T>), target);
     }
-    public object Get() => propInfo.GetValue(target)!;
-    public void Set(object value) => propInfo.SetValue(target, value);
-    public Type PropertyType => propInfo.PropertyType;
+    public T Get() => get();
+    public void Set(T value) => set(value);
 }

@@ -1,7 +1,7 @@
 ﻿using Voxand.Engine.Systems.Graphics.Tools.UI;
 using Voxand.UI.Components;
 
-public abstract class PropertyEntryHandler
+public abstract class PropertyEntryHandler()
 {
     public abstract void Display();
 }
@@ -18,14 +18,17 @@ public sealed class PropertyEntryTypeAttribute(Type type) : Attribute
 public sealed class FloatEntryHandler : PropertyEntryHandler
 {
     FloatPicker entry;
-    public FloatEntryHandler(EntryDescriptor descriptor)
+    EntryDescriptor<float> descriptor;
+    public FloatEntryHandler(EntryDescriptor<float> descriptor)
     {
+        this.descriptor = descriptor;
         entry = new(descriptor.Name);
-        entry.value = (float)descriptor.ReferencedProperty.Get();
-        entry.OnValueChange += (value) => descriptor.ReferencedProperty.Set(value);
+        entry.value = descriptor.ReferencedProperty.Get();
+        entry.OnValueChange += descriptor.ReferencedProperty.Set;
     }
     public override void Display()
     {
+        entry.value = descriptor.ReferencedProperty.Get();
         entry.Display();
     }
 }

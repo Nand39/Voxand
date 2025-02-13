@@ -23,22 +23,33 @@ public class PropertyConfigMenu
     {
         ReflectionHelper.ForEachAttribOfEachProperty<ConfigurableAttribute>(obj, BindingFlags.Public | BindingFlags.Instance, (prop, attrib) =>
         {
-            CreateEntryHandler(obj, prop, attrib);
+            entryHandlers.Add(CreateEntryHandler(obj, prop, attrib));
         });
     }
 
-    void CreateEntryHandler(object obj, PropertyInfo prop, ConfigurableAttribute attrib)
+    PropertyEntryHandler CreateEntryHandler(object obj, PropertyInfo prop, ConfigurableAttribute attrib)
     {
         if (!entryHandlerTypes.TryGetValue(prop.PropertyType, out var handlerType))
             throw new ArgumentException($"Property type {prop.PropertyType} (found in {obj}) has no entry handler type associated with it.");
 
-        EntryDescriptor descriptor = new(attrib.Name, attrib.Description, new RemoteProperty(obj, prop));
-        object? handlerObject = Activator.CreateInstance(handlerType, [descriptor]);
+        // Creating property accessor
+        Type remotePropertyType = typeof(RemoteProperty<>).MakeGenericType(prop.PropertyType);
+        object remoteProp = Activator.CreateInstance(remotePropertyType, [obj, prop]) ??
+            throw new InvalidOperationException($"Failed to instantiate remote property of type {remotePropertyType}");
 
-        if (handlerObject is not PropertyEntryHandler handler)
+        // Creating entry descriptor
+        Type descriptorType = typeof(EntryDescriptor<>).MakeGenericType(prop.PropertyType);
+        ConstructorInfo descriptorConstructor = descriptorType.GetConstructor([typeof(string), typeof(string), remotePropertyType]) ??
+            throw new InvalidOperationException($"Failed to get entry descriptor constructor of type {descriptorType}");
+
+        object descriptor = descriptorConstructor.Invoke([attrib.Name, attrib.Description, remoteProp]) ?? 
+            throw new InvalidOperationException($"Failed to instantiate entry descriptor of type {descriptorType}"); ;
+
+        // Creating entry handler
+        PropertyEntryHandler handlerObject = Activator.CreateInstance(handlerType, [descriptor]) as PropertyEntryHandler ??
             throw new InvalidOperationException($"Failed to instantiate entry handler of type {handlerType}");
 
-        entryHandlers.Add(handler);
+        return handlerObject;
     }
 
     public void Display()
@@ -48,11 +59,11 @@ public class PropertyConfigMenu
     }
 }
 
-public struct EntryDescriptor(string name, string description, RemoteProperty property)
+public struct EntryDescriptor<T>(string name, string description, RemoteProperty<T> property)
 {
     public string Name { get; set; } = name;
     public string Description { get; set; } = description;
-    public RemoteProperty ReferencedProperty { get; set; } = property;
+    public RemoteProperty<T> ReferencedProperty { get; set; } = property;
 }
 
 [AttributeUsage(AttributeTargets.Property, AllowMultiple = true)]
