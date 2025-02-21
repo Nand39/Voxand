@@ -60,6 +60,7 @@ layout(location = 1) uniform ivec3 voxelBrickmapSize;
 layout(location = 2) uniform vec3 sunDirection = vec3(0.904, 0.361, 0.226);//vec3(0.31, 0.82, 0.47);
 layout(location = 3) uniform vec3 sunColor = vec3(6.8, 4.65, 2);
 layout(location = 4) uniform float sunDirectionJitter = 0.01;
+layout(location = 8) uniform float fov = 80.0; 
 
 layout(location = 5) uniform int cycle = 0;
 layout(location = 6) uniform int samples = 1;
@@ -154,18 +155,30 @@ void main()
 
     if (normal == prevReprojectedNormal)
     {
-        vec3 prevHit = prevRayDirection * prevDepth + prevCameraPosition;
-        if (abs(prevHit[normal >> 1] - hitPos[normal >> 1]) > 0.2)
+        vec2 nearestFrag = (reprojectionCoord / vec2(resolution)) * 2 - 1;
+        vec4 prevNearestViewPoint = vec4(nearestFrag + vec2(0.5) / resolution, 1, 1);
+        vec4 prevNearestTransformedViewPoint = inverse(prevCameraMatrix) * prevNearestViewPoint;
+        vec3 prevNearestRayDir = normalize(prevNearestTransformedViewPoint.xyz / prevNearestTransformedViewPoint.w);
+
+        vec3 prevHit = prevNearestRayDir * prevDepth + prevCameraPosition;
+
+        if (abs(prevHit[normal >> 1] - hitPos[normal >> 1]) > clamp(0.001 * (prevDepth + depth) * 0.5, 0.2, 2))
         {
-            motion = reprojectionCoord;
-        }
-        else if (abs(distance(prevHit, hitPos)) < pow(dot(vecNormal(normal), rayDirection) + 1.3, 5) * 10)
-        {
-            motion = prevUV - uv;
+            motion = vec2(19, 39);
         }
         else
         {
-            motion = reprojectionCoord;
+            prevHit[normal >> 1] = hitPos[normal >> 1];
+            float radPedPixel = fov / resolution.x; // Approximate temporarily
+            float rayDiffTriangleBase = sin(0.5 * radPedPixel) * prevDepth * 2;
+            if (abs(distance(prevHit, hitPos)) < (dot(vecNormal(normal), prevRayDirection) + 1.3) * rayDiffTriangleBase)
+            {
+                motion = prevUV - uv;
+            }
+            else
+            {
+                motion = vec2(14, 88);
+            }
         }
     }
     else 
