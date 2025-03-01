@@ -27,6 +27,7 @@ public class Viewer : BaseObject
     int chunkLoadingDistance = 42;
 
     public event Action? recreateMapRequest;
+    public event Action<Vector3>? setSunDirectionRequest;
     public override void Initialize()
     {
         Win.Resize += (args) => screenCenter = args.Size / 2;
@@ -60,6 +61,15 @@ public class Viewer : BaseObject
             Console.WriteLine($"! CPU SIDE: voxel data at {(Vector3i)Camera.position}: value={value}; empty={bit == 0}; brick={brickIndex}");
             (value, bit, brickIndex) = EngineState.VoxelMap.RawStructure.Examine((Vector3i)Camera.position, true);
             Console.WriteLine($"* GPU SIDE: voxel data at {(Vector3i)Camera.position}: value={value}; empty={bit == 0}; brick={brickIndex}");
+        }
+
+        if (Win.KeyboardState.IsKeyPressed(Keys.P))
+        {
+            Vector3 sunDir = Camera.PixelToRay(
+                uv: Win.MouseState.Position / Win.ClientSize,
+                aspectRatio: Win.ClientSize.Ratio());
+
+            setSunDirectionRequest?.Invoke(sunDir);
         }
     }
     bool HandleMovement(float deltaTime)

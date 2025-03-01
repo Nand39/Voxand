@@ -6,6 +6,7 @@ using StbImageSharp;
 using GLAV.Types;
 using Voxand.Helpers;
 using System.Runtime.CompilerServices;
+using GLAV.Helpers.Public.Exceptions;
 
 namespace Voxand.Content;
 public class ContentManager
@@ -26,34 +27,17 @@ public class ContentManager
 
 
     #region Basic read/write string
-    public bool ReadFile(string path, out string result)
+    public string ReadFile(string path)
     {
-        try
-        {
-            using Stream stream = OpenStream(path, FileMode.Open, FileAccess.Read);
-            using StreamReader reader = new(stream);
-            result = reader.ReadToEnd();
-            return true;
-        }
-        catch
-        {
-            result = string.Empty;
-            return false;
-        }
+        using Stream stream = OpenStream(path, FileMode.Open, FileAccess.Read);
+        using StreamReader reader = new(stream);
+        return reader.ReadToEnd();
     }
-    public bool WriteFile(string path, string text)
+    public void WriteFile(string path, string text)
     {
-        try
-        {
-            using Stream stream = OpenStream(path, FileMode.OpenOrCreate, FileAccess.Write);
-            using StreamWriter writer = new(stream);
-            writer.Write(text);
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
+        using Stream stream = OpenStream(path, FileMode.OpenOrCreate, FileAccess.Write);
+        using StreamWriter writer = new(stream);
+        writer.Write(text);
     }
     #endregion
 
@@ -98,7 +82,7 @@ public class ContentManager
     Texture2D LoadHDRTexture(Stream imageFileStream, PixelInternalFormat storageFormat)
     {
         ImageResultFloat image = ImageResultFloat.FromStream(imageFileStream, ColorComponents.RedGreenBlueAlpha);
-        return CreateTexture(new Vector2i(image.Width, image.Height), storageFormat, new(PixelFormat.Rgba, PixelType.UnsignedByte), image.Data);
+        return CreateTexture(new Vector2i(image.Width, image.Height), storageFormat, new(PixelFormat.Rgba, PixelType.Float), image.Data);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -115,48 +99,41 @@ public class ContentManager
     {
         ShaderPart[] shaderAttachments = new ShaderPart[sourcePaths.Length];
         for (int i = 0; i < shaderAttachments.Length; i++)
+        {
             shaderAttachments[i] = LoadShaderPart(sourcePaths[i]);
+        }
 
         try
         {
             Shader shader = new(shaderAttachments);
             return shader;
         }
-        catch (Exception e)
+        catch (ShaderLinkingException ex)
         {
-            throw new Exception(
-                @$"Failed to create shader.
-                Log: {e.Message}
+            throw new ShaderLinkingException(
+                @$"Failed to link shader.
                 Parts:
-                {string.Join(";\n", sourcePaths)}", e);
+                {string.Join(";\n", sourcePaths)}", ex.Message, ex);
         }
     }
 
     public ShaderPart LoadShaderPart(string sourcePath)
     {
-        string source;
-        bool sourceReadSucceeded;
-        sourceReadSucceeded = ReadFile(sourcePath, out source);
-
-        if (!ReadFile(sourcePath, out source))
-            throw new Exception($"Cannot load shader source code. Path: {sourcePath}");
+        string source = ReadFile(sourcePath);
 
         ShaderType? type = Util.IdentifyShaderSource(sourcePath);
 
         if (type is null)
-            throw new Exception($"Cannot infer shader type from code file extension. Path: {sourcePath}");
+            throw new ArgumentException($"Cannot infer shader type from code file extension. Path: {sourcePath}");
 
         try
         {
             ShaderPart shaderPart = new ShaderPart(source, type.Value);
             return shaderPart;
         }
-        catch (Exception e)
+        catch (ShaderPartCompilationException ex)
         {
-            throw new Exception(
-                @$"Failed to compile shader source code in {sourcePath}
-                Log:
-                {e.Message}", e);
+            throw new ShaderPartCompilationException($"Failed to compile shader source code in {sourcePath}", ex.Message, ex);
         }
     }
     #endregion
@@ -164,7 +141,7 @@ public class ContentManager
     #endregion
 
     #region Formatting
-    string CompleteFilePath(string indepPath) => Path.Combine(basePath, PlatformFilePath(indepPath));
-    string PlatformFilePath(string indepPath) => Path.Combine(indepPath.Split('/'));
+    public string CompleteFilePath(string indepPath) => Path.Combine(basePath, PlatformFilePath(indepPath));
+    public string PlatformFilePath(string indepPath) => Path.Combine(indepPath.Split('/'));
     #endregion
 }

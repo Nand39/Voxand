@@ -148,7 +148,6 @@ public class Texture2D : GLResource
         };
     }
 
-    public override string ToString() => $"\"{Lable}\" (id={Handle.id})";
     protected override void Free(bool hasContext)
     {
         if (hasContext)

@@ -11,7 +11,6 @@ namespace Voxand.Engine.ExecutionControl;
 public class TestingState(Window win) : ExecutionManager
 {
     VertexArray vao;
-    ShaderController shader;
     Texture2D texture;
     Window window = win;
     public override void Load()
@@ -28,9 +27,7 @@ public class TestingState(Window win) : ExecutionManager
         ];
         vao = new();
         vao.Alloc(ref viewRectVertices, V_PositionUV.vertexInfo, BufferUsageHint.StaticDraw);
-        shader = new(window.Content, true, "Graphics.Shaders.Testing.TestVert.vert", "Graphics.Shaders.Testing.TestFrag.frag");
         texture = window.Content.LoadTexture("Graphics/Textures/router.png", PixelInternalFormat.Rgba);
-
         texture.BindTex(0);
     }
     public override void Update(FrameEventArgs args)
@@ -40,7 +37,6 @@ public class TestingState(Window win) : ExecutionManager
     public override void Render(FrameEventArgs args)
     {
         GL.Clear(ClearBufferMask.ColorBufferBit);
-        shader.Shader.Use();
         texture.BindTex(0);
         vao.Bind();
         GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
@@ -49,7 +45,6 @@ public class TestingState(Window win) : ExecutionManager
     {
         vao.Dispose();
         texture.Dispose();
-        shader.Shader.Dispose();
         Console.WriteLine("Resources was successfully unloaded");
     }
 }

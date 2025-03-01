@@ -58,14 +58,15 @@ public sealed class VoxelPTRP : RenderingPipeline
         varyingRenderDataStorage.Add(luminance_depthPT, normalCompound_motionPT);
 
         skyTex = content.LoadTexture("Graphics/Textures/env.hdr", PixelInternalFormat.Rgba32f);
+        skyTex.Lable = "Sky texture";
 
-        pathTracingShaderController = new(content, false, "Graphics/Shaders/voxel_path_tracing_shader.comp");
+        pathTracingShaderController = new(content, "Graphics/Shaders/voxel_path_tracing_shader.comp");
         pathTracingShaderController.Shader.Lable = "* voxel PT shader";
 
-        TAAShaderController = new(content, false, "Graphics/Shaders/taa_shader.comp");
+        TAAShaderController = new(content, "Graphics/Shaders/taa_shader.comp");
         TAAShaderController.Shader.Lable = "* TAA shader";
 
-        compositingShaderController = new(content, false,
+        compositingShaderController = new(content,
             "Graphics/Shaders/voxel_compositing_shader.vert",
             "Graphics/Shaders/voxel_compositing_shader.frag");
         compositingShaderController.Shader.Lable = "* Compositing shader";

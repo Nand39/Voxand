@@ -21,10 +21,11 @@ public abstract class GLResource : IDisposableExt
                 bufSize: Encoding.UTF8.GetMaxByteCount(GL.GetInteger(GetPName.MaxLabelLength)),
                 length: out int length,
                 label: out string label);
-            return label == "" ? "UnnamedResource" : label;
+            return label == string.Empty ? "UnnamedResource" : label;
         }
         set => Util.LabelResource(Handle, value);
     }
+    public override string ToString() => $"\"{Lable}\" (id={Handle.id})";
     void IDisposableExt.Free() => Free(GLRegistry.Instance.GLFWGraphicsContext.IsCurrent);
     protected abstract void Free(bool hasContext);
     ~GLResource() => this.Dispose();

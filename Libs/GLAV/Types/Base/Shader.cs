@@ -22,7 +22,7 @@ public class Shader : GLResource
         if (GetParameter(GetProgramParameterName.LinkStatus) == (int)All.False)
         {
             string infoLog = GL.GetProgramInfoLog(Handle.id);
-            throw new ShaderPartLinkingException(infoLog);
+            throw new ShaderLinkingException(infoLog);
         }
 
         for (int i = 0; i < shaderAttachments.Length; i++)
@@ -51,7 +51,7 @@ public class Shader : GLResource
         return result;
     }
 
-    public int GetResourceInfo(ProgramInterface targetInterface, int resourceIndex, ref ProgramProperty prop)
+    public int GetResourceInfo(ProgramInterface targetInterface, int resourceIndex, ProgramProperty prop)
     {
         GL.GetProgramResource(
                 program: Handle.id,
@@ -64,7 +64,7 @@ public class Shader : GLResource
                 @params: out int output);
         return output;
     }
-    public int[] GetResourceInfo(ProgramInterface targetInterface, int resourceIndex, ref ProgramProperty[] props)
+    public int[] GetResourceInfo(ProgramInterface targetInterface, int resourceIndex, ProgramProperty[] props)
     {
         int[] output = new int[props.Length];
         GL.GetProgramResource(
@@ -82,7 +82,7 @@ public class Shader : GLResource
     public string GetResourceName(ProgramInterface targetInterface, int resourceIndex)
     {
         ProgramProperty prop = ProgramProperty.NameLength;
-        int length = GetResourceInfo(targetInterface, resourceIndex, ref prop);
+        int length = GetResourceInfo(targetInterface, resourceIndex, prop);
         GL.GetProgramResourceName(Handle.id, targetInterface, resourceIndex, length, out int l, out string name);
         return name;
     }
@@ -319,9 +319,260 @@ public class Shader : GLResource
     public void SetUniform(int location, Matrix4 value) { Use(); GL.UniformMatrix4(location, true, ref value); }
     #endregion
 
+    public unsafe object GetUniform(int location, int type)
+    {
+        Use();
+        switch ((All)type)
+        {
+            default:
+                throw new ArgumentOutOfRangeException(nameof(type), $"Unsupported uniform type");
+
+            case All.Float:
+                {
+                    GL.GetUniform(Handle.id, location, out float value);
+                    return value;
+                }
+
+            case All.FloatVec2:
+                {
+                    float* buffer = stackalloc float[2];
+                    GL.GetUniform(Handle.id, location, buffer);
+                    return *(Vector2*)buffer;
+                }
+
+            case All.FloatVec3:
+                {
+                    float* buffer = stackalloc float[3];
+                    GL.GetUniform(Handle.id, location, buffer);
+                    return *(Vector3*)buffer;
+                }
+
+            case All.FloatVec4:
+                {
+                    float* buffer = stackalloc float[4];
+                    GL.GetUniform(Handle.id, location, buffer);
+                    return *(Vector4*)buffer;
+                }
+
+            case All.Double:
+                {
+                    GL.GetUniform(Handle.id, location, out double value);
+                    return value;
+                }
+
+            case All.DoubleVec2:
+                {
+                    double* buffer = stackalloc double[2];
+                    GL.GetUniform(Handle.id, location, buffer);
+                    return *(Vector2d*)buffer;
+                }
+
+            case All.DoubleVec3:
+                {
+                    double* buffer = stackalloc double[3];
+                    GL.GetUniform(Handle.id, location, buffer);
+                    return *(Vector3d*)buffer;
+                }
+
+            case All.DoubleVec4:
+                {
+                    double* buffer = stackalloc double[4];
+                    GL.GetUniform(Handle.id, location, buffer);
+                    return *(Vector4d*)buffer;
+                }
+
+            case All.Int:
+                {
+                    GL.GetUniform(Handle.id, location, out int value);
+                    return value;
+                }
+
+            case All.IntVec2:
+                {
+                    int* buffer = stackalloc int[2];
+                    GL.GetUniform(Handle.id, location, buffer);
+                    return *(Vector2i*)buffer;
+                }
+
+            case All.IntVec3:
+                {
+                    int* buffer = stackalloc int[3];
+                    GL.GetUniform(Handle.id, location, buffer);
+                    return *(Vector3i*)buffer;
+                }
+
+            case All.IntVec4:
+                {
+                    int* buffer = stackalloc int[4];
+                    GL.GetUniform(Handle.id, location, buffer);
+                    return *(Vector4i*)buffer;
+                }
+
+            case All.UnsignedInt:
+                {
+                    int value = 0;
+                    GL.GetUniform(Handle.id, location, &value);
+                    return *(uint*)value;
+                }
+
+            case All.Bool:
+                {
+                    GL.GetUniform(Handle.id, location, out int value);
+                    return value != 0;
+                }
+
+            case All.BoolVec2:
+                throw new NotImplementedException();
+
+            case All.BoolVec3:
+                throw new NotImplementedException();
+
+            case All.BoolVec4:
+                throw new NotImplementedException();
+
+            case All.FloatMat2:
+                {
+                    float* buffer = stackalloc float[4];
+                    GL.GetUniform(Handle.id, location, buffer);
+                    return *(Matrix2*)buffer;
+                }
+
+            case All.FloatMat3:
+                {
+                    float* buffer = stackalloc float[9];
+                    GL.GetUniform(Handle.id, location, buffer);
+                    return *(Matrix3*)buffer;
+                }
+
+            case All.FloatMat4:
+                {
+                    float* buffer = stackalloc float[16];
+                    GL.GetUniform(Handle.id, location, buffer);
+                    return *(Matrix4*)buffer;
+                }
+
+            case All.FloatMat2x3:
+                {
+                    float* buffer = stackalloc float[6];
+                    GL.GetUniform(Handle.id, location, buffer);
+                    return *(Matrix2x3*)buffer;
+                }
+
+            case All.FloatMat2x4:
+                {
+                    float* buffer = stackalloc float[8];
+                    GL.GetUniform(Handle.id, location, buffer);
+                    return *(Matrix2x4*)buffer;
+                }
+
+            case All.FloatMat3x2:
+                {
+                    float* buffer = stackalloc float[6];
+                    GL.GetUniform(Handle.id, location, buffer);
+                    return *(Matrix3x2*)buffer;
+                }
+
+            case All.FloatMat3x4:
+                {
+                    float* buffer = stackalloc float[12];
+                    GL.GetUniform(Handle.id, location, buffer);
+                    return *(Matrix3x4*)buffer;
+                }
+
+            case All.FloatMat4x2:
+                {
+                    float* buffer = stackalloc float[8];
+                    GL.GetUniform(Handle.id, location, buffer);
+                    return *(Matrix4x2*)buffer;
+                }
+
+            case All.FloatMat4x3:
+                {
+                    float* buffer = stackalloc float[12];
+                    GL.GetUniform(Handle.id, location, buffer);
+                    return *(Matrix4x3*)buffer;
+                }
+
+            case All.Sampler1D:
+            case All.Sampler2D:
+            case All.Sampler3D:
+            case All.SamplerCube:
+            case All.Sampler1DShadow:
+            case All.Sampler2DShadow:
+            case All.Sampler1DArray:
+            case All.Sampler2DArray:
+            case All.Sampler1DArrayShadow:
+            case All.Sampler2DArrayShadow:
+            case All.Sampler2DMultisample:
+            case All.Sampler2DMultisampleArray:
+            case All.SamplerCubeShadow:
+            case All.SamplerBuffer:
+            case All.Sampler2DRect:
+            case All.Sampler2DRectShadow:
+            case All.IntSampler1D:
+            case All.IntSampler2D:
+            case All.IntSampler3D:
+            case All.IntSamplerCube:
+            case All.IntSampler1DArray:
+            case All.IntSampler2DArray:
+            case All.IntSampler2DMultisample:
+            case All.IntSampler2DMultisampleArray:
+            case All.IntSamplerBuffer:
+            case All.IntSampler2DRect:
+            case All.UnsignedIntSampler1D:
+            case All.UnsignedIntSampler2D:
+            case All.UnsignedIntSampler3D:
+            case All.UnsignedIntSamplerCube:
+            case All.UnsignedIntSampler1DArray:
+            case All.UnsignedIntSampler2DArray:
+            case All.UnsignedIntSampler2DMultisample:
+            case All.UnsignedIntSampler2DMultisampleArray:
+            case All.UnsignedIntSamplerBuffer:
+            case All.UnsignedIntSampler2DRect:
+            case All.Image1D:
+            case All.Image2D:
+            case All.Image3D:
+            case All.ImageCube:
+            case All.Image1DArray:
+            case All.Image2DArray:
+            case All.Image2DMultisample:
+            case All.Image2DMultisampleArray:
+            case All.ImageBuffer:
+            case All.Image2DRect:
+            case All.IntImage1D:
+            case All.IntImage2D:
+            case All.IntImage3D:
+            case All.IntImageCube:
+            case All.IntImage1DArray:
+            case All.IntImage2DArray:
+            case All.IntImage2DMultisample:
+            case All.IntImage2DMultisampleArray:
+            case All.IntImageBuffer:
+            case All.IntImage2DRect:
+            case All.UnsignedIntImage1D:
+            case All.UnsignedIntImage2D:
+            case All.UnsignedIntImage3D:
+            case All.UnsignedIntImageCube:
+            case All.UnsignedIntImage1DArray:
+            case All.UnsignedIntImage2DArray:
+            case All.UnsignedIntImage2DMultisample:
+            case All.UnsignedIntImage2DMultisampleArray:
+            case All.UnsignedIntImageBuffer:
+            case All.UnsignedIntImage2DRect:
+                {
+                    GL.GetUniform(Handle.id, location, out int value);
+                    return value;
+                }
+        }
+    }
+
     public void SetShaderStorageBufferBinding(int index, int binding)
     {
         GL.ShaderStorageBlockBinding(Handle.id, index, binding);
+    }
+    public int GetShaderStorageBufferBinding(int index)
+    {
+        return GetResourceInfo(ProgramInterface.ShaderStorageBlock, index, ProgramProperty.BufferBinding);
     }
 
     #endregion

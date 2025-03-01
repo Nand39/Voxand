@@ -65,7 +65,7 @@ void main()
     vec2 reprojectionUV = uv + normalCompound_motion.zw;
     reprojectionUV += vec2(0.5) / resolution;
 
-    if (any(lessThanEqual(reprojectionUV, vec2(0.0001))) || any(greaterThanEqual(reprojectionUV, vec2(0.9999))))
+    if (any(lessThanEqual(reprojectionUV, vec2(0))) || any(greaterThanEqual(reprojectionUV, vec2(1))))
     {
         color = lumDepthNew;
         color.w = -1;

@@ -17,7 +17,7 @@ public class ComputeUtility
     {
         Instance = new ComputeUtility()
         {
-            copyTex8Shader = new(content, false, copyTex8ShaderPath)
+            copyTex8Shader = new(content, copyTex8ShaderPath)
         };
     }
 

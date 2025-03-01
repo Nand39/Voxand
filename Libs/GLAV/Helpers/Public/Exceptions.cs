@@ -1,18 +1,34 @@
 ﻿namespace GLAV.Helpers.Public.Exceptions;
-public class ShaderPartCompilationException : Exception
+
+public class ShaderCreationException : Exception
 {
-    public ShaderPartCompilationException() { }
+    public string InfoLog { get; private set; }
+    public ShaderCreationException(string infoLog) => InfoLog = infoLog;
 
-    public ShaderPartCompilationException(string message) : base(message) { }
+    public ShaderCreationException(string message, string infoLog)
+        : base(message) => InfoLog = infoLog;
 
-    public ShaderPartCompilationException(string message, Exception innerException) : base(message, innerException) { }
+    public ShaderCreationException(string message, string infoLog, Exception innerException)
+        : base(message, innerException) => InfoLog = infoLog;
+}
+public class ShaderPartCompilationException : ShaderCreationException
+{
+    public ShaderPartCompilationException(string infoLog) : base(infoLog) { }
+
+    public ShaderPartCompilationException(string message, string infoLog)
+        : base(message, infoLog) { }
+
+    public ShaderPartCompilationException(string message, string infoLog, Exception innerException)
+        : base(message, infoLog, innerException) { }
 }
 
-public class ShaderPartLinkingException : Exception
+public class ShaderLinkingException : ShaderCreationException
 {
-    public ShaderPartLinkingException() { }
+    public ShaderLinkingException(string infoLog) : base(infoLog) { }
 
-    public ShaderPartLinkingException(string message) : base(message) { }
+    public ShaderLinkingException(string message, string infoLog)
+        : base(message, infoLog) { }
 
-    public ShaderPartLinkingException(string message, Exception innerException) : base(message, innerException) { }
+    public ShaderLinkingException(string message, string infoLog, Exception innerException)
+        : base(message, infoLog, innerException) { }
 }

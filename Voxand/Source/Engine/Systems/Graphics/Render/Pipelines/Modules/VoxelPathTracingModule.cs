@@ -19,6 +19,7 @@ namespace Voxand.Engine.Systems.Graphics.Pipelines.Modules;
 public interface IVoxelPathTracingSettings
 {
     int Samples { get; set; }
+    Vector3 SunDirection { get; set; }
 }
 public sealed class VoxelPathTracingModule : RenderingPipeline, IVoxelPathTracingSettings
 {
@@ -27,6 +28,7 @@ public sealed class VoxelPathTracingModule : RenderingPipeline, IVoxelPathTracin
     Buffer shaderInputSSBO;
     ShaderInputStreaming shaderInputStreaming = new();
     int samples;
+    Vector3 sunDirection;
     int cycle = 0;
     public Camera Camera { get; set; }
     public Texture2D SkyTex { get; set; }
@@ -72,6 +74,15 @@ public sealed class VoxelPathTracingModule : RenderingPipeline, IVoxelPathTracin
             pathTracingShaderController.SetUniform("samples", samples);
         }
     }
+    public Vector3 SunDirection
+    {
+        get => sunDirection;
+        set
+        {
+            sunDirection = value;
+            pathTracingShaderController.SetUniform("sunDirection", sunDirection);
+        }
+    }
 
     public VoxelPathTracingModule(ShaderController shaderControllerPT, Camera camera, Vector3i mapSize, Texture2D skyTexture, Texture2D luminance_depthOutput, Texture2D normalCompound_motionOutput)
     {
@@ -81,6 +92,7 @@ public sealed class VoxelPathTracingModule : RenderingPipeline, IVoxelPathTracin
         pathTracingShaderController.SetUniform("skyTex", 2);
         
         Samples = 1;
+        SunDirection = new Vector3(0.904f, 0.361f, 0.226f);
 
         Camera = camera;
         SkyTex = skyTexture;
