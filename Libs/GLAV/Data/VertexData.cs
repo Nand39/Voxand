@@ -1,22 +1,19 @@
 ﻿using OpenTK.Graphics.OpenGL4;
 
 namespace GLAV.Data;
-public class VertexInfo
-{
-    public readonly int totalVertexSize;
-    public readonly VertexAttributeData[] attributes;
-    public VertexInfo(VertexAttributeData[] attribs)
-    {
-        totalVertexSize = 0;
-        attributes = attribs;
-        for (int i = 0; i < attribs.Length; i++)
-            totalVertexSize += attribs[i].componentCount * sizeof(float);
-    }
-}
-public struct VertexAttributeData(int location, byte componentCount, byte offset, VertexAttribPointerType type)
+public struct VertexAttributeInfo(int location, int componentCount, int offset, VertexAttribPointerType type, bool normalized, int stride)
 {
     public int location = location;
-    public byte componentCount = componentCount;
-    public byte offset = offset;
+    public int componentCount = componentCount;
+    public int offset = offset;
     public VertexAttribPointerType type = type;
+    public bool normalized = normalized;
+    public int stride = stride;
+}
+
+[AttributeUsage(AttributeTargets.Field)]
+public class VertexDataAttribute(int location, bool normalized = false) : Attribute
+{
+    public int Location { get; } = location;
+    public bool Normalized { get; } = normalized;
 }

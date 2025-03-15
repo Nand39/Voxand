@@ -23,8 +23,6 @@ public struct TexLoadFormat(PixelFormat channels, PixelType pixelType)
 }
 public class Texture2D : GLResource
 {
-    public int TextureUnit { get; protected set; } = -1;
-    public int ImageUnit { get; protected set; } = -1;
 
     /// <summary>
     /// Dimensions of the texture.
@@ -81,16 +79,12 @@ public class Texture2D : GLResource
     #region Binding
     public void BindTex(int unit)
     {
-        TextureUnit = unit;
         GLRegistry.Instance.BindTexture(this, unit, TextureTarget.Texture2D);
     }
     public void BindAsImage(int target, TextureAccess access, SizedInternalFormat format)
     {
         GLRegistry.Instance.BindImage(this, target, access, format);
-        ImageUnit = target;
     }
-    public void MarkTextureUnbound() => TextureUnit = -1;
-    public void MarkImageUnbound() => ImageUnit = -1;
     #endregion
 
     #region Parameters

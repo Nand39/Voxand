@@ -1,11 +1,8 @@
-﻿using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 
-using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 
 using GLAV.Data;
-using GLAV.Types;
 
 namespace Voxand.Engine.Systems.Voxels
 {
@@ -22,24 +19,6 @@ namespace Voxand.Engine.Systems.Voxels
 
 namespace Voxand.Engine.Systems.Graphics
 {
-    public class ShaderUniformCacheEnum<E> where E : Enum
-    {
-        protected int[] uniformLocations = new int[Enum.GetNames(typeof(E)).Length];
-        public Shader Shader { get; }
-        public ShaderUniformCacheEnum(Shader shader)
-        {
-            Shader = shader;
-            UpdateUniformLocations();
-        }
-        void UpdateUniformLocations()
-        {
-            string[] uniformNames = Enum.GetNames(typeof(E));
-            for (int i = 0; i < uniformLocations.Length; i++)
-                uniformLocations[i] = GL.GetUniformLocation(Shader.Handle.id, uniformNames[i]);
-        }
-        public int GetUniformLocation(E uniformKey) => uniformLocations[Convert.ToInt32(uniformKey)];
-    }
-
     [StructLayout(LayoutKind.Sequential)]
     struct ComputeRenderInputStd140
     {
@@ -62,33 +41,14 @@ namespace Voxand.Engine.Systems.Graphics
         public Vector3 color;
         float padding2;
     }
-
-    public enum RenderTechniques
-    {
-        PathTracingFragment,
-        PathTracingCompute,
-    }
 }
 
 namespace Voxand.Engine.Systems.Graphics.Tools.Data
 {
-    #region Vertex Data
-    public struct V_PositionUV
+    [StructLayout(LayoutKind.Sequential)]
+    public struct V_PosUV(Vector3 position, Vector2 uv)
     {
-        public Vector3 position;
-        public Vector2 uv;
-
-        public static VertexInfo vertexInfo = new(
-            attribs: [
-                new VertexAttributeData(0, 3, 0, VertexAttribPointerType.Float),
-                new VertexAttributeData(1, 2, 3 * sizeof(float), VertexAttribPointerType.Float),
-            ]);
-
-        public V_PositionUV(Vector3 position, Vector2 uv)
-        {
-            this.position = position;
-            this.uv = uv;
-        }
+        [VertexData(location: 0)] public Vector3 position = position;
+        [VertexData(location: 1)] public Vector2 uv = uv;
     }
-    #endregion
 }

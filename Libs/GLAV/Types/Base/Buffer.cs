@@ -27,21 +27,29 @@ public class Buffer : GLResource
     {
         Size = size;
         Bind(bufferTarget);
-        GL.BufferData(bufferTarget, size, IntPtr.Zero, usageHint);
+        GL.BufferData(bufferTarget, size, nint.Zero, usageHint);
     }
-    public void Alloc<T>(BufferTarget bufferTarget, ref T data, int size, BufferUsageHint usageHint) 
+    public void Alloc<T>(BufferTarget bufferTarget, T data, int size, BufferUsageHint usageHint) 
         where T : struct
     {
         Size = size;
         Bind(bufferTarget);
-        GL.BufferData(this.bufferTarget, size, ref data, usageHint);
+        GL.BufferData(bufferTarget, size, ref data, usageHint);
     }
-    public unsafe void Alloc<T>(BufferTarget bufferTarget, ref T[] data, int size, BufferUsageHint usageHint) 
+    public unsafe void Alloc<T>(BufferTarget bufferTarget, T[] data, int size, BufferUsageHint usageHint) 
         where T : struct
     {
         Size = size;
         Bind(bufferTarget);
-        GL.BufferData(this.bufferTarget, size, data, usageHint);
+        GL.BufferData(bufferTarget, size, data, usageHint);
+    }
+    public unsafe void Alloc<T>(BufferTarget bufferTarget, Span<T> data, int size, BufferUsageHint usageHint)
+        where T : struct
+    {
+        Size = size;
+        Bind(bufferTarget);
+        fixed (T* startPtr = data)
+            GL.BufferData(bufferTarget, size, (nint)startPtr, usageHint);
     }
 
 
@@ -54,6 +62,8 @@ public class Buffer : GLResource
         bufferTarget = target;
         Bind();
     }
+
+    #region Store
     public unsafe void Store(int offsetInBytes, nint dataPtr, int size)
     {
         Bind();
@@ -69,9 +79,18 @@ public class Buffer : GLResource
         where T : struct
     {
         Bind();
-        fixed (T* arrayStart = &data[0])
-            GL.BufferSubData(bufferTarget, writingOffsetInBytes, sizeInBytes, (nint)arrayStart + readingOffsetInBytes);
+        fixed (T* startPtr = data)
+            GL.BufferSubData(bufferTarget, writingOffsetInBytes, sizeInBytes, (nint)startPtr + readingOffsetInBytes);
     }
+    public unsafe void Store<T>(Span<T> data, int writingOffsetInBytes)
+        where T : struct
+    {
+        Bind();
+        fixed (T* startPtr = data)
+            GL.BufferSubData(bufferTarget, writingOffsetInBytes, data.Length * sizeof(T), (nint)startPtr);
+    }
+    #endregion
+
     public unsafe void LogContent<Format>() where Format : struct
     {
         int itemSize = sizeof(Format);

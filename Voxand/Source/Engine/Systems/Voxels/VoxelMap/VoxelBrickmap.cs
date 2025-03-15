@@ -4,13 +4,13 @@ using System.Runtime.CompilerServices;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 
-using GLAV.Types;
 using DisposableExt;
 
 using Voxand.Engine.Systems.Structures;
 using Voxand.Helpers.ExtensionMethods;
 
 using Buffer = GLAV.Types.Buffer;
+using GLAV.Types.Extended;
 
 namespace Voxand.Engine.Systems.Voxels;
 public class VoxelBrickmap : VoxelMap, ISinglePlaceable

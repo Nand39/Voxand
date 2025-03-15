@@ -2,7 +2,7 @@
 
 using DisposableExt;
 
-namespace GLAV.Types;
+namespace GLAV.Types.Extended;
 public unsafe class G_HalfList<T> : IDisposableExt where T : struct
 {
     public Buffer buffer;

@@ -48,7 +48,7 @@ public sealed class GLRegistry
         if (!GLFWGraphicsContext.IsCurrent)
             throw new InvalidOperationException("Cannot process OpenGL actions on a thread that does not have OpenGL context.");
 
-        while (pendingGLActions.TryDequeue(out Action action))
+        while (pendingGLActions.TryDequeue(out Action? action))
             action?.Invoke();
     }
     public void ScheduleAction(Action action) => pendingGLActions.Enqueue(action);
@@ -66,12 +66,8 @@ public sealed class GLRegistry
     public void BindTexture(Texture2D tex, TextureTarget target)
     {
         Texture2D currentlyBound = textureUnits[activeTextureUnit];
-        if (currentlyBound is not null)
-        {
-            if (currentlyBound == tex)
-                return;
-            currentlyBound.MarkTextureUnbound();
-        }
+        if (currentlyBound == tex)
+            return;
         textureUnits[activeTextureUnit] = tex;
         GL.BindTexture(target, tex.Handle.id);
     }
@@ -92,12 +88,9 @@ public sealed class GLRegistry
     public void BindTextureRaw(int handle, TextureTarget target)
     {
         Texture2D currentlyBound = textureUnits[activeTextureUnit];
-        if (currentlyBound is not null)
-        {
-            if (currentlyBound.Handle.id == handle)
-                return;
-            currentlyBound.MarkTextureUnbound();
-        }
+        if (currentlyBound is not null && currentlyBound.Handle.id == handle)
+            return;
+
         textureUnits[activeTextureUnit] = null;
         GL.BindTexture(target, handle);
     }
@@ -106,9 +99,6 @@ public sealed class GLRegistry
     #region IMG BINDING
     public void BindImage(Texture2D tex, int binding, TextureAccess access, SizedInternalFormat format)
     {
-        Texture2D currentlyBound = imageUnits[binding];
-        if (currentlyBound != null)
-            currentlyBound.MarkImageUnbound();
         imageUnits[binding] = tex;
         GL.BindImageTexture(binding, tex.Handle.id, 0, false, 0, access, format);
     }
@@ -122,7 +112,6 @@ public sealed class GLRegistry
         int targetIndex = bufferTargetMapping[target];
         if (bufferTargets[targetIndex] == handle) 
             return;
-        bufferTargets.ReplaceFirst(handle, -1);
         bufferTargets[targetIndex] = handle;
         GL.BindBuffer(target, handle);
     }

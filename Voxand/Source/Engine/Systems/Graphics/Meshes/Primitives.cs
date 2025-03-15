@@ -3,11 +3,12 @@
 using GLAV.Types;
 
 using Voxand.Engine.Systems.Graphics.Tools.Data;
+using GLAV.Types.Extended;
 
 namespace Voxand.Engine.Systems.Graphics.Meshes.Primitives;
 public class Primitives
 {
-    public static readonly V_PositionUV[] screenQuadVertices =
+    public static readonly V_PosUV[] screenQuadVertices =
     {
         new(new(-1, -1, 0), new(0, 0)),
         new(new(-1, 1, 0),  new(0, 1)),
@@ -17,17 +18,22 @@ public class Primitives
         new(new(1, -1, 0),  new(1, 0)),
     };
 
-    protected static VertexArray screenQuadVAOInstance;
-    public static VertexArray ScreenQuad
+    static TypedArray<V_PosUV>? screenQuadVertexArray;
+
+    protected static VertexAttributeSet? screenQuadVertexAttribs;
+    public static VertexAttributeSet ScreenQuadVertexAttribs
     {
         get
         {
-            if (screenQuadVAOInstance != null)
-                return screenQuadVAOInstance;
-            screenQuadVAOInstance = new();
-            V_PositionUV[] vertices = screenQuadVertices;
-            screenQuadVAOInstance.Alloc(ref vertices, V_PositionUV.vertexInfo, BufferUsageHint.StaticDraw);
-            return screenQuadVAOInstance;
+            if (screenQuadVertexAttribs is not null)
+                return screenQuadVertexAttribs;
+
+            screenQuadVertexAttribs = new();
+
+            screenQuadVertexArray = new(screenQuadVertices, BufferTarget.ArrayBuffer, BufferUsageHint.StaticDraw);
+            screenQuadVertexAttribs.AddAttributes<V_PosUV>(screenQuadVertexArray.Buffer);
+
+            return screenQuadVertexAttribs;
         }
     }
 }

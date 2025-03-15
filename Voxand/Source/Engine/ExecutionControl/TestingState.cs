@@ -2,22 +2,24 @@
 using OpenTK.Graphics.OpenGL4;
 
 using DisposableExt;
+
 using GLAV.Types;
+using GLAV.Types.Extended;
+using Buffer = GLAV.Types.Buffer;
 
 using Voxand.Engine.Systems.Graphics.Tools.Data;
-using Voxand.Engine.Systems.Graphics.Tools.ShaderServices;
 
 namespace Voxand.Engine.ExecutionControl;
 public class TestingState(Window win) : ExecutionManager
 {
-    VertexArray vao;
+    VertexAttributeSet vao;
     Texture2D texture;
     Window window = win;
-    public override void Load()
+    public unsafe override void Load()
     {
         GL.ClearColor(0.2f, 0.3f, 0.3f, 1);
 
-        V_PositionUV[] viewRectVertices = [
+        V_PosUV[] viewRectVertices = [
             new(new(-1, -1, 0), new(0, 0)),
             new(new(-1, 1, 0),  new(0, 1)),
             new(new(1, 1, 0),   new(1, 1)),
@@ -25,8 +27,9 @@ public class TestingState(Window win) : ExecutionManager
             new(new(1, 1, 0),   new(1, 1)),
             new(new(1, -1, 0),  new(1, 0)),
         ];
+        TypedArray<V_PosUV> vertexArray = new(viewRectVertices, BufferTarget.ArrayBuffer, BufferUsageHint.StaticDraw);
         vao = new();
-        vao.Alloc(ref viewRectVertices, V_PositionUV.vertexInfo, BufferUsageHint.StaticDraw);
+        vao.AddAttributes<V_PosUV>(vertexArray.Buffer);
         texture = window.Content.LoadTexture("Graphics/Textures/router.png", PixelInternalFormat.Rgba);
         texture.BindTex(0);
     }
@@ -38,7 +41,7 @@ public class TestingState(Window win) : ExecutionManager
     {
         GL.Clear(ClearBufferMask.ColorBufferBit);
         texture.BindTex(0);
-        vao.Bind();
+        vao.Use();
         GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
     }
     public override void Unload()

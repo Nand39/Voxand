@@ -61,7 +61,7 @@ public sealed class CompositingModule : RenderingPipeline
         luminance_depthInput.BindTex(0);
         normalCompound_motionInput.BindTex(1);
 
-        Primitives.ScreenQuad.Bind();
+        Primitives.ScreenQuadVertexAttribs.Use();
         GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
     }
     public void SetInput(Texture2D luminance_depthInput, Texture2D normalCompound_motionInput)
