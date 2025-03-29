@@ -49,19 +49,16 @@ internal static class Util
         { typeof(bool), (VertexAttribPointerType.Byte, 1) } // Bool is represented with byte here
     };
 
-    public static bool IsIntegerVertexAttribType(VertexAttribPointerType type)
+    public static bool IsIntegerVertexAttribType(VertexAttribPointerType type) => type switch
     {
-        return type switch
-        {
-            VertexAttribPointerType.Int => true,
-            VertexAttribPointerType.Short => true,
-            VertexAttribPointerType.Byte => true,
-            VertexAttribPointerType.UnsignedInt => true,
-            VertexAttribPointerType.UnsignedShort => true,
-            VertexAttribPointerType.UnsignedByte => true,
-            _ => false,
-        };
-    }
+        VertexAttribPointerType.Int => true,
+        VertexAttribPointerType.Short => true,
+        VertexAttribPointerType.Byte => true,
+        VertexAttribPointerType.UnsignedInt => true,
+        VertexAttribPointerType.UnsignedShort => true,
+        VertexAttribPointerType.UnsignedByte => true,
+        _ => false,
+    };
 
     public static void GetVertexAttribType(Type fieldType, out VertexAttribPointerType attribType, out int componentCount)
     {
@@ -74,31 +71,25 @@ internal static class Util
 
     internal static class ReflectionHelper
     {
-        public static void ForEachField<T>(Action<FieldInfo> action)
+        public static IEnumerable<(FieldInfo field, AttribType attrib)> GetFieldsWithAttribute<T, AttribType>() 
+            where AttribType : Attribute
         {
             FieldInfo[] fields = typeof(T).GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-            for (int i = 0; i < fields.Length; i++)
-                action(fields[i]);
+            foreach (FieldInfo field in fields)
+                if (field.GetCustomAttribute<AttribType>() is AttribType attrib)
+                    yield return (field, attrib);
         }
 
-        public static void ForEachFieldWithAttribute<T, AttribType>(Action<FieldInfo, AttribType> action) where AttribType : Attribute
+        public static IEnumerable<(FieldInfo, IEnumerable<AttribType>)> GetFieldsWithAttributes<T, AttribType>() 
+            where AttribType : Attribute
         {
-            ForEachField<T>((fieldInfo) =>
+            FieldInfo[] fields = typeof(T).GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            foreach (FieldInfo field in fields)
             {
-                AttribType? attrib = fieldInfo.GetCustomAttribute<AttribType>();
-                if (attrib is not null)
-                    action(fieldInfo, attrib);
-            });
-        }
-
-        public static void ForEachFieldWithAttributes<T, AttribType>(Action<FieldInfo, IEnumerable<AttribType>> action) where AttribType : Attribute
-        {
-            ForEachField<T>((fieldInfo) =>
-            {
-                var attribs = fieldInfo.GetCustomAttributes<AttribType>();
+                var attribs = field.GetCustomAttributes<AttribType>();
                 if (attribs.Any())
-                    action(fieldInfo, attribs);
-            });
+                    yield return (field, attribs);
+            }
         }
     }
 }

@@ -20,8 +20,8 @@ public class Primitives
 
     static TypedArray<V_PosUV>? screenQuadVertexArray;
 
-    protected static VertexAttributeSet? screenQuadVertexAttribs;
-    public static VertexAttributeSet ScreenQuadVertexAttribs
+    protected static VertexSpecification? screenQuadVertexAttribs;
+    public static VertexSpecification ScreenQuadVertexAttribs
     {
         get
         {
@@ -31,7 +31,7 @@ public class Primitives
             screenQuadVertexAttribs = new();
 
             screenQuadVertexArray = new(screenQuadVertices, BufferTarget.ArrayBuffer, BufferUsageHint.StaticDraw);
-            screenQuadVertexAttribs.AddAttributes<V_PosUV>(screenQuadVertexArray.Buffer);
+            screenQuadVertexAttribs.AddAttributeSource(screenQuadVertexArray);
 
             return screenQuadVertexAttribs;
         }

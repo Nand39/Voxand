@@ -7,8 +7,7 @@ public class PropertyConfigMenu
     static Dictionary<Type, Type> entryHandlerTypes = [];
     static PropertyConfigMenu()
     {
-        Type[] rawEntryHandlerTypes = ReflectionHelper.GetDerivedTypes<PropertyEntryHandler>();
-        foreach (Type type in rawEntryHandlerTypes)
+        foreach (Type type in ReflectionHelper.GetDerivedTypes<PropertyEntryHandler>())
         {
             var attrib = type.GetCustomAttribute<PropertyEntryTypeAttribute>() ?? 
                 throw new InvalidOperationException($"A class derived from {nameof(PropertyEntryHandler)} should have an attribute {nameof(PropertyEntryTypeAttribute)}."); ;

@@ -48,7 +48,7 @@ namespace Voxand.Engine.Systems.Graphics.Tools.Data
     [StructLayout(LayoutKind.Sequential)]
     public struct V_PosUV(Vector3 position, Vector2 uv)
     {
-        [VertexData(location: 0)] public Vector3 position = position;
-        [VertexData(location: 1)] public Vector2 uv = uv;
+        [VertexAttrib(location: 0)] public Vector3 position = position;
+        [VertexAttrib(location: 1)] public Vector2 uv = uv;
     }
 }

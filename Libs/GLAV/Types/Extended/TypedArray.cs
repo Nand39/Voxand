@@ -1,45 +1,48 @@
-﻿using OpenTK.Graphics.OpenGL4;
+﻿using DisposableExt;
+using OpenTK.Graphics.OpenGL4;
 
 namespace GLAV.Types.Extended;
-public class TypedArray<T> where T : struct
+public class TypedArray<T> : IDisposableExt where T : struct
 {
-    public Buffer Buffer { get; protected set; }
+    internal Buffer Buffer { get; private protected set; }
+
+    public DisposeHelper DisposeHelper { get; }
 
     static int itemSize;
 
     static unsafe TypedArray() => itemSize = sizeof(T);
 
-    public unsafe TypedArray(BufferTarget target, int capacity, BufferUsageHint usageHint)
+    TypedArray() => DisposeHelper = new(this);
+
+    #region Allocation
+    public TypedArray(BufferTarget target, int capacity, BufferUsageHint usageHint)
+        : this()
     {
         Buffer = new();
-        Buffer.Alloc(target, capacity * sizeof(T), usageHint);
+        Buffer.Alloc(target, capacity * itemSize, usageHint);
     }
-
-    public unsafe TypedArray(T[] data, BufferTarget target, BufferUsageHint usageHint)
+    public TypedArray(T[] data, BufferTarget target, BufferUsageHint usageHint)
+        : this()
     {
         Buffer = new();
         Buffer.Alloc(target, data, data.Length * itemSize, usageHint);
     }
-    public unsafe TypedArray(Span<T> data, BufferTarget target, BufferUsageHint usageHint)
+    public TypedArray(Span<T> data, BufferTarget target, BufferUsageHint usageHint)
+        : this()
     {
         Buffer = new();
         Buffer.Alloc(target, data, data.Length * itemSize, usageHint);
     }
+    #endregion
 
-    public unsafe T this[int index]
+    public T this[int index]
     {
-        get
-        {
-            return Buffer.Retrieve<T>(index * itemSize);
-        }
-        set
-        {
-            Buffer.Store(ref value, index * itemSize);
-        }
+        get => Buffer.Retrieve<T>(index * itemSize);
+        set => Buffer.Store(ref value, index * itemSize);
     }
 
-    public unsafe void Store(Span<T> data, int offset)
-    {
-        Buffer.Store(data, offset * itemSize);
-    }
+    public void Store(Span<T> data, int offset) => Buffer.Store(data, offset * itemSize);
+    public T[] Retrieve(int offset, int count) => Buffer.Retrieve<T>(offset * itemSize, count);
+
+    public void Free() => Buffer.Dispose();
 }

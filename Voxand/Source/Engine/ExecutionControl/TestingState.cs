@@ -12,7 +12,7 @@ using Voxand.Engine.Systems.Graphics.Tools.Data;
 namespace Voxand.Engine.ExecutionControl;
 public class TestingState(Window win) : ExecutionManager
 {
-    VertexAttributeSet vao;
+    VertexSpecification vao;
     Texture2D texture;
     Window window = win;
     public unsafe override void Load()
@@ -29,7 +29,7 @@ public class TestingState(Window win) : ExecutionManager
         ];
         TypedArray<V_PosUV> vertexArray = new(viewRectVertices, BufferTarget.ArrayBuffer, BufferUsageHint.StaticDraw);
         vao = new();
-        vao.AddAttributes<V_PosUV>(vertexArray.Buffer);
+        vao.AddAttributeSource(vertexArray);
         texture = window.Content.LoadTexture("Graphics/Textures/router.png", PixelInternalFormat.Rgba);
         texture.BindTex(0);
     }

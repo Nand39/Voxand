@@ -54,31 +54,7 @@ public static class ReflectionHelper
     }
     #endregion
 
-    public static T[] InstantiateDerivedTypes<T>() where T : class
-    {
-        Type baseType = typeof(T);
-        List<T> instances = [];
-
-        Assembly[] assemblies = AppDomain.CurrentDomain.GetAssemblies();
-
-        foreach (Assembly assembly in assemblies)
-        {
-            Type[] typesInAssembly = assembly.GetTypes();
-
-            foreach (Type type in typesInAssembly)
-            {
-                if (type.IsClass && baseType.IsAssignableFrom(type) && !type.IsAbstract)
-                {
-                    object? instance = Activator.CreateInstance(type);
-                    if (instance is not null)
-                        instances.Add((T)instance);
-                }
-            }
-        }
-
-        return instances.ToArray();
-    }
-    public static Type[] GetDerivedTypes<T>() where T : class
+    public static IEnumerable<Type> GetDerivedTypes<T>() where T : class
     {
         Type baseType = typeof(T);
         List<Type> derivedTypes = [];
@@ -91,9 +67,7 @@ public static class ReflectionHelper
 
             foreach (Type type in typesInAssembly)
                 if (type.IsClass && baseType.IsAssignableFrom(type) && !type.IsAbstract)
-                    derivedTypes.Add(type);
+                    yield return type;
         }
-
-        return derivedTypes.ToArray();
     }
 }

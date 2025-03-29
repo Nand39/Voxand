@@ -321,24 +321,9 @@ int raycast(vec3 origin, vec3 dir, out vec3 hitPosition, out ivec3 voxelHitPosit
                 ? nextBrickIntersectionTime.x <= nextBrickIntersectionTime.z ? 0 : 2
                 : nextBrickIntersectionTime.y <= nextBrickIntersectionTime.z ? 1 : 2;
 
-        if (lastWideAxis == 0)
-        {
-            brickPosition.x += gridStep.x;
-            lastWideDepth = nextBrickIntersectionTime.x;
-            nextBrickIntersectionTime.x += timeToCross.x;
-        }
-        else if(lastWideAxis == 1)
-        {
-            brickPosition.y += gridStep.y;
-            lastWideDepth = nextBrickIntersectionTime.y;
-            nextBrickIntersectionTime.y += timeToCross.y;
-        }
-        else
-        {
-            brickPosition.z += gridStep.z;
-            lastWideDepth = nextBrickIntersectionTime.z;
-            nextBrickIntersectionTime.z += timeToCross.z;
-        }
+        brickPosition[lastWideAxis] += gridStep[lastWideAxis];
+        lastWideDepth = nextBrickIntersectionTime[lastWideAxis];
+        nextBrickIntersectionTime[lastWideAxis] += timeToCross[lastWideAxis];
 
         brickOffset = brickPosition << 2;
 

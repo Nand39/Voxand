@@ -12,7 +12,7 @@ public struct VertexAttributeInfo(int location, int componentCount, int offset, 
 }
 
 [AttributeUsage(AttributeTargets.Field)]
-public class VertexDataAttribute(int location, bool normalized = false) : Attribute
+public class VertexAttribAttribute(int location, bool normalized = false) : Attribute
 {
     public int Location { get; } = location;
     public bool Normalized { get; } = normalized;
