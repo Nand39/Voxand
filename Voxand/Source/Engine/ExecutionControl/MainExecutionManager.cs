@@ -263,10 +263,7 @@ public sealed class MainExecutionManager : ExecutionManager,
             engineState.VoxelMap = new(numberOfChunks.Xz, new(4), numberOfChunks.Y * 4);
         };
 
-        viewer.setSunDirectionRequest += (dir) => 
-        {
-            engineState.RenderingPipeline.voxelPathTracingSettings.SunDirection = dir;
-        };
+        viewer.setSunDirectionRequest += engineState.RenderingPipeline.voxelPathTracingSettings.SunDirection.Set;
 
         engineState.RenderingPipeline.antiAliasingSettings.Intensity = 0.95f;
 

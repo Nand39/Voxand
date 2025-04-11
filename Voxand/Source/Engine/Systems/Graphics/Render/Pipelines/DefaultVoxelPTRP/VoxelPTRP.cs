@@ -1,6 +1,4 @@
-﻿using System.Runtime.InteropServices;
-
-using OpenTK.Graphics.OpenGL4;
+﻿using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 
 using DisposableExt;
@@ -18,7 +16,7 @@ namespace Voxand.Engine.Systems.Graphics.Pipelines.DefaultVoxelPTRP;
 public sealed class VoxelPTRP : RenderingPipeline
 {
     Camera Camera;
-    Texture2D luminance_depthPT, normalCompound_motionPT;
+    Texture2D directIllumination_depthPT, indirectIlluminationPT, normalCompound_motionPT;
     Texture2D skyTex;
     RenderTarget renderTarget;
     ShaderController pathTracingShaderController, TAAShaderController, compositingShaderController;
@@ -35,7 +33,7 @@ public sealed class VoxelPTRP : RenderingPipeline
     public bool UseTAA { get; set; } = true;
 
     public IAntiAliasingBasicModuleSettings antiAliasingSettings => antiAliasingModule;
-    public IVoxelPathTracingSettings voxelPathTracingSettings => voxelPathTracingModule;
+    public IVoxelPathTracingModuleSettings voxelPathTracingSettings => voxelPathTracingModule;
     public Vector2i RenderingResolution { get; private set; }
     public RenderTarget RenderTarget
     {
@@ -55,7 +53,7 @@ public sealed class VoxelPTRP : RenderingPipeline
 
         CreateVaryingRenderDataStorage(renderingResolution);
 
-        varyingRenderDataStorage.Add(luminance_depthPT, normalCompound_motionPT);
+        varyingRenderDataStorage.Add(directIllumination_depthPT, indirectIlluminationPT, normalCompound_motionPT);
 
         skyTex = content.LoadTexture("Graphics/Textures/env.hdr", PixelInternalFormat.Rgba32f);
         skyTex.Lable = "Sky texture";
@@ -76,12 +74,13 @@ public sealed class VoxelPTRP : RenderingPipeline
             camera: Camera,
             mapSize: map.Dimensions,
             skyTexture: skyTex,
-            luminance_depthOutput: luminance_depthPT,
+            directIllumination_depthOutput: directIllumination_depthPT,
+            indirectIlluminationOutput: indirectIlluminationPT,
             normalCompound_motionOutput: normalCompound_motionPT);
 
-        antiAliasingModule = new(TAAShaderController, luminance_depthPT, normalCompound_motionPT);
+        antiAliasingModule = new(TAAShaderController, indirectIlluminationPT, normalCompound_motionPT);
 
-        compositingModule = new(compositingShaderController, luminance_depthPT, normalCompound_motionPT, output);
+        compositingModule = new(compositingShaderController, directIllumination_depthPT, indirectIlluminationPT, normalCompound_motionPT, output);
 
         lifetimeResources.Add(
             pathTracingShaderController, TAAShaderController, compositingShaderController,
@@ -110,11 +109,11 @@ public sealed class VoxelPTRP : RenderingPipeline
 
         CreateVaryingRenderDataStorage(resolution);
 
-        varyingRenderDataStorage.Add(luminance_depthPT, normalCompound_motionPT);
+        varyingRenderDataStorage.Add(directIllumination_depthPT, normalCompound_motionPT);
 
-        voxelPathTracingModule.SetOutput(luminance_depthPT, normalCompound_motionPT);
-        antiAliasingModule.SetInputOutput(luminance_depthPT, normalCompound_motionPT);
-        compositingModule.SetInput(luminance_depthPT, normalCompound_motionPT);
+        voxelPathTracingModule.SetOutput(directIllumination_depthPT, indirectIlluminationPT, normalCompound_motionPT);
+        antiAliasingModule.SetInputOutput(indirectIlluminationPT, normalCompound_motionPT);
+        compositingModule.SetInput(directIllumination_depthPT, indirectIlluminationPT, normalCompound_motionPT);
 
         RenderingResolution = resolution;
     }
@@ -123,9 +122,13 @@ public sealed class VoxelPTRP : RenderingPipeline
     {
         Console.WriteLine($"Rendering resolution set to {resolution}");
 
-        luminance_depthPT = new Texture2D();
-        luminance_depthPT.Alloc(resolution, PixelInternalFormat.Rgba32f);
-        luminance_depthPT.Lable = "lum_depthPT";
+        directIllumination_depthPT = new Texture2D();
+        directIllumination_depthPT.Alloc(resolution, PixelInternalFormat.Rgba32f);
+        directIllumination_depthPT.Lable = "directIllum_depthPT";
+
+        indirectIlluminationPT = new Texture2D();
+        indirectIlluminationPT.Alloc(resolution, PixelInternalFormat.Rgba32f);
+        indirectIlluminationPT.Lable = "indirectIllumPT";
 
         normalCompound_motionPT = new Texture2D();
         normalCompound_motionPT.Alloc(resolution, PixelInternalFormat.Rgba32f);

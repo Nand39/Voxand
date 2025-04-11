@@ -10,7 +10,8 @@ layout(location = 7) uniform sampler2D skyTex;
 
 // Image variables
 
-layout(rgba32f, binding = 0) uniform image2D luminance_depthImg;
+layout(rgba32f, binding = 0) uniform image2D directIllum_depthImg;
+layout(rgba32f, binding = 3) uniform image2D indirectIllumImg;
 
 layout(rgba32f, binding = 1) uniform image2D normalCompound_motionImg;
 
@@ -89,7 +90,7 @@ const int brickSizeInUINTS = 18;
 
 // Function prototypes
 
-void executePathTracing(vec3 origin, vec3 dir, out vec3 luminance, out float depth, out int normal, out vec3 hitPosition);
+void executePathTracing(vec3 origin, vec3 dir, out vec3 directIllum, out vec3 indirectIllum, out float depth, out int normal, out vec3 hitPosition);
 
 int raycast(vec3 origin, vec3 dir, out vec3 hitPosition, out ivec3 voxelHitPosition, out float depth, out int normal);
 bool traverseBrick(uint bitmask0, uint bitmask1, vec3 startingPosition, ivec3 voxelPosition, vec3 dir, vec3 timeToCross, uint brickIndex, out ivec3 hitVoxel, out int lastAxis);
@@ -122,7 +123,7 @@ void main()
     ivec2 keeper = textureSize(skyTex, 0);
 
     ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
-    ivec2 resolution = imageSize(luminance_depthImg);
+    ivec2 resolution = imageSize(directIllum_depthImg);
     uv = (vec2(texelCoord) + 0.5) / resolution;
     fragPosition = uv * 2 - 1;
 
@@ -134,8 +135,8 @@ void main()
     vec4 transformedViewPoint = invCameraMatrix * viewPoint;
     vec3 rayDirection = normalize(transformedViewPoint.xyz / transformedViewPoint.w);
 
-    vec3 lum; float depth = 0; int normal; vec3 hitPos;
-    executePathTracing(cameraPosition, rayDirection, lum, depth, normal, hitPos);
+    vec3 directIllum, indirectIllum; float depth = 0; int normal; vec3 hitPos;
+    executePathTracing(cameraPosition, rayDirection, directIllum, indirectIllum, depth, normal, hitPos);
 
     vec2 prevUV;
     vec2 motion;
@@ -198,11 +199,12 @@ void main()
     int prevNormalAtCurrentPixel = (int(normalCompound_Motion.x) >> 3 * cycle) & 7;
     int normalCompound = (prevNormalAtCurrentPixel << (cycle * 3)) | (normal << (cycle * -3 + 3)) | (normal << 6) | (prevNormalAtCurrentPixel << 9);
     imageStore(normalCompound_motionImg, texelCoord, vec4(normalCompound, normalCompound_Motion.y, motion));
-    imageStore(luminance_depthImg, texelCoord, vec4(lum, depth));
+    imageStore(directIllum_depthImg, texelCoord, vec4(directIllum, depth));
+    imageStore(indirectIllumImg, texelCoord, vec4(indirectIllum, depth));
 }
 
 
-void executePathTracing(vec3 origin, vec3 dir, out vec3 luminance, out float depth, out int normal, out vec3 hitPosition)
+void executePathTracing(vec3 origin, vec3 dir, out vec3 directIllum, out vec3 indirectIllum, out float depth, out int normal, out vec3 hitPosition)
 {
     ivec3 firstHitVoxel;
     material firstHitMat;
@@ -217,7 +219,7 @@ void executePathTracing(vec3 origin, vec3 dir, out vec3 luminance, out float dep
 
     if (firstHitResult == 1)
     {
-        luminance = skySample(dir);
+        directIllum = skySample(dir);
         return;
     }
 
@@ -262,7 +264,8 @@ void executePathTracing(vec3 origin, vec3 dir, out vec3 luminance, out float dep
     float key2 = random(vec2(key1 * 32.2, key1 * 51.1)) * sunDirectionJitter;
     directLighting += sunSample(hitPosition, jitterVector(sunDirection, key1, key2)) * clamp(dot(firstHitNormal, sunDirection), 0, 1);
 
-    luminance = (directLighting + indirectContribution * invSamples) * firstHitMat.color;
+    directIllum = directLighting * firstHitMat.color;
+    indirectIllum = indirectContribution * invSamples * firstHitMat.color;
 }
 
 int raycast(vec3 origin, vec3 dir, out vec3 hitPosition, out ivec3 voxelHitPosition, out float depth, out int normal)
@@ -449,12 +452,15 @@ uint getVoxelBit(uint bitmask0, uint bitmask1, uint voxelIndex)
 
 vec3 skySample(vec3 dir)
 {
-    vec2 uv = vec2(fma(atan(dir.x, dir.z), INV_TWO_PI, 0.5), fma(asin(dir.y), INV_PI, 0.5)); 
-
-    return texture(skyTex, uv).rgb;
+//    vec2 uv = vec2(fma(atan(dir.x, dir.z), INV_TWO_PI, 0.5), fma(asin(dir.y), INV_PI, 0.5)); 
+//
+//    return texture(skyTex, uv).rgb;
     //return vec3(pow(uv.x, 2.2), pow(uv.y, 2.2), 0);
     
-    //return vec3(0.75, 1.3, 1.9);
+    float sunVisibility = acos(-dot(dir, sunDirection)) * INV_PI;
+    sunVisibility = clamp(64 * (sunVisibility - 0.98), 0, 1);
+
+    return mix(vec3(0.75, 1.3, 1.9), sunColor, sunVisibility);
 
     //float absFactor = fma(tanh(5 * dir.y - 0.5), 0.5, 0.5);
     //return mix(vec3(3.7, 1.2, 0.4), vec3(0.188, 0.192, 0.459), absFactor);

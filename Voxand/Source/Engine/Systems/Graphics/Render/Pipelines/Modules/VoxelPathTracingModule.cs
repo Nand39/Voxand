@@ -4,42 +4,51 @@ using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 
+using DisposableExt;
 using GLAV.Types;
 using GLAV.Helpers.Public.Exceptions;
 
+using Buffer = GLAV.Types.Buffer;
+
 using Voxand.Engine.Systems.Graphics.Pipelines.DefaultVoxelPTRP.Helpers;
+using Voxand.Helpers;
+using Voxand.Helpers.ExtensionMethods;
 using Voxand.Engine.Systems.Graphics.Tools.ShaderServices;
 
-using Buffer = GLAV.Types.Buffer;
-using Voxand.Helpers;
-using DisposableExt;
-using Voxand.Helpers.ExtensionMethods;
-
 namespace Voxand.Engine.Systems.Graphics.Pipelines.Modules;
-public interface IVoxelPathTracingSettings
+
+public interface IVoxelPathTracingModuleSettings
 {
-    int Samples { get; set; }
-    Vector3 SunDirection { get; set; }
+    public UniformAccessor<int> Samples { get; }
+    public UniformAccessor<Vector3> SunDirection { get; }
 }
-public sealed class VoxelPathTracingModule : RenderingPipeline, IVoxelPathTracingSettings
+public sealed class VoxelPathTracingModule : RenderingPipeline, IVoxelPathTracingModuleSettings
 {
     ShaderController pathTracingShaderController;
-    Texture2D luminance_depthOutput, normalCompound_motionOutput;
+    Texture2D directIllum_depthOutput, indirectIllumOutput, normalCompound_motionOutput;
     Buffer shaderInputSSBO;
     ShaderInputStreaming shaderInputStreaming = new();
-    int samples;
-    Vector3 sunDirection;
     int cycle = 0;
     public Camera Camera { get; set; }
     public Texture2D SkyTex { get; set; }
-    public Texture2D Luminance_depthOutput
+    public Texture2D DirectIllumination_depthOutput
     {
-        get => luminance_depthOutput;
+        get => directIllum_depthOutput;
         set
         {
             VoxelPTRPHelper.ThrowIfTextureInvalid(value);
-            luminance_depthOutput = value;
-            ExceptionConstructor.ThrowIfTextureSizeNotEqual(Luminance_depthOutput, NormalCompound_motionOutput);
+            ExceptionConstructor.ThrowIfTextureSizeNotEqual(DirectIllumination_depthOutput, IndirectIlluminationOutput, NormalCompound_motionOutput);
+            directIllum_depthOutput = value;
+        }
+    }
+    public Texture2D IndirectIlluminationOutput
+    {
+        get => indirectIllumOutput;
+        set
+        {
+            VoxelPTRPHelper.ThrowIfTextureInvalid(value);
+            ExceptionConstructor.ThrowIfTextureSizeNotEqual(DirectIllumination_depthOutput, IndirectIlluminationOutput, NormalCompound_motionOutput);
+            indirectIllumOutput = value;
         }
     }
     public Texture2D NormalCompound_motionOutput
@@ -48,8 +57,8 @@ public sealed class VoxelPathTracingModule : RenderingPipeline, IVoxelPathTracin
         set
         {
             VoxelPTRPHelper.ThrowIfTextureInvalid(value);
+            ExceptionConstructor.ThrowIfTextureSizeNotEqual(DirectIllumination_depthOutput, NormalCompound_motionOutput);
             normalCompound_motionOutput = value;
-            ExceptionConstructor.ThrowIfTextureSizeNotEqual(Luminance_depthOutput, NormalCompound_motionOutput);
         }
     }
 
@@ -65,34 +74,22 @@ public sealed class VoxelPathTracingModule : RenderingPipeline, IVoxelPathTracin
         public float randSalt = 1;
         public Vector3 prevCameraPosition = default;
     }
-    public int Samples
-    {
-        get => samples;
-        set
-        {
-            samples = value;
-            pathTracingShaderController.SetUniform("samples", samples);
-        }
-    }
-    public Vector3 SunDirection
-    {
-        get => sunDirection;
-        set
-        {
-            sunDirection = value;
-            pathTracingShaderController.SetUniform("sunDirection", sunDirection);
-        }
-    }
+    public UniformAccessor<int> Samples { get; private set; }
+    public UniformAccessor<Vector3> SunDirection { get; private set; }
 
-    public VoxelPathTracingModule(ShaderController shaderControllerPT, Camera camera, Vector3i mapSize, Texture2D skyTexture, Texture2D luminance_depthOutput, Texture2D normalCompound_motionOutput)
+    public VoxelPathTracingModule(ShaderController shaderControllerPT, Camera camera, Vector3i mapSize, Texture2D skyTexture, Texture2D directIllumination_depthOutput, Texture2D indirectIlluminationOutput, Texture2D normalCompound_motionOutput)
     {
         pathTracingShaderController = shaderControllerPT;
-        pathTracingShaderController.SetUniform("luminance_depthImg", 0);
+        pathTracingShaderController.SetUniform("directIllum_depthImg", 0);
+        pathTracingShaderController.SetUniform("indirectIllumImg", 2);
         pathTracingShaderController.SetUniform("normalCompound_motionImg", 1);
         pathTracingShaderController.SetUniform("skyTex", 2);
         
-        Samples = 1;
-        SunDirection = new Vector3(0.904f, 0.361f, 0.226f);
+        Samples = pathTracingShaderController.GetUniformAccessor<int>("samples");
+        SunDirection = pathTracingShaderController.GetUniformAccessor<Vector3>("sunDirection");
+        
+        Samples.Set(1);
+        SunDirection.Set(new(0.904f, 0.361f, 0.226f));
 
         Camera = camera;
         SkyTex = skyTexture;
@@ -103,7 +100,7 @@ public sealed class VoxelPathTracingModule : RenderingPipeline, IVoxelPathTracin
         }
         shaderInputSSBO.BindAsShaderStorage(new(BufferRangeTarget.ShaderStorageBuffer, 3));
 
-        SetOutput(luminance_depthOutput, normalCompound_motionOutput);
+        SetOutput(directIllumination_depthOutput, indirectIlluminationOutput, normalCompound_motionOutput);
         OnMapSizeChanged(mapSize);
     }
     public unsafe override void Execute()
@@ -113,10 +110,11 @@ public sealed class VoxelPathTracingModule : RenderingPipeline, IVoxelPathTracin
         pathTracingShaderController.Shader.Use();
 
         SkyTex.BindTex(2);
-        Luminance_depthOutput.BindAsImage(0, TextureAccess.ReadWrite, SizedInternalFormat.Rgba32f);
+        DirectIllumination_depthOutput.BindAsImage(0, TextureAccess.ReadWrite, SizedInternalFormat.Rgba32f);
+        IndirectIlluminationOutput.BindAsImage(2, TextureAccess.ReadWrite, SizedInternalFormat.Rgba32f);
         NormalCompound_motionOutput.BindAsImage(1, TextureAccess.ReadWrite, SizedInternalFormat.Rgba32f);
 
-        GL.DispatchCompute(Luminance_depthOutput.Size.X / 8, Luminance_depthOutput.Size.Y / 8, 1);
+        GL.DispatchCompute(DirectIllumination_depthOutput.Size.X / 8, DirectIllumination_depthOutput.Size.Y / 8, 1);
 
         cycle++; 
         cycle &= 1;
@@ -124,11 +122,12 @@ public sealed class VoxelPathTracingModule : RenderingPipeline, IVoxelPathTracin
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void SetOutput(Texture2D luminance_depthOutput, Texture2D normalCompound_motionOutput)
+    public void SetOutput(Texture2D directIllumination_depthOutput, Texture2D indirectIlluminationOutput, Texture2D normalCompound_motionOutput)
     {
-        ExceptionConstructor.ThrowIfTextureSizeNotEqual(luminance_depthOutput, normalCompound_motionOutput);
-        VoxelPTRPHelper.ThrowIfAnyTextureInvalid(luminance_depthOutput, normalCompound_motionOutput);
-        this.luminance_depthOutput = luminance_depthOutput;
+        ExceptionConstructor.ThrowIfTextureSizeNotEqual(directIllumination_depthOutput, indirectIlluminationOutput, normalCompound_motionOutput);
+        VoxelPTRPHelper.ThrowIfAnyTextureInvalid(directIllumination_depthOutput, indirectIlluminationOutput, normalCompound_motionOutput);
+        directIllum_depthOutput = directIllumination_depthOutput;
+        indirectIllumOutput = indirectIlluminationOutput;
         this.normalCompound_motionOutput = normalCompound_motionOutput;
     }
     public void OnMapSizeChanged(Vector3i newSize)
@@ -139,7 +138,7 @@ public sealed class VoxelPathTracingModule : RenderingPipeline, IVoxelPathTracin
     }
     void StreamShaderInput()
     {
-        Matrix4 cameraMat = Camera.CreateCameraMatrix(luminance_depthOutput.Size.Ratio());
+        Matrix4 cameraMat = Camera.CreateCameraMatrix(directIllum_depthOutput.Size.Ratio());
         shaderInputStreaming.prevCameraMatrix = shaderInputStreaming.cameraMatrix;
         shaderInputStreaming.cameraMatrix = cameraMat;
         shaderInputStreaming.invCameraMatrix = Matrix4.Invert(cameraMat);

@@ -4,7 +4,8 @@ in vec2 uv;
 
 out vec4 outColor;
 
-uniform sampler2D luminance_depthTex;
+uniform sampler2D directIllum_depthTex;
+uniform sampler2D indirectIllumTex;
 uniform sampler2D normalCompound_motionTex;
 
 ivec2 targetTextureSize;
@@ -19,18 +20,19 @@ vec3 fogColor = vec3(0.75, 1.3, 1.9);
 
 void main() 
 {
-    ivec2 texelCoord = ivec2(uv * textureSize(luminance_depthTex, 0));
+    ivec2 texelCoord = ivec2(uv * textureSize(directIllum_depthTex, 0));
     
-    vec4 lumDepth = texelFetch(luminance_depthTex, texelCoord, 0);
+    vec4 directIllumDepth = texelFetch(directIllum_depthTex, texelCoord, 0);
+    vec4 indirectIllum = texelFetch(indirectIllumTex, texelCoord, 0);
 
-    vec3 lum = lumDepth.xyz;//lumDepth.w == -1 ? vec3(0, 1, 1) : lumDepth.xyz;
+    vec3 directIllum = directIllumDepth.xyz + indirectIllum.xyz;//lumDepth.w == -1 ? vec3(0, 1, 1) : lumDepth.xyz;
     
 //    float fogIntensity = texelFetch(depth_motion, frag, 0).x;
 //    float fogShift = fogIntensity - 50;
 //    fogIntensity = fogShift < 0 ? 0 : clamp((fogShift) * 0.009, 0, 1);
 //    lum = mix(lum, fogColor, fogIntensity);
 
-    vec3 toneMappedLum = toneMap_IDKWHAT(lum, 6);
+    vec3 toneMappedLum = toneMap_IDKWHAT(directIllum, 6);
     vec3 gammaCorrectedLum = vec3(pow(toneMappedLum.r, 0.4545), pow(toneMappedLum.g, 0.4545), pow(toneMappedLum.b, 0.4545));
 //    vec2 motion = texture(depth_motion, uv).gb;
 //    vec2 reprojection = uv + motion;

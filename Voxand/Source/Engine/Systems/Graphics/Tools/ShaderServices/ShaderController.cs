@@ -1,7 +1,7 @@
 ﻿using DisposableExt;
 using GLAV;
 using GLAV.Types;
-
+using OpenTK.Mathematics;
 using Voxand.Content;
 
 namespace Voxand.Engine.Systems.Graphics.Tools.ShaderServices;
@@ -77,8 +77,8 @@ public class ShaderController : IDisposableExt
             {
                 if (newType == oldUniformInfo.type)
                 {
-                    object oldValue = Shader.GetUniform(oldUniformInfo.location, oldUniformInfo.type);
-                    newShader.SetUniform(oldUniformInfo.location, oldUniformInfo.type, oldValue);
+                    object oldValue = Shader.GetUniformByGLType(oldUniformInfo.location, oldUniformInfo.type);
+                    newShader.SetUniformByGLType(oldUniformInfo.location, oldUniformInfo.type, oldValue);
                 }
             }
         }
@@ -96,7 +96,7 @@ public class ShaderController : IDisposableExt
             return; 
         }
 
-        Shader.SetUniform(info.location, info.type, value);
+        Shader.SetUniformByGLType(info.location, info.type, value);
     }
 
     public object? GetUniform(string uniformName)
@@ -107,7 +107,16 @@ public class ShaderController : IDisposableExt
             return null;
         }
 
-        return Shader.GetUniform(info.location, info.type);
+        return Shader.GetUniformByGLType(info.location, info.type);
+    }
+
+    public UniformAccessor<T> GetUniformAccessor<T>(string uniformName) where T : struct
+    {
+        if (ShaderInfo.TryGetUniformInfo(uniformName, out UniformInfo info))
+            return new UniformAccessor<T>(info.location, Shader);
+
+        Console.WriteLine($"Uniform \"{uniformName}\" of {Shader} not found.");
+        return new UniformAccessor<T>(-1, Shader);
     }
 
     public void SetShaderStorageBinding(string bufferName, int binding)
