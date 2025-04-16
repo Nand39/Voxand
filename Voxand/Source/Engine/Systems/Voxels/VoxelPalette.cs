@@ -1,14 +1,17 @@
-﻿using DisposableExt;
-using OpenTK.Graphics.OpenGL4;
+﻿using OpenTK.Graphics.OpenGL4;
+
+using DisposableExt;
+using GLAV.Types.Extended;
+
 using Voxand.Engine.Systems.General.Events;
-using Buffer = GLAV.Types.Buffer;
+using Voxand.Helpers.ExtensionMethods;
 
 namespace Voxand.Engine.Systems.Voxels;
 
 public class VoxelPalette : IDisposableExt
 {
     readonly VoxelMaterial[] materialPalette;
-    readonly Buffer materialPaletteSSBO;
+    readonly TypedArray<VoxelMaterial> gpuMaterialPalette;
     public int MaterialCount => materialPalette.Length;
     int bufferBinding;
     public int Binding
@@ -17,31 +20,36 @@ public class VoxelPalette : IDisposableExt
         set
         {
             bufferBinding = value;
-            materialPaletteSSBO.BindAsShaderStorage(new(BufferRangeTarget.ShaderStorageBuffer, value));
+            gpuMaterialPalette.BindAsShaderStorage(BufferRangeTarget.ShaderStorageBuffer, value);
         }
     }
     public DisposeHelper DisposeHelper { get; }
     public EventDispatcher Events { get; protected set; } = new("voxelPalette_events");
 
-    public VoxelPalette(int materialCount, int binding)
+    VoxelPalette()
     {
         DisposeHelper = new(this);
-        materialPalette = new VoxelMaterial[materialCount];
-        materialPaletteSSBO = new();
-        materialPaletteSSBO.Lable = "voxel palette buffer";
-        materialPaletteSSBO.Alloc(BufferTarget.ShaderStorageBuffer, MaterialCount * VoxelMaterial.sizeInBytes, BufferUsageHint.DynamicDraw);
-        Binding = binding;
         Events.AddEvent("material_modified");
     }
-    public VoxelPalette(VoxelMaterial[] materials, int binding) : this(materials.Length, binding)
+    public VoxelPalette(VoxelMaterial[] materials, int binding) 
+        : this()
     {
-        materialPaletteSSBO.Store(materials, 0, materials.Length * VoxelMaterial.sizeInBytes, 0);
+        VoxelMaterial[] transformedMaterials = new VoxelMaterial[materials.Length];
+        for (int i = 0; i < transformedMaterials.Length; i++)
+        {
+            transformedMaterials[i] = materials[i];
+            transformedMaterials[i].color = transformedMaterials[i].color.Pow(2.2f) / MathF.PI;
+        }
+
+        gpuMaterialPalette = new(transformedMaterials, BufferTarget.ShaderStorageBuffer, BufferUsageHint.DynamicDraw);
         materialPalette = materials;
+        Binding = binding;
     }
     public void SetMaterial(VoxelMaterial newMaterial, int index)
     {
         materialPalette[index] = newMaterial;
-        materialPaletteSSBO.Store(ref newMaterial, index * VoxelMaterial.sizeInBytes);
+        newMaterial.color = newMaterial.color.Pow(2.2f) / MathF.PI;
+        gpuMaterialPalette[index] = newMaterial;
         Events.Invoke("material_modified", index);
     }
     public void SetMaterial(object args)
@@ -55,7 +63,7 @@ public class VoxelPalette : IDisposableExt
     }
     void IDisposableExt.Free()
     {
-        materialPaletteSSBO.Dispose();
+        gpuMaterialPalette.Dispose();
         GC.SuppressFinalize(this);
     }
 }

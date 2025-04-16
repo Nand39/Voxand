@@ -20,7 +20,7 @@ layout(rgba32f, binding = 1) uniform image2D normalCompound_motionImg;
 struct material
 {
     vec3 color;
-    // 4 bytes padding
+    float colorVariance;
     vec3 emission;
     // 4 bytes padding
 };
@@ -59,7 +59,7 @@ layout(std140, binding = 3) buffer inputData
 layout(location = 0) uniform ivec3 mapSize;
 layout(location = 1) uniform ivec3 voxelBrickmapSize;
 layout(location = 2) uniform vec3 sunDirection;
-layout(location = 3) uniform vec3 sunColor = vec3(6.8, 4.65, 2);
+layout(location = 3) uniform vec3 sunColor = vec3(6.8, 4.65, 2) * 4;
 layout(location = 4) uniform float sunDirectionJitter = 0.01;
 layout(location = 8) uniform float fov = 80.0; 
 
@@ -110,6 +110,7 @@ vec3 sunSample(vec3 pos, vec3 dir);
 vec3 getDiffuseReflectionDir(int normal, int sampleIndex);
 vec3 randomVector(vec2 key, int sampleIndex);
 float random (vec2 point);
+float randOfVoxel(ivec3 v);
 vec3 jitterVector(vec3 v, float theta, float amount);
 vec3 vecNormal(int normal);
 
@@ -215,6 +216,9 @@ void executePathTracing(vec3 origin, vec3 dir, out vec3 directIllum, out vec3 in
     hitPosition += dir * depthBias;
     firstHitMat = materialPalette[getVoxelValue(firstHitVoxel)];
     firstHitNormal = vecNormal(normal);
+
+    firstHitMat.color = clamp(firstHitMat.color + randOfVoxel(firstHitVoxel) * firstHitMat.colorVariance - firstHitMat.colorVariance * 0.5, vec3(0), vec3(INV_PI));
+
     int secondHitResult;
 
     if (firstHitResult == 1)
@@ -223,7 +227,6 @@ void executePathTracing(vec3 origin, vec3 dir, out vec3 directIllum, out vec3 in
         return;
     }
 
-    vec3 directLighting = firstHitMat.emission;
     vec3 indirectContribution = vec3(0);
 
     int i = 1;
@@ -240,31 +243,23 @@ void executePathTracing(vec3 origin, vec3 dir, out vec3 directIllum, out vec3 in
         secondHitResult = raycast(hitPosition, scatteredDir, secondHitPos, secondHitVoxel, secondHitDepth, secondHitNormalInt);
         secondHitMat = materialPalette[getVoxelValue(secondHitVoxel)];
 
+        float cosWeight0 = clamp(dot(firstHitNormal, scatteredDir), 0, 1);
+
         if (secondHitResult == 0)
         {
-            float incomingCosineWeight = clamp(dot(firstHitNormal, scatteredDir), 0, 1);
-            indirectContribution += secondHitMat.emission * incomingCosineWeight;
-
-            float key1 = random(fragPosition.xy * invSamples * i) * TWO_PI;
-            float key2 = random(vec2(key1 * 1.23, key1 * 0.914)) * sunDirectionJitter;
-            indirectContribution += sunSample(secondHitPos, jitterVector(sunDirection, key1, key2)) * secondHitMat.color * clamp(dot(vecNormal(secondHitNormalInt), sunDirection), 0, 1) * incomingCosineWeight;
-            i++;
-            continue;
+            indirectContribution += secondHitMat.emission * cosWeight0;
+            indirectContribution += sunSample(secondHitPos, sunDirection) * secondHitMat.color * clamp(dot(vecNormal(secondHitNormalInt), sunDirection), 0, 1) * cosWeight0;
         }
-        if (secondHitResult == 1)
+        else if (secondHitResult == 1)
         {
-            indirectContribution += skySample(scatteredDir) * clamp(dot(firstHitNormal, scatteredDir), 0, 1);
-            i++;
-            continue;
+            indirectContribution += skySample(scatteredDir) * cosWeight0;
         }
         i++;
     }
 
-    float key1 = random(fragPosition.xy * 92.92) * TWO_PI;
-    float key2 = random(vec2(key1 * 32.2, key1 * 51.1)) * sunDirectionJitter;
-    directLighting += sunSample(hitPosition, jitterVector(sunDirection, key1, key2)) * clamp(dot(firstHitNormal, sunDirection), 0, 1);
+    vec3 directLighting = sunSample(hitPosition, sunDirection) * clamp(dot(firstHitNormal, sunDirection), 0, 1);
 
-    directIllum = directLighting * firstHitMat.color;
+    directIllum = directLighting * firstHitMat.color + firstHitMat.emission;
     indirectIllum = indirectContribution * invSamples * firstHitMat.color;
 }
 
@@ -457,7 +452,7 @@ vec3 skySample(vec3 dir)
 //    return texture(skyTex, uv).rgb;
     //return vec3(pow(uv.x, 2.2), pow(uv.y, 2.2), 0);
     
-    float sunVisibility = acos(-dot(dir, sunDirection)) * INV_PI;
+    float sunVisibility = acos(clamp(-dot(dir, sunDirection), -1, 1)) * INV_PI;
     sunVisibility = clamp(64 * (sunVisibility - 0.98), 0, 1);
 
     return mix(vec3(0.75, 1.3, 1.9), sunColor, sunVisibility);
@@ -513,10 +508,27 @@ vec3 randomVector(vec2 key, int sampleIndex)
     return vec3(cos(phi) * cosTheta, sinTheta, sin(phi) * cosTheta);
 }
 
-float random (vec2 point) 
+float random(vec2 point) 
 {
     point *= randSaltLocal;
     return fract(sin(dot(point.xy, vec2(12.9898,75.233))) * 43758.5453123);
+}
+
+// Written by Gemini
+float randOfVoxel(ivec3 v) {
+    uint x = uint(v.x);
+    uint y = uint(v.y);
+    uint z = uint(v.z);
+
+    uint seed = x ^ y ^ z;
+    seed = seed * 1664525u + 1013904223u;
+    seed ^= seed >> 16;
+    seed = seed * 1664525u + 1013904223u;
+    seed ^= seed >> 16;
+    seed = seed * 1664525u + 1013904223u;
+    seed ^= seed >> 16;
+
+    return float(seed) / 4294967295.0;
 }
 
 float minVec3(vec3 vect)

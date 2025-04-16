@@ -4,14 +4,15 @@ using OpenTK.Graphics.OpenGL4;
 namespace GLAV.Types.Extended;
 public class TypedArray<T> : IDisposableExt where T : struct
 {
+    static int itemSize;
     internal Buffer Buffer { get; private protected set; }
-
     public DisposeHelper DisposeHelper { get; }
 
-    static int itemSize;
+    public int Length { get; private set; } 
+
+    public string Label { get => Buffer.Lable; set => Buffer.Lable = value; }
 
     static unsafe TypedArray() => itemSize = sizeof(T);
-
     TypedArray() => DisposeHelper = new(this);
 
     #region Allocation
@@ -20,18 +21,21 @@ public class TypedArray<T> : IDisposableExt where T : struct
     {
         Buffer = new();
         Buffer.Alloc(target, capacity * itemSize, usageHint);
+        Length = capacity;
     }
     public TypedArray(T[] data, BufferTarget target, BufferUsageHint usageHint)
         : this()
     {
         Buffer = new();
         Buffer.Alloc(target, data, data.Length * itemSize, usageHint);
+        Length = data.Length;
     }
     public TypedArray(Span<T> data, BufferTarget target, BufferUsageHint usageHint)
         : this()
     {
         Buffer = new();
         Buffer.Alloc(target, data, data.Length * itemSize, usageHint);
+        Length = data.Length;
     }
     #endregion
 
@@ -43,6 +47,12 @@ public class TypedArray<T> : IDisposableExt where T : struct
 
     public void Store(Span<T> data, int offset) => Buffer.Store(data, offset * itemSize);
     public T[] Retrieve(int offset, int count) => Buffer.Retrieve<T>(offset * itemSize, count);
+
+    public void BindAsShaderStorage(BufferRangeTarget target, int binding) => Buffer.BindAsShaderStorage(target, new(binding));
+    public void BindAsShaderStorage(BufferRangeTarget target, int binding, int start, int count)
+    {
+        Buffer.BindAsShaderStorage(target, new(binding, start * itemSize, count * itemSize));
+    }
 
     public void Free() => Buffer.Dispose();
 }

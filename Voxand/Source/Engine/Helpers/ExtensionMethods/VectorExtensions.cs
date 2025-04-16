@@ -448,6 +448,30 @@ public static class VectorTKExtensions
     public static Vector4 Sub(this Vector4 vect, float n) => new(vect.X - n, vect.Y - n, vect.Z - n, vect.W - n);
     #endregion
 
+    #region Pow
+    public static Vector2 Pow(this Vector2 vect, float n) => new(MathF.Pow(vect.X, n), MathF.Pow(vect.Y, n));
+    public static Vector3 Pow(this Vector3 vect, float n) => new(MathF.Pow(vect.X, n), MathF.Pow(vect.Y, n), MathF.Pow(vect.Z, n));
+    public static Vector4 Pow(this Vector4 vect, float n) => new(MathF.Pow(vect.X, n), MathF.Pow(vect.Y, n), MathF.Pow(vect.Z, n), MathF.Pow(vect.W, n));
+    #endregion
+
+    #endregion
+
+    #region Transformation
+    #region Rotation
+    public static void Rotate(this Vector2 vect, float angle)
+    {
+        float cos = MathF.Cos(angle);
+        float sin = MathF.Sin(angle);
+        vect.X = vect.X * cos - vect.Y * sin;
+        vect.Y = vect.X * sin + vect.Y * cos;
+    }
+    public static Vector2 Rotated(this Vector2 vect, float angle)
+    {
+        float cos = MathF.Cos(angle);
+        float sin = MathF.Sin(angle);
+        return new Vector2(vect.X * cos - vect.Y * sin, vect.X * sin + vect.Y * cos);
+    }
+    #endregion
     #endregion
 }
 public static class VecotorNumExtensions

@@ -1,21 +1,37 @@
 ﻿using System.Runtime.CompilerServices;
+using System.Text;
 
 using OpenTK.Graphics.OpenGL4;
 
-using System.Text;
-
 namespace GLAV.Types;
-public readonly struct BufferBindingInfo(BufferRangeTarget target, int index)
+public readonly struct BufferBindingInfo
 {
-    public readonly BufferRangeTarget target = target;
-    public readonly int index = index;
+    public readonly int binding, offset, size;
+
+    public BufferBindingInfo(int binding, int offset, int size)
+    {
+        this.binding = binding;
+        this.offset = offset;
+        this.size = size;
+    }
+    public BufferBindingInfo(int binding)
+    {
+        this.binding = binding;
+        offset = -1;
+        size = -1;
+    }
 }
 
 public class Buffer : GLResource
 {
     public int Size { get; protected set; } = 0;
     public BufferTarget bufferTarget { get; protected set; }
-    public BufferBindingInfo bindingInfo { get; protected set; }
+
+    internal Dictionary<int, (int offset, int size)> uniformBufferBindings = [];
+    internal Dictionary<int, (int offset, int size)> transformFeedbackBufferBindings = [];
+    internal Dictionary<int, (int offset, int size)> shaderStorageBufferBindings = [];
+    internal Dictionary<int, (int offset, int size)> atomicCounterBufferBindings = [];
+
     public Buffer()
     {
         Handle.resourceType = GLResourceType.Buffer;
@@ -162,10 +178,32 @@ public class Buffer : GLResource
         return Retrieve<T>(index * sizeof(T));
     }
 
-    public void BindAsShaderStorage(BufferBindingInfo bindingInfo)
+    public void BindAsShaderStorage(BufferRangeTarget target, BufferBindingInfo binding)
     {
-        this.bindingInfo = bindingInfo;
-        GL.BindBufferBase(bindingInfo.target, bindingInfo.index, Handle.id);
+        GLRegistry.Instance.BindBufferAsShaderStorage(target, this, binding);
+
+        switch (target)
+        {
+            case BufferRangeTarget.UniformBuffer: uniformBufferBindings[binding.binding] = (binding.offset, binding.size); break;
+            case BufferRangeTarget.TransformFeedbackBuffer: transformFeedbackBufferBindings[binding.binding] = (binding.offset, binding.size); break;
+            case BufferRangeTarget.ShaderStorageBuffer: shaderStorageBufferBindings[binding.binding] = (binding.offset, binding.size); break;
+            case BufferRangeTarget.AtomicCounterBuffer: atomicCounterBufferBindings[binding.binding] = (binding.offset, binding.size); break;
+        }
+    }
+
+    public void ReplaceBindingsOf(Buffer source)
+    {
+        foreach (var binding in source.uniformBufferBindings)
+            BindAsShaderStorage(BufferRangeTarget.UniformBuffer, new(binding.Key, binding.Value.offset, binding.Value.size));
+
+        foreach (var binding in source.transformFeedbackBufferBindings)
+            BindAsShaderStorage(BufferRangeTarget.TransformFeedbackBuffer, new(binding.Key, binding.Value.offset, binding.Value.size));
+
+        foreach (var binding in source.shaderStorageBufferBindings)
+            BindAsShaderStorage(BufferRangeTarget.ShaderStorageBuffer, new(binding.Key, binding.Value.offset, binding.Value.size));
+
+        foreach (var binding in source.atomicCounterBufferBindings)
+            BindAsShaderStorage(BufferRangeTarget.AtomicCounterBuffer, new(binding.Key, binding.Value.offset, binding.Value.size));
     }
 
     protected override void Free(bool hasContext)

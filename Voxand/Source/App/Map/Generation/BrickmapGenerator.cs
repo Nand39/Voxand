@@ -82,17 +82,13 @@ public class BrickmapGenerator : MapGenerator
             {
                 voxPos.Y = 0;
                 int height = heights[voxPos.X, voxPos.Z];
-                uint material;
-                Vector3i localPosition;
                 for (; voxPos.Y < height - 5; voxPos.Y++)
                 {
-                    material = (uint)Util.Random.Next(0, 3);
-                    PlaceVoxel(bricks, voxPos, material);
+                    PlaceVoxel(bricks, voxPos, 0);
                 }
                 for (; voxPos.Y < height - 2; voxPos.Y++)
                 {
-                    material = (uint)Util.Random.Next(3, 6);
-                    PlaceVoxel(bricks, voxPos, material);
+                    PlaceVoxel(bricks, voxPos, 1);
                 }
                 float mudVal = mudNoise.Sample(new(voxPos.X, voxPos.Z));
                 if (mudVal > -0.2f)
@@ -100,8 +96,7 @@ public class BrickmapGenerator : MapGenerator
                     height -= Util.Random.Next(0, 2);
                     for (; voxPos.Y < height; voxPos.Y++)
                     {
-                        material = (uint)Util.Random.Next(6, 9);
-                        PlaceVoxel(bricks, voxPos, material);
+                        PlaceVoxel(bricks, voxPos, 2);
                     }
                 }
             }

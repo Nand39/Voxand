@@ -2,11 +2,10 @@
 
 using OpenTK.Graphics.OpenGL4;
 
-using GLAV.Helpers.Internal.ExtensionMethods;
 using GLAV.Types;
 using OpenTK.Windowing.Desktop;
 using System.Collections.Concurrent;
-using GLAV.Helpers.Public;
+using Buffer = GLAV.Types.Buffer;
 
 namespace GLAV;
 public sealed class GLRegistry
@@ -21,6 +20,11 @@ public sealed class GLRegistry
 
     int[] bufferTargets;
     Dictionary<BufferTarget, int> bufferTargetMapping;
+
+    Buffer[] UniformBufferBindings = new Buffer[GL.GetInteger((GetPName)All.MaxUniformBufferBindings)];
+    Buffer[] TransformFeedbackBufferBindings = new Buffer[GL.GetInteger((GetPName)All.MaxTransformFeedbackBuffers)];
+    Buffer[] ShaderStorageBufferBindings = new Buffer[GL.GetInteger((GetPName)All.MaxShaderStorageBufferBindings)];
+    Buffer[] AtomicCounterBufferBindings = new Buffer[GL.GetInteger((GetPName)All.MaxAtomicCounterBufferBindings)];
 
     int activeShaderProgram = -1;
     int activeFramebuffer = 0;
@@ -115,6 +119,43 @@ public sealed class GLRegistry
         bufferTargets[targetIndex] = handle;
         GL.BindBuffer(target, handle);
     }
+
+    public void BindBufferAsShaderStorage(BufferRangeTarget target, Buffer buffer, BufferBindingInfo binding)
+    {
+        if (binding.offset == -1)
+            GL.BindBufferBase(target, binding.binding, buffer.Handle.id);
+        else
+            GL.BindBufferRange(target, binding.binding, buffer.Handle.id, binding.offset, binding.size);
+
+        switch (target)
+        {
+            case BufferRangeTarget.UniformBuffer:
+                {
+                    UniformBufferBindings[binding.binding]?.uniformBufferBindings.Remove(binding.binding);
+                    UniformBufferBindings[binding.binding] = buffer;
+                    break;
+                }
+            case BufferRangeTarget.TransformFeedbackBuffer:
+                {
+                    TransformFeedbackBufferBindings[binding.binding]?.transformFeedbackBufferBindings.Remove(binding.binding);
+                    TransformFeedbackBufferBindings[binding.binding] = buffer;
+                    break;
+                }
+            case BufferRangeTarget.ShaderStorageBuffer:
+                {
+                    ShaderStorageBufferBindings[binding.binding]?.shaderStorageBufferBindings.Remove(binding.binding);
+                    ShaderStorageBufferBindings[binding.binding] = buffer;
+                    break;
+                }
+            case BufferRangeTarget.AtomicCounterBuffer:
+                {
+                    AtomicCounterBufferBindings[binding.binding]?.atomicCounterBufferBindings.Remove(binding.binding);
+                    AtomicCounterBufferBindings[binding.binding] = buffer;
+                    break;
+                }
+        }
+    }
+
     #endregion
 
     #region FRAMEBUFFERS

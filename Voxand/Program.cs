@@ -15,6 +15,6 @@ Window.Initialize(GameWindowSettings.Default, new NativeWindowSettings()
     Flags = ContextFlags.Debug
 });
 
-Window.Instance.VSync = VSyncMode.On;
+Window.Instance.VSync = VSyncMode.Off;
 
 Window.Instance.Run();

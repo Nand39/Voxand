@@ -5,12 +5,13 @@ using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 
 using DisposableExt;
+using GLAV.Types.Extended;
+using Buffer = GLAV.Types.Buffer;
 
 using Voxand.Engine.Systems.Structures;
 using Voxand.Helpers.ExtensionMethods;
+using GLAV.Helpers.Public.Extensions.Unsafe;
 
-using Buffer = GLAV.Types.Buffer;
-using GLAV.Types.Extended;
 
 namespace Voxand.Engine.Systems.Voxels;
 public class VoxelBrickmap : VoxelMap, ISinglePlaceable
@@ -21,7 +22,7 @@ public class VoxelBrickmap : VoxelMap, ISinglePlaceable
     UnmanagedList<VoxelBrick> C_brickList;
 
     Buffer G_brickmap;
-    G_HalfList<VoxelBrick> G_BrickList;
+    HalfList<VoxelBrick> G_BrickList;
 
     DDAUnit DDABrick;
     DDAUnit DDAVoxel;
@@ -79,23 +80,21 @@ public class VoxelBrickmap : VoxelMap, ISinglePlaceable
 
         C_brickList = new UnmanagedList<VoxelBrick>(1);
         
-        G_BrickList = new G_HalfList<VoxelBrick>(
+        G_BrickList = new HalfList<VoxelBrick>(
             target: BufferTarget.ShaderStorageBuffer, 
-            rangeTarget: BufferRangeTarget.ShaderStorageBuffer, 
-            bindingIndex: 0, 
             initialCapacity: 1, 
-            itemSize: 16 * sizeof(uint) + 2 * sizeof(uint),
             usageHint: BufferUsageHint.DynamicDraw,
-            growthFunction: (capacity) => capacity < 24000 ? (int)MathF.Floor(-((capacity * 0.005f - 540) * capacity * 0.005f)) + 2 : (int)(capacity * 1.5f),
-            lable: "*** Brick List"
+            growthFunction: (capacity) => capacity < 24000 ? (int)MathF.Floor(-((capacity * 0.005f - 540) * capacity * 0.005f)) + 2 : (int)(capacity * 1.5f)
             );
+        G_BrickList.BindAsShaderStorage(BufferRangeTarget.ShaderStorageBuffer, 0);
+        G_BrickList.Label = "*** Bricklist";
 
         G_brickmap = new();
         G_brickmap.Alloc(
             bufferTarget: BufferTarget.ShaderStorageBuffer,
             size: brickmapSize.X * brickmapSize.Y * brickmapSize.Z * sizeof(int), 
             usageHint: BufferUsageHint.DynamicDraw);
-        G_brickmap.BindAsShaderStorage(new(BufferRangeTarget.ShaderStorageBuffer, 1));
+        G_brickmap.BindAsShaderStorage(BufferRangeTarget.ShaderStorageBuffer, new(1));
         unsafe
         {
             fixed (int* initBrickmapPtr = C_brickmap)
@@ -889,7 +888,7 @@ public class VoxelBrickmap : VoxelMap, ISinglePlaceable
     }
     public override long GetGraphicsMemoryUsage()
     {
-        return G_brickmap.Size + G_BrickList.Capacity * G_BrickList.ItemSize;
+        return G_brickmap.Size + G_BrickList.Capacity * G_BrickList.itemSize;
     }
     protected override void Free()
     {

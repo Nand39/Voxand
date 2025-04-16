@@ -146,6 +146,7 @@ public sealed class UI_PaletteWindow : UI_Window
 public sealed class UI_MaterialEditorWindow : UI_Window
 {
     ColorPicker colorPicker;
+    FloatPicker colorVariancePicker;
     ColorPicker emissionPicker;
     FloatPicker emissionIntensityPicker;
     VoxelPalette palette;
@@ -159,10 +160,12 @@ public sealed class UI_MaterialEditorWindow : UI_Window
         this.palette = palette;
 
         colorPicker = new("Voxel color");
+        colorVariancePicker = new("Color variance");
         emissionPicker = new("Voxel emission");
         emissionIntensityPicker = new("Emission intensity");
 
         colorPicker.OnColorChange += (color) => SetMaterialColor(color, selectedMaterial);
+        colorVariancePicker.OnValueChange += (value) => SetMaterialColorVariance(value, selectedMaterial);
         emissionPicker.OnColorChange += (color) => SetMaterialEmission(color * emissionIntensityPicker.value, selectedMaterial);
         emissionIntensityPicker.OnValueChange += (value) => SetMaterialEmission(emissionPicker.color * value, selectedMaterial);
     }
@@ -170,6 +173,7 @@ public sealed class UI_MaterialEditorWindow : UI_Window
     {
         ImGui.Begin("Material properties");
         colorPicker.Display();
+        colorVariancePicker.Display();
         emissionPicker.Display();
         emissionIntensityPicker.Display();
         ImGui.End();
@@ -185,6 +189,7 @@ public sealed class UI_MaterialEditorWindow : UI_Window
         VoxelMaterial oldMaterial = palette.GetMaterial(index);
         VoxelMaterial newMaterial = new VoxelMaterial(
             color: newColor.AsTK(),
+            colorVariance: oldMaterial.colorVariance,
             emission: oldMaterial.emission);
         OnMaterialEdited?.Invoke((newMaterial, selectedMaterial));
     }
@@ -193,7 +198,17 @@ public sealed class UI_MaterialEditorWindow : UI_Window
         VoxelMaterial oldMaterial = palette.GetMaterial(index);
         VoxelMaterial newMaterial = new VoxelMaterial(
             color: oldMaterial.color,
+            colorVariance: oldMaterial.colorVariance,
             emission: newEmission.AsTK());
+        OnMaterialEdited?.Invoke((newMaterial, selectedMaterial));
+    }
+    void SetMaterialColorVariance(float newColorVariance, int index)
+    {
+        VoxelMaterial oldMaterial = palette.GetMaterial(index);
+        VoxelMaterial newMaterial = new VoxelMaterial(
+            color: oldMaterial.color,
+            colorVariance: newColorVariance,
+            emission: oldMaterial.emission);
         OnMaterialEdited?.Invoke((newMaterial, selectedMaterial));
     }
 
@@ -203,6 +218,7 @@ public sealed class UI_MaterialEditorWindow : UI_Window
         selectedMaterial = newMaterialIndex;
         VoxelMaterial material = palette.GetMaterial(newMaterialIndex);
         colorPicker.color = material.color.AsNum();
+        colorVariancePicker.value = material.colorVariance;
         float emissionScaler = material.emission.Max();
         emissionPicker.color = emissionScaler > 1 ? material.emission.AsNum() / emissionScaler : material.emission.AsNum();
         emissionIntensityPicker.value = emissionScaler;

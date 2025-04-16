@@ -6,14 +6,14 @@ using GLAV.Data;
 
 namespace Voxand.Engine.Systems.Voxels
 {
-    public readonly struct VoxelMaterial(Vector3 color, Vector3 emission)
+    public struct VoxelMaterial(Vector3 color, float colorVariance, Vector3 emission)
     {
-        public readonly static byte sizeInBytes = sizeof(float) * 8;
+        public const byte sizeInBytes = sizeof(float) * 8;
 
-        public readonly Vector3 color = color;
-        readonly float padding1;
-        public readonly Vector3 emission = emission;
-        readonly float padding2;
+        public Vector3 color = color;
+        public float colorVariance = colorVariance;
+        public Vector3 emission = emission;
+        float padding2;
     }
 }
 

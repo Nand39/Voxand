@@ -10,6 +10,7 @@ using DisposableExt;
 
 using Voxand.Helpers;
 using Voxand.Helpers.UtilityObjects;
+using Voxand.Helpers.ExtensionMethods;
 using Voxand.Engine.Systems.General.Events;
 using Voxand.Engine.Systems.Graphics;
 using Voxand.Engine.Systems.Graphics.Tools;
@@ -166,7 +167,7 @@ public sealed class MainExecutionManager : ExecutionManager,
         engineState = new();
         objectRegistry = new();
     }
-    
+
     public override void Load()
     {
         debugCallback = GLDebugCallback;
@@ -185,22 +186,16 @@ public sealed class MainExecutionManager : ExecutionManager,
 
         VoxelMaterial[] materials =
         {
-            new(Util.Hex2Vec("#50555c"), new(0, 0, 0)),
-            new(Util.Hex2Vec("#5e6269"), new(0, 0, 0)),
-            new(Util.Hex2Vec("#42454a"), new(0, 0, 0)),
+            new(Util.Hex2Vec("#92959c"), 0.02f, new(0, 0, 0)),
 
-            new(Util.Hex2Vec("#614c31"), new(0, 0, 0)),
-            new(Util.Hex2Vec("#735b3d"), new(0, 0, 0)),
-            new(Util.Hex2Vec("#52422e"), new(0, 0, 0)),
+            new(Util.Hex2Vec("#614c31"), 0.02f, new(0, 0, 0)),
 
-            new(Util.Hex2Vec("#376e47"), new(0, 0, 0)),
-            new(Util.Hex2Vec("#3e8051"), new(0, 0, 0)),
-            new(Util.Hex2Vec("#326b43"), new(0, 0, 0)),
+            new(Util.Hex2Vec("#658f5e"), 0.02f, new(0, 0, 0)),
 
-            new(new(0.8f, 0.8f, 0.8f), new(2, 1.85f, 1)),
-            new(new(0.8f, 0.8f, 0.8f), new(1, 0, 0)),
-            new(new(0.8f, 0.8f, 0.8f), new(0, 1, 0)),
-            new(new(0.8f, 0.8f, 0.8f), new(0, 0, 1)),
+            new(new(0.8f, 0.8f, 0.8f), 0.02f, new(2, 1.85f, 1)),
+            new(new(0.8f, 0.8f, 0.8f), 0.02f, new(1, 0, 0)),
+            new(new(0.8f, 0.8f, 0.8f), 0.02f, new(0, 1, 0)),
+            new(new(0.8f, 0.8f, 0.8f), 0.02f, new(0, 0, 1)),
         };
 
         engineState.VoxelPalette = new(materials, 2);
@@ -263,15 +258,20 @@ public sealed class MainExecutionManager : ExecutionManager,
             engineState.VoxelMap = new(numberOfChunks.Xz, new(4), numberOfChunks.Y * 4);
         };
 
-        viewer.setSunDirectionRequest += engineState.RenderingPipeline.voxelPathTracingSettings.SunDirection.Set;
-
+        viewer.setSunDirectionRequest += (args) => sunDirection = args;
         engineState.RenderingPipeline.antiAliasingSettings.Intensity = 0.95f;
 
         Console.WriteLine("Loaded");
     }
+
+    Vector3 sunDirection = Vector3.UnitX;
     public override void Update(FrameEventArgs args)
     {
         objectRegistry.Update(args);
+
+        sunDirection.Xz = sunDirection.Xz.Rotated(0.014f * (float)args.Time);
+        engineState.RenderingPipeline.voxelPathTracingSettings.SunDirection.Set(sunDirection);
+
         fps.Tick(args);
     }
     public override void Render(FrameEventArgs args)
