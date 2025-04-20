@@ -4,19 +4,6 @@ using OpenTK.Mathematics;
 
 using GLAV.Data;
 
-namespace Voxand.Engine.Systems.Voxels
-{
-    public struct VoxelMaterial(Vector3 color, float colorVariance, Vector3 emission)
-    {
-        public const byte sizeInBytes = sizeof(float) * 8;
-
-        public Vector3 color = color;
-        public float colorVariance = colorVariance;
-        public Vector3 emission = emission;
-        float padding2;
-    }
-}
-
 namespace Voxand.Engine.Systems.Graphics
 {
     [StructLayout(LayoutKind.Sequential)]

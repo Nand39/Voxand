@@ -14,6 +14,7 @@ using Voxand.App.VoxelEditing;
 using Voxand.Helpers.Reflection;
 using System.Reflection;
 using Voxand.Engine.Systems.Graphics.Tools.UI;
+using Voxand.Engine.Systems.Voxels.VoxelMaterialServices;
 
 namespace Voxand.UI;
 public static class UI_Manager
@@ -94,7 +95,7 @@ public sealed class UI_PaletteWindow : UI_Window
         {
             UI_ColorButton button = new(new Vector2(30), i);
             button.Data["id"] = i;
-            button.color = new Vector4(Util.GetMaterialSolidColor(palette.GetMaterial(i)).AsNum(), 1);
+            button.color = new Vector4(Util.GetMaterialDisplayColor(palette.GetMaterial(i)).AsNum(), 1);
             button.hoverColor = button.color;
             button.outlineColor = ImGui.ColorConvertFloat4ToU32(new Vector4(1, 1, 0, 1));
             button.outlineThickness = 2;
@@ -119,7 +120,7 @@ public sealed class UI_PaletteWindow : UI_Window
     [ImportEvent("voxelPalette_events", "material_modified")]
     public void UpdatePaletteButton(int updatedMaterialIndex)
     {
-        Vector4 newColor = new Vector4(Util.GetMaterialSolidColor(palette.GetMaterial(updatedMaterialIndex)).AsNum(), 1);
+        Vector4 newColor = new Vector4(Util.GetMaterialDisplayColor(palette.GetMaterial(updatedMaterialIndex)).AsNum(), 1);
         UI_Button button = paletteButtons[updatedMaterialIndex];
         button.color = newColor;
         button.hoverColor = newColor;
@@ -145,8 +146,8 @@ public sealed class UI_PaletteWindow : UI_Window
 
 public sealed class UI_MaterialEditorWindow : UI_Window
 {
-    ColorPicker colorPicker;
-    FloatPicker colorVariancePicker;
+    ColorPicker baseColorPicker;
+    FloatPicker baseColorVariancePicker;
     ColorPicker emissionPicker;
     FloatPicker emissionIntensityPicker;
     VoxelPalette palette;
@@ -159,21 +160,36 @@ public sealed class UI_MaterialEditorWindow : UI_Window
     {
         this.palette = palette;
 
-        colorPicker = new("Voxel color");
-        colorVariancePicker = new("Color variance");
+        baseColorPicker = new("Voxel color");
+        baseColorVariancePicker = new("Color variance");
         emissionPicker = new("Voxel emission");
         emissionIntensityPicker = new("Emission intensity");
 
-        colorPicker.OnColorChange += (color) => SetMaterialColor(color, selectedMaterial);
-        colorVariancePicker.OnValueChange += (value) => SetMaterialColorVariance(value, selectedMaterial);
-        emissionPicker.OnColorChange += (color) => SetMaterialEmission(color * emissionIntensityPicker.value, selectedMaterial);
-        emissionIntensityPicker.OnValueChange += (value) => SetMaterialEmission(emissionPicker.color * value, selectedMaterial);
+        baseColorPicker.OnColorChange += (color) =>
+        {
+            OnMaterialEdited?.Invoke((palette.GetMaterial(selectedMaterial) with { baseColor = color.AsTK() }, selectedMaterial));
+        };
+
+        baseColorVariancePicker.OnValueChange += (variance) =>
+        {
+            OnMaterialEdited?.Invoke((palette.GetMaterial(selectedMaterial) with { baseColorVariance = variance}, selectedMaterial));
+        };
+
+        emissionPicker.OnColorChange += (emissionColor) =>
+        {
+            OnMaterialEdited?.Invoke((palette.GetMaterial(selectedMaterial) with { emissionColor = emissionColor.AsTK() }, selectedMaterial));
+        };
+
+        emissionIntensityPicker.OnValueChange += (emissionIntensity) =>
+        {
+            OnMaterialEdited?.Invoke((palette.GetMaterial(selectedMaterial) with { emissionIntensity = emissionIntensity }, selectedMaterial));
+        };
     }
     protected override void Display()
     {
         ImGui.Begin("Material properties");
-        colorPicker.Display();
-        colorVariancePicker.Display();
+        baseColorPicker.Display();
+        baseColorVariancePicker.Display();
         emissionPicker.Display();
         emissionIntensityPicker.Display();
         ImGui.End();
@@ -184,44 +200,16 @@ public sealed class UI_MaterialEditorWindow : UI_Window
     {
         palette = newPalette as VoxelPalette ?? throw new ArgumentNullException(nameof(newPalette));
     }
-    void SetMaterialColor(Vector3 newColor, int index)
-    {
-        VoxelMaterial oldMaterial = palette.GetMaterial(index);
-        VoxelMaterial newMaterial = new VoxelMaterial(
-            color: newColor.AsTK(),
-            colorVariance: oldMaterial.colorVariance,
-            emission: oldMaterial.emission);
-        OnMaterialEdited?.Invoke((newMaterial, selectedMaterial));
-    }
-    void SetMaterialEmission(Vector3 newEmission, int index)
-    {
-        VoxelMaterial oldMaterial = palette.GetMaterial(index);
-        VoxelMaterial newMaterial = new VoxelMaterial(
-            color: oldMaterial.color,
-            colorVariance: oldMaterial.colorVariance,
-            emission: newEmission.AsTK());
-        OnMaterialEdited?.Invoke((newMaterial, selectedMaterial));
-    }
-    void SetMaterialColorVariance(float newColorVariance, int index)
-    {
-        VoxelMaterial oldMaterial = palette.GetMaterial(index);
-        VoxelMaterial newMaterial = new VoxelMaterial(
-            color: oldMaterial.color,
-            colorVariance: newColorVariance,
-            emission: oldMaterial.emission);
-        OnMaterialEdited?.Invoke((newMaterial, selectedMaterial));
-    }
 
     [ImportEvent("user_voxelTool_events", "activeMaterial_changed")]
     public void SelectMaterial(int newMaterialIndex)
     {
         selectedMaterial = newMaterialIndex;
         VoxelMaterial material = palette.GetMaterial(newMaterialIndex);
-        colorPicker.color = material.color.AsNum();
-        colorVariancePicker.value = material.colorVariance;
-        float emissionScaler = material.emission.Max();
-        emissionPicker.color = emissionScaler > 1 ? material.emission.AsNum() / emissionScaler : material.emission.AsNum();
-        emissionIntensityPicker.value = emissionScaler;
+        baseColorPicker.color = material.baseColor.AsNum();
+        baseColorVariancePicker.value = material.baseColorVariance;
+        emissionPicker.color = material.emissionColor.AsNum();
+        emissionIntensityPicker.value = material.emissionIntensity;
     }
 }
 public sealed class UI_SettingsWindow : UI_Window

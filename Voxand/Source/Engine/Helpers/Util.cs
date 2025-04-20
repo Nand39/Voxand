@@ -2,6 +2,7 @@
 using OpenTK.Mathematics;
 using System.Runtime.CompilerServices;
 using Voxand.Engine.Systems.Voxels;
+using Voxand.Engine.Systems.Voxels.VoxelMaterialServices;
 using Voxand.Helpers.UtilityObjects;
 
 namespace Voxand.Helpers;
@@ -142,14 +143,17 @@ public static class Util
     #region Colors
     public static Vector3 Hex2Vec(string hexadecimalValue)
     {
+        if (hexadecimalValue[0] != '#' || hexadecimalValue.Length != 7)
+            throw new ArgumentException("Hexadecimal value must be in the format #RRGGBB");
+
         return new Vector3(
-            int.Parse(hexadecimalValue.Substring(1, 2), System.Globalization.NumberStyles.HexNumber),
-            int.Parse(hexadecimalValue.Substring(3, 2), System.Globalization.NumberStyles.HexNumber),
-            int.Parse(hexadecimalValue.Substring(5, 2), System.Globalization.NumberStyles.HexNumber)) * BYTE_NORMALIZE;
+            int.Parse(hexadecimalValue.AsSpan(1, 2), System.Globalization.NumberStyles.HexNumber),
+            int.Parse(hexadecimalValue.AsSpan(3, 2), System.Globalization.NumberStyles.HexNumber),
+            int.Parse(hexadecimalValue.AsSpan(5, 2), System.Globalization.NumberStyles.HexNumber)) * BYTE_NORMALIZE;
     }
-    public static Vector3 GetMaterialSolidColor(VoxelMaterial material)
+    public static Vector3 GetMaterialDisplayColor(VoxelMaterial material)
     {
-        return material.color * 0.8f + material.emission * 0.2f;
+        return material.baseColor * 0.8f + material.emissionColor * material.emissionIntensity * 0.2f;
     }
     #endregion
 

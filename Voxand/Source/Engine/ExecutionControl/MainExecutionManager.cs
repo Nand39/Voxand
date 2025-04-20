@@ -23,6 +23,7 @@ using Voxand.App;
 using Voxand.App.VoxelEditing;
 using Voxand.App.Map.Generation;
 using Voxand.App.Map;
+using Voxand.Engine.Systems.Voxels.VoxelMaterialServices;
 
 namespace Voxand.Engine.ExecutionControl;
 
@@ -184,19 +185,14 @@ public sealed class MainExecutionManager : ExecutionManager,
         engineState.MainCamera.FOV = 90 * Util.DEG2RAD;
         engineState.MainCamera.rotation = new(0, 45, 0);
 
-        VoxelMaterial[] materials =
-        {
-            new(Util.Hex2Vec("#92959c"), 0.02f, new(0, 0, 0)),
-
-            new(Util.Hex2Vec("#614c31"), 0.02f, new(0, 0, 0)),
-
-            new(Util.Hex2Vec("#658f5e"), 0.02f, new(0, 0, 0)),
-
-            new(new(0.8f, 0.8f, 0.8f), 0.02f, new(2, 1.85f, 1)),
-            new(new(0.8f, 0.8f, 0.8f), 0.02f, new(1, 0, 0)),
-            new(new(0.8f, 0.8f, 0.8f), 0.02f, new(0, 1, 0)),
-            new(new(0.8f, 0.8f, 0.8f), 0.02f, new(0, 0, 1)),
-        };
+        VoxelMaterial[] materials = new VoxelMaterial[32];
+        materials[0] = new(Util.Hex2Vec("#92959c"), 0.5f, new(0, 0, 0), 0);
+        materials[1] = new(Util.Hex2Vec("#614c31"), 0.23f, new(0, 0, 0), 0);
+        materials[2] = new(Util.Hex2Vec("#375933"), 0.23f, new(0, 0, 0), 0);
+        materials[3] = new(new(0.8f, 0.8f, 0.8f), 0, new(1, 0.93f, 0.5f), 2);
+        materials[4] = new(new(0.8f, 0.8f, 0.8f), 0, new(1, 0, 0), 1);
+        materials[5] = new(new(0.8f, 0.8f, 0.8f), 0, new(0, 1, 0), 1);
+        materials[6] = new(new(0.8f, 0.8f, 0.8f), 0, new(0, 0, 1), 1);
 
         engineState.VoxelPalette = new(materials, 2);
 
