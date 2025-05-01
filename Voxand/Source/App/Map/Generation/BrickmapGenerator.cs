@@ -68,13 +68,15 @@ public class BrickmapGenerator : MapGenerator
                 noiseVal += noiseSmall.Sample(new(voxPos.X + 0.5f, voxPos.Z + 0.5f)) * 0.25f + 0.25f;
 
                 int localHeight = (int)(noiseVal * height);
+                localHeight = localHeight > map.Dimensions.Y ? map.Dimensions.Y : localHeight;
                 heights[voxPos.X & 3, voxPos.Z & 3] = localHeight;
                 maxHeight = localHeight > maxHeight ? localHeight : maxHeight;
             }
         }
 
         int numberOfBricks = (maxHeight >> 2) + 1;
-        VoxelBrickmap.VoxelBrick* bricks = stackalloc VoxelBrickmap.VoxelBrick[numberOfBricks];
+        VoxelBrickValues* brickValues = stackalloc VoxelBrickValues[numberOfBricks];
+        VoxelBrickOccupancy* brickOccupancies = stackalloc VoxelBrickOccupancy[numberOfBricks];
 
         for (voxPos.Z = 0; voxPos.Z < 4; voxPos.Z++)
         {
@@ -84,11 +86,11 @@ public class BrickmapGenerator : MapGenerator
                 int height = heights[voxPos.X, voxPos.Z];
                 for (; voxPos.Y < height - 5; voxPos.Y++)
                 {
-                    PlaceVoxel(bricks, voxPos, 0);
+                    PlaceVoxel(brickValues, brickOccupancies, voxPos, 0);
                 }
                 for (; voxPos.Y < height - 2; voxPos.Y++)
                 {
-                    PlaceVoxel(bricks, voxPos, 1);
+                    PlaceVoxel(brickValues, brickOccupancies, voxPos, 1);
                 }
                 float mudVal = mudNoise.Sample(new(voxPos.X, voxPos.Z));
                 if (mudVal > -0.2f)
@@ -96,29 +98,29 @@ public class BrickmapGenerator : MapGenerator
                     height -= Util.Random.Next(0, 2);
                     for (; voxPos.Y < height; voxPos.Y++)
                     {
-                        PlaceVoxel(bricks, voxPos, 2);
+                        PlaceVoxel(brickValues, brickOccupancies, voxPos, 2);
                     }
                 }
             }
         }
 
         for (int i = 0; i < numberOfBricks; i++)
-            ScheduleBrick(new(position.X, i, position.Z), bricks[i]);
+            ScheduleBrick(new(position.X, i, position.Z), brickValues[i], brickOccupancies[i]);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    unsafe void PlaceVoxel(VoxelBrickmap.VoxelBrick* bricks, Vector3i position, uint material)
+    unsafe void PlaceVoxel(VoxelBrickValues* brickValues, VoxelBrickOccupancy* brickOccupancy, Vector3i position, uint material)
     {
         int brickIndex = position.Y >> 2;
         Vector3i localPosition = new(position.X, position.Y & 3, position.Z);
-        bricks[brickIndex].SetVoxelValue(localPosition, material);
-        bricks[brickIndex].SetVoxelBit(localPosition, true);
+        brickValues[brickIndex].SetVoxelValue(localPosition, material);
+        brickOccupancy[brickIndex].SetVoxelBit(localPosition, true);
     }
-    void ScheduleBrick(Vector3i pos, VoxelBrickmap.VoxelBrick brick)
+    void ScheduleBrick(Vector3i pos, VoxelBrickValues values, VoxelBrickOccupancy occupancy)
     {
         GLRegistry.Instance.ScheduleAction(() =>
         {
-            ((VoxelBrickmap)map).CreateOrModifyBrick(pos, ref brick);
+            ((VoxelBrickmap)map).SetBrick(pos, values, occupancy);
         });
     }
 }

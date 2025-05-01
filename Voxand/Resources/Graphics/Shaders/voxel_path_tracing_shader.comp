@@ -1,4 +1,4 @@
-﻿#version 430 core
+#version 430 core
 
 layout (local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 
@@ -25,28 +25,26 @@ struct material
     // 4 bytes padding
 };
 
-struct voxelBrick
+layout(std430, binding = 0) buffer brickValueListSSBO
 {
-    uint bitmask[2];
-    uint packs[16];
+    uint brickValueList[];
+};
+layout(std430, binding = 1) buffer brickOccupancyListSSBO
+{
+    uint brickOccupancyList[];
 };
 
-layout(std430, binding = 0) buffer brickListSSBO
-{
-    uint brickList[];
-};
-
-layout(std430, binding = 1) buffer brickIndicesSSBO
+layout(std430, binding = 2) buffer brickIndicesSSBO
 {
     int brickIndices[];
 };
 
-layout(std430, binding = 2) buffer palette
+layout(std430, binding = 3) buffer palette
 {
     material materialPalette[];
 };
 
-layout(std140, binding = 3) buffer inputData
+layout(std140, binding = 4) buffer inputData
 {
     mat4 cameraMatrix;
     mat4 invCameraMatrix;
@@ -85,7 +83,7 @@ float arcDisplacement;
 float randSaltLocal;
 
 const float depthBias = -0.001;
-const int brickSizeInUINTS = 18;
+const int brickSizeInUINTS = 16;
 
 
 // Function prototypes
@@ -284,31 +282,35 @@ int raycast(vec3 origin, vec3 dir, out vec3 hitPosition, out ivec3 voxelHitPosit
             dir.z < 0 ? brickSpaceOrigin.z - brickPosition.z : brickPosition.z + 1 - brickSpaceOrigin.z);
     nextBrickIntersectionTime *= timeToCross;
 
-    if (brickIndex != 0)
+    if (brickIndex != -1)
     {
-        uint bitmask0 = brickList[brickIndex * brickSizeInUINTS];
-        uint bitmask1 = brickList[brickIndex * brickSizeInUINTS + 1];
-        entrance = origin - brickOffset;
+        uint bitmask0 = brickOccupancyList[(brickIndex << 1)];
+        uint bitmask1 = brickOccupancyList[(brickIndex << 1) + 1];
 
-        bool hit = traverseBrick(bitmask0, bitmask1, entrance, originVoxel & 3, dir, timeToCross, brickIndex, hitVoxel, lastAxis);
-        if (hit)
+        if (bitmask0 != 0 || bitmask1 != 0)
         {
-            if (lastAxis == -1)
-            {
-                hitPosition = origin;
-                voxelHitPosition = originVoxel;
-                normal = -1;
-                depth = 0;
-                return 0;
-            }
-            
-            float localDistance = abs((dir[lastAxis] > 0 ? hitVoxel[lastAxis] : hitVoxel[lastAxis] + 1) - entrance[lastAxis]) * timeToCross[lastAxis];
+            entrance = origin - brickOffset;
 
-            depth = localDistance;
-            hitPosition = dir * localDistance + origin;
-            voxelHitPosition = hitVoxel + brickOffset;
-            normal = normalIndexFromDir(dir, lastAxis);
-            return 0;
+            bool hit = traverseBrick(bitmask0, bitmask1, entrance, originVoxel & 3, dir, timeToCross, brickIndex, hitVoxel, lastAxis);
+            if (hit)
+            {
+                if (lastAxis == -1)
+                {
+                    hitPosition = origin;
+                    voxelHitPosition = originVoxel;
+                    normal = -1;
+                    depth = 0;
+                    return 0;
+                }
+            
+                float localDistance = abs((dir[lastAxis] > 0 ? hitVoxel[lastAxis] : hitVoxel[lastAxis] + 1) - entrance[lastAxis]) * timeToCross[lastAxis];
+
+                depth = localDistance;
+                hitPosition = dir * localDistance + origin;
+                voxelHitPosition = hitVoxel + brickOffset;
+                normal = normalIndexFromDir(dir, lastAxis);
+                return 0;
+        }
         }
     }
 
@@ -338,28 +340,32 @@ int raycast(vec3 origin, vec3 dir, out vec3 hitPosition, out ivec3 voxelHitPosit
         // Traversing voxels of a brick
         if (brickIndex != -1)
         {
-            uint bitmask0 = brickList[brickIndex * brickSizeInUINTS];
-            uint bitmask1 = brickList[brickIndex * brickSizeInUINTS + 1];
-            entrance = lastWideDepth * dir + brickSpaceOrigin;
+            uint bitmask0 = brickOccupancyList[(brickIndex << 1)];
+            uint bitmask1 = brickOccupancyList[(brickIndex << 1) + 1];
 
-            entrance -= ivec3(entrance);
-            entrance[lastWideAxis] = dir[lastWideAxis] > 0 ? 0 : 1;
-            entrance *= 4;
-            ivec3 entranceVoxel = ivec3(entrance);
-            entranceVoxel[lastWideAxis] = dir[lastWideAxis] > 0 ? 0 : 3;
-
-            bool hit = traverseBrick(bitmask0, bitmask1, entrance, entranceVoxel, dir, timeToCross, brickIndex, hitVoxel, lastAxis);
-
-            if (hit)
+            if (bitmask0 != 0 || bitmask1 != 0)
             {
-                lastAxis = lastAxis == -1 ? lastWideAxis : lastAxis;
-                normal = normalIndexFromDir(dir, lastAxis);
+                entrance = lastWideDepth * dir + brickSpaceOrigin;
 
-                float localDistance = abs((dir[lastAxis] > 0 ? hitVoxel[lastAxis] : hitVoxel[lastAxis] + 1) - entrance[lastAxis]) * timeToCross[lastAxis];
-                hitPosition = dir * localDistance + entrance + brickOffset;
-                depth = length(hitPosition - origin);
-                voxelHitPosition = hitVoxel + brickOffset;
-                return 0;
+                entrance -= ivec3(entrance);
+                entrance[lastWideAxis] = dir[lastWideAxis] > 0 ? 0 : 1;
+                entrance *= 4;
+                ivec3 entranceVoxel = ivec3(entrance);
+                entranceVoxel[lastWideAxis] = dir[lastWideAxis] > 0 ? 0 : 3;
+
+                bool hit = traverseBrick(bitmask0, bitmask1, entrance, entranceVoxel, dir, timeToCross, brickIndex, hitVoxel, lastAxis);
+
+                if (hit)
+                {
+                    lastAxis = lastAxis == -1 ? lastWideAxis : lastAxis;
+                    normal = normalIndexFromDir(dir, lastAxis);
+
+                    float localDistance = abs((dir[lastAxis] > 0 ? hitVoxel[lastAxis] : hitVoxel[lastAxis] + 1) - entrance[lastAxis]) * timeToCross[lastAxis];
+                    hitPosition = dir * localDistance + entrance + brickOffset;
+                    depth = length(hitPosition - origin);
+                    voxelHitPosition = hitVoxel + brickOffset;
+                    return 0;
+                }
             }
         }
     }
@@ -418,7 +424,7 @@ uint getVoxelValue(ivec3 voxelPosition)
     uint brickIndex = getBrickIndex(voxelPosition);
     if (brickIndex == -1) return 0;
     ivec3 voxelLocalPosition = (voxelPosition & 3);
-    uint voxelPack = brickList[brickIndex * brickSizeInUINTS + 2 + ((voxelLocalPosition.y << 2) + voxelLocalPosition.z)];
+    uint voxelPack = brickValueList[brickIndex * brickSizeInUINTS + ((voxelLocalPosition.y << 2) + voxelLocalPosition.z)];
     int shift = voxelLocalPosition.x << 3;
     return (voxelPack >> shift) & 255;
 }

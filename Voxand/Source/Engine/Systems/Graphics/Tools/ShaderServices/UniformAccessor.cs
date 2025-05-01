@@ -1,5 +1,6 @@
 ﻿using GLAV.Types;
 using OpenTK.Mathematics;
+using System.Runtime.CompilerServices;
 
 namespace Voxand.Engine.Systems.Graphics.Tools.ShaderServices;
 public struct UniformAccessor<T> where T : struct
@@ -13,6 +14,7 @@ public struct UniformAccessor<T> where T : struct
         this.location = location;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public unsafe T Get()
     {
         Type type = typeof(T);
@@ -93,6 +95,7 @@ public struct UniformAccessor<T> where T : struct
         }
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public unsafe void Set(T value)
     {
         Type type = typeof(T);

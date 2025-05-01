@@ -12,58 +12,24 @@ using Voxand.Engine.Systems.Structures;
 using Voxand.Helpers.ExtensionMethods;
 using GLAV.Helpers.Public.Extensions.Unsafe;
 
-
 namespace Voxand.Engine.Systems.Voxels;
 public class VoxelBrickmap : VoxelMap, ISinglePlaceable
 {
     Vector3i brickmapSize;
 
     int[,,] C_brickmap;
-    UnmanagedList<VoxelBrick> C_brickList;
+    UnmanagedList<VoxelBrickValues> C_BrickValues;
+    UnmanagedList<VoxelBrickOccupancy> C_BrickOccupancy;
 
     Buffer G_brickmap;
-    HalfList<VoxelBrick> G_BrickList;
+    HalfList<VoxelBrickValues> G_BrickValues;
+    HalfList<VoxelBrickOccupancy> G_BrickOccupancy; 
 
     DDAUnit DDABrick;
     DDAUnit DDAVoxel;
 
-    const int VOXEL_PACK_ARRAY_OFFSET = 2 * sizeof(uint);
-
-    [StructLayout(LayoutKind.Sequential)] 
-    public unsafe struct VoxelBrick
-    {
-        ulong bitmask;
-        fixed uint packs[16];
-
-        public ulong Bitmask => bitmask;
-        public VoxelBrick()
-        {
-        }
-
-        public uint GetVoxelValue(Vector3i localPosition)
-        {
-            uint pack = packs[GetVoxelPackIndex(localPosition)];
-            int shift = localPosition.X << 3;
-            return (pack & (255u << shift)) >> shift;
-        }
-        public uint SetVoxelValue(Vector3i localPosition, uint value)
-        {
-            int packIndex = GetVoxelPackIndex(localPosition);
-            int shift = localPosition.X << 3;
-            uint pack = (packs[packIndex] & (~(255u << shift))) | (value << shift);
-            packs[packIndex] = pack;
-            return pack;
-        }
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        int GetVoxelPackIndex(Vector3i localPosition) => (localPosition.Y << 2) + localPosition.Z;
-        public ulong GetVoxelBit(Vector3i localPosition) => bitmask & CreateVoxelMask(localPosition);
-        public unsafe void SetVoxelBit(Vector3i localPosition, bool solid)
-        {
-            ulong mask = CreateVoxelMask(localPosition);
-            bitmask = solid ? bitmask | mask : bitmask & (~mask);
-        }
-        public static ulong CreateVoxelMask(Vector3i localPos) => 1UL << ((localPos.Y << 4) + (localPos.Z << 2) + localPos.X);
-    }
+    public int BrickValuesBinding { set => G_BrickValues.array.BindAsShaderStorage(BufferRangeTarget.ShaderStorageBuffer, value); }
+    public int BrickOccupancyBinding { set => G_BrickOccupancy.array.BindAsShaderStorage(BufferRangeTarget.ShaderStorageBuffer, value); }
 
     public VoxelBrickmap(Vector3i dimensions, IVoxelMapPersistence persistenceModule) : base(dimensions, persistenceModule)
     {
@@ -78,23 +44,35 @@ public class VoxelBrickmap : VoxelMap, ISinglePlaceable
                 for (int z = 0, lz = C_brickmap.GetLength(1); z < lz; z++)
                     C_brickmap[y, z, x] = -1;
 
-        C_brickList = new UnmanagedList<VoxelBrick>(1);
-        
-        G_BrickList = new HalfList<VoxelBrick>(
+        C_BrickValues = new UnmanagedList<VoxelBrickValues>(1);
+        C_BrickOccupancy = new UnmanagedList<VoxelBrickOccupancy>(1);
+
+        Func<int, int> growthFunc = (capacity) => capacity < 24000 ? (int)MathF.Floor(-((capacity * 0.005f - 540) * capacity * 0.005f)) + 2 : (int)(capacity * 1.5f);
+
+        G_BrickValues = new HalfList<VoxelBrickValues>(
             target: BufferTarget.ShaderStorageBuffer, 
             initialCapacity: 1, 
             usageHint: BufferUsageHint.DynamicDraw,
-            growthFunction: (capacity) => capacity < 24000 ? (int)MathF.Floor(-((capacity * 0.005f - 540) * capacity * 0.005f)) + 2 : (int)(capacity * 1.5f)
+            growthFunction: growthFunc
             );
-        G_BrickList.BindAsShaderStorage(BufferRangeTarget.ShaderStorageBuffer, 0);
-        G_BrickList.Label = "*** Bricklist";
+        G_BrickValues.BindAsShaderStorage(BufferRangeTarget.ShaderStorageBuffer, 0);
+        G_BrickValues.Label = "*** Brick values list";
+
+        G_BrickOccupancy = new HalfList<VoxelBrickOccupancy>(
+            target: BufferTarget.ShaderStorageBuffer,
+            initialCapacity: 1,
+            usageHint: BufferUsageHint.DynamicDraw,
+            growthFunction: growthFunc
+            );
+        G_BrickOccupancy.BindAsShaderStorage(BufferRangeTarget.ShaderStorageBuffer, 1);
+        G_BrickOccupancy.Label = "*** Brick occupancy list";
 
         G_brickmap = new();
         G_brickmap.Alloc(
             bufferTarget: BufferTarget.ShaderStorageBuffer,
-            size: brickmapSize.X * brickmapSize.Y * brickmapSize.Z * sizeof(int), 
+            size: brickmapSize.X * brickmapSize.Y * brickmapSize.Z * sizeof(int),
             usageHint: BufferUsageHint.DynamicDraw);
-        G_brickmap.BindAsShaderStorage(BufferRangeTarget.ShaderStorageBuffer, new(1));
+        G_brickmap.BindAsShaderStorage(BufferRangeTarget.ShaderStorageBuffer, new(2));
         unsafe
         {
             fixed (int* initBrickmapPtr = C_brickmap)
@@ -121,20 +99,19 @@ public class VoxelBrickmap : VoxelMap, ISinglePlaceable
     }
     unsafe void SetVoxelValueInBrick(Vector3i localPosition, int brickIndex, uint value)
     {
-        uint pack = C_brickList[brickIndex]->SetVoxelValue(localPosition, value);
+        uint pack = C_BrickValues[brickIndex]->SetVoxelValue(localPosition, value);
         GPUSetVoxelPack(localPosition, brickIndex, pack);
     }
     unsafe void SetVoxelBitInBrick(Vector3i localPosition, int brickIndex, bool solid)
     {
-        C_brickList[brickIndex]->SetVoxelBit(localPosition, solid);
-        ulong newBitmask = C_brickList[brickIndex]->Bitmask;
-        G_BrickList.Write((nint)(&newBitmask), brickIndex, 0, sizeof(ulong));
+        C_BrickOccupancy[brickIndex]->SetVoxelBit(localPosition, solid);
+        ulong newBitmask = C_BrickOccupancy[brickIndex]->Bitmask;
+        G_BrickOccupancy.Write((nint)(&newBitmask), brickIndex, 0, sizeof(ulong));
     }
     unsafe void GPUSetVoxelPack(Vector3i localPosition, int brickIndex, uint pack)
     {
         int packIndex = VoxelPositionToVoxelPackIndex(localPosition);
-        int offset = packIndex * sizeof(uint) + VOXEL_PACK_ARRAY_OFFSET;
-        G_BrickList.Write((nint)(&pack), brickIndex, offset, sizeof(uint));
+        G_BrickValues.Write((nint)(&pack), brickIndex, packIndex * sizeof(uint), sizeof(uint));
     }
     public unsafe override bool IsSolid(Vector3i position)
     {
@@ -144,21 +121,22 @@ public class VoxelBrickmap : VoxelMap, ISinglePlaceable
     }
     public unsafe bool IsSolid(Vector3i localPosition, int brickIndex) 
     {
-        return C_brickList[brickIndex]->GetVoxelBit(localPosition) == 0u;
+        return C_BrickOccupancy[brickIndex]->GetVoxelBit(localPosition) == 0u;
     }
     public unsafe override (uint, bool) GetVoxelValue(Vector3i position)
     {
         int brickIndex = GetBrickIndex(position);
         if (brickIndex == -1)
             return (0, false);
-        return (C_brickList[brickIndex]->GetVoxelValue(VoxelPositionToLocalPosition(position)), true);
+        return (C_BrickValues[brickIndex]->GetVoxelValue(VoxelPositionToLocalPosition(position)), true);
     }
     public void PlaceSingle(Vector3i position, int value) => SetVoxelValueAndBit(position, (uint)value, true);
     public void RemoveSingle(Vector3i position) => SetVoxelValueAndBit(position, 0, false);
 
-    public (uint voxelValue, ulong voxelBit, int brickIndex) Examine(Vector3i position, bool fromGPU)
+    public unsafe (uint voxelValue, ulong voxelBit, int brickIndex) Examine(Vector3i position, bool fromGPU)
     {
-        VoxelBrick brick;
+        VoxelBrickValues brickValues;
+        VoxelBrickOccupancy brickOccupancy;
         Vector3i localPosition = VoxelPositionToLocalPosition(position);
         int brickIndex;
         uint voxelValue;
@@ -169,19 +147,23 @@ public class VoxelBrickmap : VoxelMap, ISinglePlaceable
             brickIndex = GetBrickIndex(position);
             if (brickIndex == -1)
                 return (0, 0, -1);
-            brick = GetBrick(brickIndex);
-            
+            brickValues = *C_BrickValues[brickIndex];
+            brickOccupancy = *C_BrickOccupancy[brickIndex];
+
+
         }
         else
         {
-            brickIndex = GetBrickIndexFromGPU(position);
+            Vector3i brickPosition = VoxelPositionToBrickPosition(position);
+            brickIndex = G_brickmap.Retrieve<int>(brickPosition.Y, brickPosition.Z, brickPosition.X, brickmapSize.X, brickmapSize.Z);
             if (brickIndex == -1)
                 return (0, 0, -1);
-            brick = GetBrickFromGPU(brickIndex);
+            brickValues = G_BrickValues[brickIndex];
+            brickOccupancy = G_BrickOccupancy[brickIndex];
         }
 
-        voxelValue = brick.GetVoxelValue(localPosition);
-        voxelBit = brick.GetVoxelBit(localPosition);
+        voxelValue = brickValues.GetVoxelValue(localPosition);
+        voxelBit = brickOccupancy.GetVoxelBit(localPosition);
 
         return (voxelValue, voxelBit, brickIndex);
     }
@@ -205,7 +187,7 @@ public class VoxelBrickmap : VoxelMap, ISinglePlaceable
 
         if (brickIndex != -1)
         {
-            bitmask = C_brickList[brickIndex]->Bitmask;
+            bitmask = C_BrickOccupancy[brickIndex]->Bitmask;
             
             entrance = origin - brickOffset;
 
@@ -257,7 +239,7 @@ public class VoxelBrickmap : VoxelMap, ISinglePlaceable
             brickIndex = GetBrickIndexDirect(dda.CurrentVoxelPos);
             if (brickIndex != -1)
             {
-                bitmask = C_brickList[brickIndex]->Bitmask;
+                bitmask = C_BrickOccupancy[brickIndex]->Bitmask;
                 entrance = dda.LastHitDepth * dir + brickSpaceOrigin;
 
                 entrance -= (Vector3i)entrance;
@@ -307,7 +289,7 @@ public class VoxelBrickmap : VoxelMap, ISinglePlaceable
         nextIntersectionTime *= timeToCross;
 
 
-        ulong voxelBit = VoxelBrick.CreateVoxelMask(voxelPosition);
+        ulong voxelBit = VoxelBrickOccupancy.CreateVoxelMask(voxelPosition);
 
         if ((bitmask & voxelBit) > 0)
         {
@@ -417,7 +399,7 @@ public class VoxelBrickmap : VoxelMap, ISinglePlaceable
         nextIntersectionTime *= timeToCross;
 
 
-        ulong voxelBit = VoxelBrick.CreateVoxelMask(voxelPosition);
+        ulong voxelBit = VoxelBrickOccupancy.CreateVoxelMask(voxelPosition);
 
         if ((bitmask & voxelBit) > 0)
         {
@@ -884,18 +866,16 @@ public class VoxelBrickmap : VoxelMap, ISinglePlaceable
     int NormalIndex(Vector3 dir, int lastAxis) => dir[lastAxis] > 0 ? lastAxis << 1 : (lastAxis << 1) + 1;
     public override long GetMemoryUsage()
     {
-        return C_brickmap.Length * sizeof(int) + C_brickList.Capacity * (16 * sizeof(uint) + 2 * sizeof(uint));
+        return C_brickmap.Length * sizeof(int) + C_BrickValues.Capacity * (16 * sizeof(uint) + 2 * sizeof(uint));
     }
     public override long GetGraphicsMemoryUsage()
     {
-        return G_brickmap.Size + G_BrickList.Capacity * G_BrickList.itemSize;
+        return G_brickmap.Size + G_BrickValues.Capacity * G_BrickValues.itemSize;
     }
     protected override void Free()
     {
-        G_BrickList.Dispose();
+        G_BrickValues.Dispose();
     }
-
-    #region Internal helpers
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     Vector3i VoxelPositionToBrickPosition(Vector3i position) => position.BitshiftRight(2);
@@ -903,24 +883,35 @@ public class VoxelBrickmap : VoxelMap, ISinglePlaceable
     Vector3i VoxelPositionToLocalPosition(Vector3i position) => position.BitwiseAnd(3);
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     int VoxelPositionToVoxelPackIndex(Vector3i localPosition) => (localPosition.Y << 2) + localPosition.Z;
-    public unsafe int CreateOrModifyBrick(Vector3i brickPosition, ref readonly VoxelBrick brick)
+    public unsafe int SetBrick(Vector3i brickPosition, in VoxelBrickValues brickValues, VoxelBrickOccupancy brickOccupancy)
     {
         int brickIndex = GetBrickIndexDirect(brickPosition);
         if (brickIndex == -1)
         {
-            brickIndex = G_BrickList.Add(brick);
-            C_brickList.Add(brick);
-            G_brickmap.Store(ref brickIndex, brickPosition.AsIndexYZX(brickmapSize) * sizeof(int));
-            C_brickmap[brickPosition.Y, brickPosition.Z, brickPosition.X] = brickIndex;
+            AllocBrick(brickPosition, brickValues, brickOccupancy);
         }
         else
         {
-            fixed (VoxelBrick* brickPtr = &brick)
+            fixed (VoxelBrickValues* brickPtr = &brickValues)
             {
-                C_brickList[brickIndex] = brickPtr;
-                G_BrickList[brickIndex] = brick;
+                C_BrickValues[brickIndex] = brickPtr;
+                G_BrickValues[brickIndex] = brickValues;
+                C_BrickOccupancy[brickIndex] = &brickOccupancy;
+                G_BrickOccupancy[brickIndex] = brickOccupancy;
             }
         }
+        return brickIndex;
+    }
+
+    public int AllocBrick(Vector3i brickPosition, in VoxelBrickValues values, VoxelBrickOccupancy occupancy)
+    {
+        int brickIndex = G_BrickValues.Add(values);
+        C_BrickValues.Add(values);
+        G_BrickOccupancy.Add(occupancy);
+        C_BrickOccupancy.Add(occupancy);
+
+        G_brickmap.Store(ref brickIndex, brickPosition.AsIndexYZX(brickmapSize) * sizeof(int));
+        C_brickmap[brickPosition.Y, brickPosition.Z, brickPosition.X] = brickIndex;
         return brickIndex;
     }
     int GetOrAllocBrick(Vector3i position)
@@ -933,8 +924,9 @@ public class VoxelBrickmap : VoxelMap, ISinglePlaceable
         int brickIndex = GetBrickIndexDirect(brickPosition);
         if (brickIndex == -1)
         {
-            VoxelBrick newBrick = new();
-            brickIndex = CreateOrModifyBrick(brickPosition, ref newBrick);
+            VoxelBrickValues newBrickValues = new();
+            VoxelBrickOccupancy newBrickOccupancy = new();
+            brickIndex = AllocBrick(brickPosition, newBrickValues, newBrickOccupancy);
         }
         return brickIndex;
     }
@@ -944,18 +936,44 @@ public class VoxelBrickmap : VoxelMap, ISinglePlaceable
         Vector3i brickPosition = VoxelPositionToBrickPosition(position);
         return C_brickmap[brickPosition.Y, brickPosition.Z, brickPosition.X];
     }
-    unsafe VoxelBrick GetBrick(int brickIndex) => *C_brickList[brickIndex];
+}
 
-    #region GPU-Side getter
-    public int GetBrickIndexFromGPU(Vector3i position)
+[StructLayout(LayoutKind.Sequential)]
+public unsafe struct VoxelBrickOccupancy
+{
+    ulong bitmask;
+
+    public ulong Bitmask => bitmask;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public ulong GetVoxelBit(Vector3i localPosition) => bitmask & CreateVoxelMask(localPosition);
+    public unsafe void SetVoxelBit(Vector3i localPosition, bool solid)
     {
-        Vector3i brickPosition = VoxelPositionToBrickPosition(position);
-        return G_brickmap.Retrieve<int>(brickPosition.Y, brickPosition.Z, brickPosition.X, brickmapSize.X, brickmapSize.Z);
+        ulong mask = CreateVoxelMask(localPosition);
+        bitmask = solid ? bitmask | mask : bitmask & (~mask);
     }
-    VoxelBrick GetBrickFromGPU(int brickIndex) => G_BrickList[brickIndex];
+    public static ulong CreateVoxelMask(Vector3i localPos) => 1UL << ((localPos.Y << 4) + (localPos.Z << 2) + localPos.X);
+}
 
+[StructLayout(LayoutKind.Sequential)]
+public unsafe struct VoxelBrickValues
+{
+    fixed uint packs[16];
 
-    #endregion
-
-    #endregion
+    public uint GetVoxelValue(Vector3i localPosition)
+    {
+        uint pack = packs[GetVoxelPackIndex(localPosition)];
+        int shift = localPosition.X << 3;
+        return (pack & (255u << shift)) >> shift;
+    }
+    public uint SetVoxelValue(Vector3i localPosition, uint value)
+    {
+        int packIndex = GetVoxelPackIndex(localPosition);
+        int shift = localPosition.X << 3;
+        uint pack = (packs[packIndex] & (~(255u << shift))) | (value << shift);
+        packs[packIndex] = pack;
+        return pack;
+    }
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    int GetVoxelPackIndex(Vector3i localPosition) => (localPosition.Y << 2) + localPosition.Z;
 }
