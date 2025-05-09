@@ -57,7 +57,7 @@ public class Viewer : BaseObject
 
         if (Win.KeyboardState.IsKeyPressed(Keys.R))
         {
-            (uint value, ulong bit, int brickIndex) = EngineState.VoxelMap.RawStructure.Examine((Vector3i)Camera.position, false);
+            (uint value, ulong bit, VoxelBrickHandle brickIndex) = EngineState.VoxelMap.RawStructure.Examine((Vector3i)Camera.position, false);
             Console.WriteLine($"! CPU SIDE: voxel data at {(Vector3i)Camera.position}: value={value}; empty={bit == 0}; brick={brickIndex}");
             (value, bit, brickIndex) = EngineState.VoxelMap.RawStructure.Examine((Vector3i)Camera.position, true);
             Console.WriteLine($"* GPU SIDE: voxel data at {(Vector3i)Camera.position}: value={value}; empty={bit == 0}; brick={brickIndex}");
