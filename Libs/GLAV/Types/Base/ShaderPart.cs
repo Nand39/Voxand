@@ -8,7 +8,7 @@ public class ShaderPart : GLResource
     {
         Handle.resourceType = GLResourceType.ShaderPart;
         Handle.id = GL.CreateShader(type);
-        Lable = "Unnamed shader part";
+        Label = "Unnamed shader part";
 
         GL.ShaderSource(Handle.id, source);
         GL.CompileShader(Handle.id);

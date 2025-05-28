@@ -96,13 +96,13 @@ public sealed class AntiAliasingBasicModule : RenderingPipeline, IAntiAliasingBa
         luminanceAccum.Alloc(LuminanceToAccumulate.Size, LuminanceToAccumulate.StorageFormat, new(PixelFormat.Rgba, PixelType.UnsignedByte), nint.Zero);
         luminanceAccum.SetParam(new(TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear));
         luminanceAccum.SetParam(new(TextureParameterName.TextureMinFilter, (int)TextureMagFilter.Linear));
-        luminanceAccum.Lable = "luminance accum texture";
+        luminanceAccum.Label = "luminance accum texture";
 
         luminanceBuffer = new();
         luminanceBuffer.Alloc(LuminanceToAccumulate.Size, LuminanceToAccumulate.StorageFormat, new(PixelFormat.Rgba, PixelType.UnsignedByte), nint.Zero);
         luminanceBuffer.SetParam(new(TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest));
         luminanceBuffer.SetParam(new(TextureParameterName.TextureMinFilter, (int)TextureMagFilter.Nearest));
-        luminanceBuffer.Lable = "luminance anti-aliasing buffer texture";
+        luminanceBuffer.Label = "luminance anti-aliasing buffer texture";
     }
 
     public void ResetAccumulated() => isResetPushed = true;

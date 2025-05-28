@@ -12,7 +12,7 @@ public class Shader : GLResource
     {
         Handle.resourceType = GLResourceType.ShaderProgram;
         Handle.id = GL.CreateProgram();
-        Lable = "Unnamed shader";
+        Label = "Unnamed shader";
 
         for (int i = 0; i < shaderAttachments.Length; i++)
             GL.AttachShader(Handle.id, shaderAttachments[i].Handle.id);

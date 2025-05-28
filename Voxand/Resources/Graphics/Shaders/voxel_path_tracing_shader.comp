@@ -70,9 +70,11 @@ float invSamples = 1.0 / samples;
 
 const float PI = 3.141592;
 const float TWO_PI = 6.283185;
-const float INV_PI = 1 / PI;
-const float INV_TWO_PI = 1 / TWO_PI;
-const int intMaxValue = 2147483647;
+const float INV_PI = 1.0 / PI;
+const float INV_TWO_PI = 1.0 / TWO_PI;
+
+const uint MAX_UINT = 4294967295u;
+const float INV_MAX_UINT = 1.0 / MAX_UINT;
 
 
 vec2 uv;
@@ -91,10 +93,12 @@ const int brickSizeInUINTS = 16;
 void executePathTracing(vec3 origin, vec3 dir, out vec3 directIllum, out vec3 indirectIllum, out float depth, out int normal, out vec3 hitPosition);
 
 int raycast(vec3 origin, vec3 dir, out vec3 hitPosition, out ivec3 voxelHitPosition, out float depth, out int normal);
-bool traverseBrick(uint bitmask0, uint bitmask1, vec3 startingPosition, ivec3 voxelPosition, vec3 dir, vec3 timeToCross, uint brickIndex, out ivec3 hitVoxel, out int lastAxis);
+bool traverseBrick(uint bitmask0, uint bitmask1, vec3 startingPosition, ivec3 voxelPosition, vec3 dir, vec3 timeToCross, out ivec3 hitVoxel, inout int lastAxis, out float intersectionTime);
 
 float minVec3(vec3 vect);
 float maxVec3(vec3 vect);
+int indexOfMinVec3(vec3 vect);
+int indexOfMaxVec3(vec3 vect);
 vec3 sph2Cart(float phi, float theta);
 
 vec3 rodriguesRotation(vec3 v, vec3 axis, float theta);
@@ -107,15 +111,17 @@ vec3 sunSample(vec3 pos, vec3 dir);
 
 vec3 getDiffuseReflectionDir(int normal, int sampleIndex);
 vec3 randomVector(vec2 key, int sampleIndex);
-float random (vec2 point);
-float randOfVoxel(ivec3 v);
+float rand01From_vec2(vec2 point);
+uint wangHashFrom_uvec3(uvec3 point);
 vec3 jitterVector(vec3 v, float theta, float amount);
 vec3 vecNormal(int normal);
 
-uint getBrickIndex(ivec3 voxelPosition); 
-uint getBrickIndexDirect(ivec3 brickPosition);
+int getBrickValueDirect(ivec3 brickPosition);
 uint getVoxelValue(ivec3 voxelPosition);
 uint getVoxelBit(uint bitmask0, uint bitmask1, uint voxelIndex);
+
+bool showDebug = false;
+vec4 debugColor = vec4(1, 1, 0, 0);
 
 void main() 
 {
@@ -127,7 +133,7 @@ void main()
     fragPosition = uv * 2 - 1;
 
     randSaltLocal = randSalt;
-    arcDisplacement = random(uv * (randSalt - 1));
+    arcDisplacement = rand01From_vec2(uv * (randSalt - 1));
     invSamples = 1.0 / samples;
 
     vec4 viewPoint = vec4(fragPosition, 1, 1);
@@ -198,7 +204,7 @@ void main()
     int prevNormalAtCurrentPixel = (int(normalCompound_Motion.x) >> 3 * cycle) & 7;
     int normalCompound = (prevNormalAtCurrentPixel << (cycle * 3)) | (normal << (cycle * -3 + 3)) | (normal << 6) | (prevNormalAtCurrentPixel << 9);
     imageStore(normalCompound_motionImg, texelCoord, vec4(normalCompound, normalCompound_Motion.y, motion));
-    imageStore(directIllum_depthImg, texelCoord, vec4(directIllum, depth));
+    imageStore(directIllum_depthImg, texelCoord, showDebug ? debugColor : vec4(directIllum, depth));
     imageStore(indirectIllumImg, texelCoord, vec4(indirectIllum, depth));
 }
 
@@ -215,7 +221,7 @@ void executePathTracing(vec3 origin, vec3 dir, out vec3 directIllum, out vec3 in
     firstHitMat = materialPalette[getVoxelValue(firstHitVoxel)];
     firstHitNormal = vecNormal(normal);
 
-    firstHitMat.color = clamp(firstHitMat.color + randOfVoxel(firstHitVoxel) * firstHitMat.colorVariance - firstHitMat.colorVariance * 0.5, vec3(0), vec3(INV_PI));
+    firstHitMat.color = clamp(firstHitMat.color + wangHashFrom_uvec3(firstHitVoxel) * INV_MAX_UINT * firstHitMat.colorVariance - firstHitMat.colorVariance * 0.5, vec3(0), vec3(INV_PI));
 
     int secondHitResult;
 
@@ -239,6 +245,7 @@ void executePathTracing(vec3 origin, vec3 dir, out vec3 directIllum, out vec3 in
         scatteredDir = getDiffuseReflectionDir(normal, i);
         
         secondHitResult = raycast(hitPosition, scatteredDir, secondHitPos, secondHitVoxel, secondHitDepth, secondHitNormalInt);
+        secondHitPos += scatteredDir * depthBias;
         secondHitMat = materialPalette[getVoxelValue(secondHitVoxel)];
 
         float cosWeight0 = clamp(dot(firstHitNormal, scatteredDir), 0, 1);
@@ -259,119 +266,152 @@ void executePathTracing(vec3 origin, vec3 dir, out vec3 directIllum, out vec3 in
 
     directIllum = directLighting * firstHitMat.color + firstHitMat.emission;
     indirectIllum = indirectContribution * invSamples * firstHitMat.color;
+
+
+//    int keeper = raycast(hitPosition, sunDirection, hitPosition, firstHitVoxel, depth, normal);
+//    directIllum = mix(firstHitNormal, -0.5 * firstHitNormal, lessThan(firstHitNormal, vec3(0)));
+//    indirectIllum = vec3(0);
 }
+
+const float MIN_SAFE_DF = 1.8;
 
 int raycast(vec3 origin, vec3 dir, out vec3 hitPosition, out ivec3 voxelHitPosition, out float depth, out int normal)
 {
+    vec3 dir_safe_div;
+    const float epsilon = 1e-7f;
+
+    dir_safe_div.x = (abs(dir.x) < epsilon) ? ( (dir.x >= 0.0f) ? epsilon : -epsilon ) : dir.x;
+    dir_safe_div.y = (abs(dir.y) < epsilon) ? ( (dir.y >= 0.0f) ? epsilon : -epsilon ) : dir.y;
+    dir_safe_div.z = (abs(dir.z) < epsilon) ? ( (dir.z >= 0.0f) ? epsilon : -epsilon ) : dir.z;
+
+    //dir = normalize(dir);
     ivec3 originVoxel = ivec3(origin);
     ivec3 brickPosition = originVoxel >> 2;
-    vec3 brickSpaceOrigin = origin / 4;
-    uint brickIndex = getBrickIndexDirect(brickPosition);
+    vec3 rayPosition = origin / 4; // rayPosition is in brick space
+    int brickValue = getBrickValueDirect(brickPosition);
     ivec3 brickOffset = originVoxel & (~3);
-    vec3 entrance;
-    vec3 timeToCross = 1 / abs(dir);
+    vec3 timeToCross = 1.0f / abs(dir_safe_div);
+    ivec3 gridStep = ivec3(sign(dir));
     ivec3 hitVoxel;
+    float intersectionTime;
+    vec3 entrance;
     int lastAxis;
-    int lastWideAxis;
-    float lastWideDepth = 0;
+    depth = 0;
 
-    ivec3 gridStep = ivec3(dir.x > 0 ? 1 : -1, dir.y > 0 ? 1 : -1, dir.z > 0 ? 1 : -1);
-    vec3 nextBrickIntersectionTime = vec3(
-            dir.x < 0 ? brickSpaceOrigin.x - brickPosition.x : brickPosition.x + 1 - brickSpaceOrigin.x,
-            dir.y < 0 ? brickSpaceOrigin.y - brickPosition.y : brickPosition.y + 1 - brickSpaceOrigin.y,
-            dir.z < 0 ? brickSpaceOrigin.z - brickPosition.z : brickPosition.z + 1 - brickSpaceOrigin.z);
-    nextBrickIntersectionTime *= timeToCross;
+    ivec3 prevBrickPosition = ivec3(-1);
 
-    if (brickIndex != -1)
+
+    // Traversing origin brick
+    if (brickValue >= 0)
     {
-        uint bitmask0 = brickOccupancyList[(brickIndex << 1)];
-        uint bitmask1 = brickOccupancyList[(brickIndex << 1) + 1];
+        uint bitmask0 = brickOccupancyList[(brickValue << 1)];
+        uint bitmask1 = brickOccupancyList[(brickValue << 1) + 1];
 
-        if (bitmask0 != 0 || bitmask1 != 0)
-        {
-            entrance = origin - brickOffset;
+        entrance = origin - brickOffset;
 
-            bool hit = traverseBrick(bitmask0, bitmask1, entrance, originVoxel & 3, dir, timeToCross, brickIndex, hitVoxel, lastAxis);
-            if (hit)
-            {
-                if (lastAxis == -1)
-                {
-                    hitPosition = origin;
-                    voxelHitPosition = originVoxel;
-                    normal = -1;
-                    depth = 0;
-                    return 0;
-                }
+        bool hit = traverseBrick(bitmask0, bitmask1, entrance, originVoxel & 3, dir, timeToCross, hitVoxel, lastAxis, intersectionTime);
             
-                float localDistance = abs((dir[lastAxis] > 0 ? hitVoxel[lastAxis] : hitVoxel[lastAxis] + 1) - entrance[lastAxis]) * timeToCross[lastAxis];
-
-                depth = localDistance;
-                hitPosition = dir * localDistance + origin;
-                voxelHitPosition = hitVoxel + brickOffset;
-                normal = normalIndexFromDir(dir, lastAxis);
-                return 0;
-        }
-        }
+        depth = intersectionTime * 0.25;
+        if (hit)
+        {   
+            depth = intersectionTime;
+            hitPosition = dir * intersectionTime + origin;
+            voxelHitPosition = hitVoxel + brickOffset;
+            normal = normalIndexFromDir(dir, lastAxis);
+            return 0;
+        }   
+    }
+    else if (intBitsToFloat(brickValue) > -MIN_SAFE_DF)
+    {
+        // entrance is treated as a temporary storage here; it will be reassigned anyway before being used for its intended purpose
+        entrance = mix(rayPosition - brickPosition, brickPosition + 1 - rayPosition, step(vec3(0), dir)) * timeToCross;
+        lastAxis = indexOfMinVec3(entrance);
+        depth = entrance[lastAxis]; // Brick-space depth; it should be converted to voxel space by multiplying by 4 before returning
     }
 
     // Traversing bricks along the ray direction
-    while (true)
+
+    while(true)
     {
-        lastWideAxis = nextBrickIntersectionTime.x <= nextBrickIntersectionTime.y
-                ? nextBrickIntersectionTime.x <= nextBrickIntersectionTime.z ? 0 : 2
-                : nextBrickIntersectionTime.y <= nextBrickIntersectionTime.z ? 1 : 2;
-
-        brickPosition[lastWideAxis] += gridStep[lastWideAxis];
-        lastWideDepth = nextBrickIntersectionTime[lastWideAxis];
-        nextBrickIntersectionTime[lastWideAxis] += timeToCross[lastWideAxis];
-
-        brickOffset = brickPosition << 2;
-
-        if (!(all(greaterThanEqual(brickPosition, ivec3(0))) && all(lessThan(brickPosition, voxelBrickmapSize))))
+        if (brickValue >= 0 || intBitsToFloat(brickValue) > -MIN_SAFE_DF) // If the last traversed brick were occupied (DF value is unknown) or the DF value is too small, perform DDA step to the next brick
         {
-            depth = lastWideDepth;
-            hitPosition = dir * depth + origin;
-            normal = -1;
-            return 1;
+            // lastAxis and depth (brick space) should be calculated on previous iteration
+            prevBrickPosition = brickPosition;
+            brickPosition[lastAxis] += gridStep[lastAxis];
+            rayPosition = dir * depth + origin / 4;
+            rayPosition[lastAxis] = round(rayPosition[lastAxis]); // Snap just in case
+        }
+        else // If the last traversed brick were empty and distance field value is large enough, perform jump
+        {
+            vec3 pointInNearestSafeBrick = dir * -intBitsToFloat(brickValue) + rayPosition;
+
+            vec3 nearestSafeSides = mix(ceil(pointInNearestSafeBrick), floor(pointInNearestSafeBrick), step(vec3(0.0), dir));
+            vec3 timeToNearestSafeSides = (nearestSafeSides - rayPosition) / dir_safe_div; // timeToCross is a reciprocal of abs of dir but we need signed dir here
+        
+            lastAxis = indexOfMaxVec3(timeToNearestSafeSides);
+            float maxSafeTime = timeToNearestSafeSides[lastAxis];
+            depth += maxSafeTime;
+            
+            rayPosition += dir * maxSafeTime;
+            rayPosition[lastAxis] = nearestSafeSides[lastAxis]; // Snap just in case
+            prevBrickPosition = brickPosition;
+            brickPosition = any(lessThan(pointInNearestSafeBrick, vec3(0))) ? ivec3(-1) : ivec3(pointInNearestSafeBrick);
         }
 
-        brickIndex = getBrickIndexDirect(brickPosition);
-
-        // Traversing voxels of a brick
-        if (brickIndex != -1)
+        if (brickPosition == prevBrickPosition) // This is a safety check that makes pixel white when encountered. On each iteration coordinates of the current voxel brick the ray "stays on" should be changed, otherwise something is very wrong. For unknown reason Z- side of some (!) voxels flickers with white pixels. Flickering suggests it happens when tracing secondary rays whose direction is randomized over a hemisphere. Normalizing `dir` at the beginning of the function seems to help although `dir` should be a unit vector already.
         {
-            uint bitmask0 = brickOccupancyList[(brickIndex << 1)];
-            uint bitmask1 = brickOccupancyList[(brickIndex << 1) + 1];
+            showDebug = true;
+            debugColor = vec4(dir, 2000);
+            return 0;
+        }
 
-            if (bitmask0 != 0 || bitmask1 != 0)
+        if (any(lessThan(brickPosition, ivec3(0))) || any(greaterThanEqual(brickPosition, voxelBrickmapSize)))
+        {
+            hitPosition = (depth * 4) * dir + origin; // Depth should be converted to voxel space by multiplying by 4 before returning
+            normal = 0;
+            return 1;
+        }
+        else 
+        {
+            brickValue = getBrickValueDirect(brickPosition);
+
+                // Traversing voxels of a brick
+            if (brickValue >= 0)
             {
-                entrance = lastWideDepth * dir + brickSpaceOrigin;
+                uint bitmask0 = brickOccupancyList[(brickValue << 1)];
+                uint bitmask1 = brickOccupancyList[(brickValue << 1) + 1];
 
-                entrance -= ivec3(entrance);
-                entrance[lastWideAxis] = dir[lastWideAxis] > 0 ? 0 : 1;
-                entrance *= 4;
+                entrance = fract(rayPosition) * 4;
+                entrance[lastAxis] = dir[lastAxis] > 0 ? 0 : 4;
                 ivec3 entranceVoxel = ivec3(entrance);
-                entranceVoxel[lastWideAxis] = dir[lastWideAxis] > 0 ? 0 : 3;
+                entranceVoxel[lastAxis] = dir[lastAxis] > 0 ? 0 : 3;
 
-                bool hit = traverseBrick(bitmask0, bitmask1, entrance, entranceVoxel, dir, timeToCross, brickIndex, hitVoxel, lastAxis);
+                bool hit = traverseBrick(bitmask0, bitmask1, entrance, entranceVoxel, dir, timeToCross, hitVoxel, lastAxis, intersectionTime);
+
+                depth += intersectionTime * 0.25;
 
                 if (hit)
                 {
-                    lastAxis = lastAxis == -1 ? lastWideAxis : lastAxis;
                     normal = normalIndexFromDir(dir, lastAxis);
-
-                    float localDistance = abs((dir[lastAxis] > 0 ? hitVoxel[lastAxis] : hitVoxel[lastAxis] + 1) - entrance[lastAxis]) * timeToCross[lastAxis];
-                    hitPosition = dir * localDistance + entrance + brickOffset;
-                    depth = length(hitPosition - origin);
+                    brickOffset = brickPosition << 2;
+                    hitPosition = dir * intersectionTime + entrance + brickOffset;
+                    depth *= 4; // Depth should be converted to voxel space by multiplying by 4 before returning
                     voxelHitPosition = hitVoxel + brickOffset;
                     return 0;
                 }
+            }
+            else if (intBitsToFloat(brickValue) > -MIN_SAFE_DF) 
+            {
+                // entrance is treated as a temporary storage
+                entrance = mix(rayPosition - brickPosition, brickPosition + 1 - rayPosition, step(vec3(0), dir)) * timeToCross;
+                lastAxis = indexOfMinVec3(entrance);
+                depth += entrance[lastAxis];
             }
         }
     }
 }
 
-bool traverseBrick(uint bitmask0, uint bitmask1, vec3 startingPosition, ivec3 voxelPosition, vec3 dir, vec3 timeToCross, uint brickIndex, out ivec3 hitVoxel, out int lastAxis)
+bool traverseBrick(uint bitmask0, uint bitmask1, vec3 startingPosition, ivec3 voxelPosition, vec3 dir, vec3 timeToCross, out ivec3 hitVoxel, inout int lastAxis, out float intersectionTime)
 {
     vec3 nextIntersectionTime = vec3(
         dir.x < 0 ? startingPosition.x - voxelPosition.x : voxelPosition.x + 1 - startingPosition.x,
@@ -384,60 +424,51 @@ bool traverseBrick(uint bitmask0, uint bitmask1, vec3 startingPosition, ivec3 vo
     if (getVoxelBit(bitmask0, bitmask1, voxelIndex) > 0)
     {
         hitVoxel = voxelPosition;
-        lastAxis = -1;
+        intersectionTime = 0;
         return true;
     }
 
-    int axisToStep;
-
     while (true)
     {
-        axisToStep = nextIntersectionTime.x <= nextIntersectionTime.y ?
+        lastAxis = nextIntersectionTime.x <= nextIntersectionTime.y ?
         (nextIntersectionTime.x <= nextIntersectionTime.z ? 0 : 2) :
         (nextIntersectionTime.y <= nextIntersectionTime.z ? 1 : 2);
 
-        int way = int(sign(dir[axisToStep]));
+        int way = int(sign(dir[lastAxis]));
 
-        if (voxelPosition[axisToStep] == (way < 0 ? 0 : 3))
-            break;
+        if (voxelPosition[lastAxis] == (way < 0 ? 0 : 3))
+        {
+            intersectionTime = nextIntersectionTime[lastAxis];
+            hitVoxel = voxelPosition;
+            return false;
+        }
                 
-        voxelIndex += (1 << ((axisToStep == 2 ? 1 : (axisToStep == 1 ? 2 : 0)) << 1)) * way;
-        voxelPosition[axisToStep] += way;
+        voxelIndex += (1 << ((lastAxis == 2 ? 1 : (lastAxis == 1 ? 2 : 0)) << 1)) * way;
+        voxelPosition[lastAxis] += way;
 
-        nextIntersectionTime[axisToStep] += timeToCross[axisToStep];
 
         if (getVoxelBit(bitmask0, bitmask1, voxelIndex) > 0)
         {
+            intersectionTime = nextIntersectionTime[lastAxis];
             hitVoxel = voxelPosition;
-            lastAxis = axisToStep;
             return true;
         }
-    }
 
-    hitVoxel = voxelPosition;
-    lastAxis = axisToStep;
-    return false;
+        nextIntersectionTime[lastAxis] += timeToCross[lastAxis];
+    }
 }
 
 uint getVoxelValue(ivec3 voxelPosition) 
 {
-    uint brickIndex = getBrickIndex(voxelPosition);
-    if (brickIndex == -1) return 0;
+    int brickValue = getBrickValueDirect(voxelPosition >> 2);
+    if (brickValue == -1) return 0;
     ivec3 voxelLocalPosition = (voxelPosition & 3);
-    uint voxelPack = brickValueList[brickIndex * brickSizeInUINTS + ((voxelLocalPosition.y << 2) + voxelLocalPosition.z)];
+    uint voxelPack = brickValueList[brickValue * brickSizeInUINTS + ((voxelLocalPosition.y << 2) + voxelLocalPosition.z)];
     int shift = voxelLocalPosition.x << 3;
     return (voxelPack >> shift) & 255;
 }
 
-uint getBrickIndex(ivec3 voxelPosition) 
-{
-    ivec3 brickPosition = ivec3(voxelPosition.x >> 2, voxelPosition.y >> 2, voxelPosition.z >> 2);
-    return brickIndices[brickPosition.y * voxelBrickmapSize.x * voxelBrickmapSize.z + 
-                        brickPosition.z * voxelBrickmapSize.x +
-                        brickPosition.x];
-}
-
-uint getBrickIndexDirect(ivec3 brickPosition) 
+int getBrickValueDirect(ivec3 brickPosition) 
 {
     return brickIndices[brickPosition.y * voxelBrickmapSize.x * voxelBrickmapSize.z + 
                         brickPosition.z * voxelBrickmapSize.x +
@@ -475,8 +506,8 @@ vec3 sunSample(vec3 pos, vec3 dir)
 
 vec3 getDiffuseReflectionDir(int normal, int sampleIndex)
 {
-    float key1 = random(uv * sampleIndex); 
-    float key2 = random((key1 + uv) * 0.5);
+    float key1 = rand01From_vec2(uv * sampleIndex); 
+    float key2 = rand01From_vec2((key1 + uv) * 0.5);
     return rotateVerticalByNormal(randomVector(vec2(key1, key2), sampleIndex), normal);
 }
 
@@ -514,27 +545,27 @@ vec3 randomVector(vec2 key, int sampleIndex)
     return vec3(cos(phi) * cosTheta, sinTheta, sin(phi) * cosTheta);
 }
 
-float random(vec2 point) 
+float rand01From_vec2(vec2 point) 
 {
     point *= randSaltLocal;
     return fract(sin(dot(point.xy, vec2(12.9898,75.233))) * 43758.5453123);
 }
 
-// Written by Gemini
-float randOfVoxel(ivec3 v) {
-    uint x = uint(v.x);
-    uint y = uint(v.y);
-    uint z = uint(v.z);
+uint wang_hash(uint seed)
+{
+    seed = (seed ^ 61u) ^ (seed >> 16);
+    seed *= 9u;
+    seed = seed ^ (seed >> 4);
+    seed *= 668265261u;
+    seed = seed ^ (seed >> 15);
+    return seed;
+}
 
-    uint seed = x ^ y ^ z;
-    seed = seed * 1664525u + 1013904223u;
-    seed ^= seed >> 16;
-    seed = seed * 1664525u + 1013904223u;
-    seed ^= seed >> 16;
-    seed = seed * 1664525u + 1013904223u;
-    seed ^= seed >> 16;
-
-    return float(seed) / 4294967295.0;
+uint wangHashFrom_uvec3(uvec3 point)
+{
+    uint h = wang_hash(point.x);
+    h = wang_hash(h + point.y);
+    return wang_hash(h + point.z);
 }
 
 float minVec3(vec3 vect)
@@ -545,6 +576,16 @@ float minVec3(vec3 vect)
 float maxVec3(vec3 vect)
 {
     return max(max(vect.x, vect.y), vect.z);
+}
+
+int indexOfMinVec3(vec3 vect)
+{
+    return vect.x < vect.y ? (vect.x < vect.z ? 0 : 2) : (vect.y < vect.z ? 1 : 2);
+}
+
+int indexOfMaxVec3(vec3 vect)
+{
+    return vect.x > vect.y ? (vect.x > vect.z ? 0 : 2) : (vect.y > vect.z ? 1 : 2);
 }
 
 vec3 sph2Cart(float phi, float theta)

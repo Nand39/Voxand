@@ -15,7 +15,7 @@ public unsafe class HalfList<T> : IDisposableExt where T : struct
 
     public int Capacity => array.Length;
     public int Count { get; protected set; } = 0;
-    public string Label { get => array.Buffer.Lable; set => array.Buffer.Lable = value; }
+    public string Label { get => array.Buffer.Label; set => array.Buffer.Label = value; }
 
     public HalfList(BufferTarget target, int initialCapacity, BufferUsageHint usageHint, Func<int, int> growthFunction)
     {

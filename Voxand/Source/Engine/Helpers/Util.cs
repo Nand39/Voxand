@@ -78,7 +78,7 @@ public static class Util
         max = new(Math.Max(vect0.X, vect1.X), Math.Max(vect0.Y, vect1.Y), Math.Max(vect0.Z, vect1.Z));
     }
 
-    public static void Loop3(Vector3i min, Vector3i max, Action<Vector3i> action)
+    public static void LoopYZX(Vector3i min, Vector3i max, Action<Vector3i> action)
     {
         Vector3i pos = default;
         for (pos.Y = min.Y; pos.Y <= max.Y; pos.Y++)
@@ -88,37 +88,6 @@ public static class Util
     }
 
     public static int Mod(int a, int b) => (a %= b) < 0 ? a + b : a;
-
-    #region Math Helper
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static Vector3 Deg2Rad(Vector3 n)
-    {
-        return n * DEG2RAD;
-    }
-    
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static int Min(params int[] values)
-    {
-        int min = int.MaxValue;
-        foreach(int value in values)
-            min = min < value ? min : value;
-        return min;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static float VectorMin(Vector3 vect)
-    {
-        return vect.X < vect.Y ? vect.X < vect.Z ? vect.X : vect.Z 
-                               : vect.Y < vect.Z ? vect.Y : vect.Z;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static int VectorMin(Vector3i vect)
-    {
-        return vect.X < vect.Y ? vect.X < vect.Z ? vect.X : vect.Z
-                               : vect.Y < vect.Z ? vect.Y : vect.Z;
-    }
 
     #region Step Func
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -136,8 +105,6 @@ public static class Util
     {
         return new(Step(edge.X, vect.X), Step(edge.Y, vect.Y), Step(edge.Z, vect.Z));
     }
-    #endregion
-
     #endregion
 
     #region Colors

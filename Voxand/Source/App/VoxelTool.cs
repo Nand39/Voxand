@@ -171,7 +171,7 @@ public class BlockBuilder : BatchPlacementTechnique
         Vector3i finish = Vector3i.Clamp(InputBatch[1].raycastResult.voxelHitPos, Vector3i.Zero, mapSize - Vector3i.One);
         Util.OrderBounds(start, finish, out Vector3i min, out Vector3i max);
         int material = InputBatch[0].material;
-        Util.Loop3(min, max, (pos) => singlePlaceable.PlaceSingle(pos, material));
+        Util.LoopYZX(min, max, (pos) => singlePlaceable.PlaceSingle(pos, material));
     }
 }
 
@@ -193,7 +193,7 @@ public class BlockRemover : BatchPlacementTechnique
         Vector3i finish = Vector3i.Clamp(InputBatch[1].raycastResult.voxelHitPos, Vector3i.Zero, mapSize - Vector3i.One);
         Util.OrderBounds(start, finish, out Vector3i min, out Vector3i max);
         int material = InputBatch[0].material;
-        Util.Loop3(min, max, singlePlaceable.RemoveSingle);
+        Util.LoopYZX(min, max, singlePlaceable.RemoveSingle);
     }
 }
 
@@ -219,7 +219,7 @@ public class SphereBuilder : PlacementTechnique
         Vector3i start = Vector3i.Clamp(input.raycastResult.voxelHitPos - new Vector3i(radiusBoxSize), Vector3i.Zero, mapSize - Vector3i.One);
         Vector3i finish = Vector3i.Clamp(input.raycastResult.voxelHitPos + new Vector3i(radiusBoxSize), Vector3i.Zero, mapSize - Vector3i.One);
 
-        Util.Loop3(start, finish, (pos) => 
+        Util.LoopYZX(start, finish, (pos) => 
         {
             if ((input.raycastResult.voxelHitPos - pos).EuclideanLengthSquared < radiusSq)
                 singlePlaceable.PlaceSingle(pos, input.material);
@@ -249,7 +249,7 @@ public class SphereRemover : PlacementTechnique
         Vector3i start = Vector3i.Clamp(input.raycastResult.voxelHitPos - new Vector3i(radiusBoxSize), Vector3i.Zero, mapSize - Vector3i.One);
         Vector3i finish = Vector3i.Clamp(input.raycastResult.voxelHitPos + new Vector3i(radiusBoxSize), Vector3i.Zero, mapSize - Vector3i.One);
 
-        Util.Loop3(start, finish, (pos) =>
+        Util.LoopYZX(start, finish, (pos) =>
         {
             if ((input.raycastResult.voxelHitPos - pos).EuclideanLengthSquared < radiusSq)
                 singlePlaceable.RemoveSingle(pos);

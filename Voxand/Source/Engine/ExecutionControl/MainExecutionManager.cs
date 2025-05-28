@@ -181,7 +181,7 @@ public sealed class MainExecutionManager : ExecutionManager,
         ComputeUtility.Initialize(windowState.Window.Content, "Graphics/Shaders/copy_tex8_shader.comp");
 
         engineState.MainCamera = new Camera();
-        engineState.MainCamera.position = new Vector3(numberOfChunks.X * 2, numberOfChunks.Y * 3.7f, numberOfChunks.Z * 2);
+        engineState.MainCamera.position = new Vector3(0.5f, numberOfChunks.Y * 3.7f, 0.5f);
         engineState.MainCamera.FOV = 90 * Util.DEG2RAD;
         engineState.MainCamera.rotation = new(0, 45, 0);
 

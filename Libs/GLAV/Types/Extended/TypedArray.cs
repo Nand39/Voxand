@@ -10,7 +10,7 @@ public class TypedArray<T> : IDisposableExt where T : struct
 
     public int Length { get; private set; } 
 
-    public string Label { get => Buffer.Lable; set => Buffer.Lable = value; }
+    public string Label { get => Buffer.Label; set => Buffer.Label = value; }
 
     static unsafe TypedArray() => itemSize = sizeof(T);
     TypedArray() => DisposeHelper = new(this);

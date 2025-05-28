@@ -56,18 +56,18 @@ public sealed class VoxelPTRP : RenderingPipeline
         varyingRenderDataStorage.Add(directIllumination_depthPT, indirectIlluminationPT, normalCompound_motionPT);
 
         skyTex = content.LoadTexture("Graphics/Textures/env.hdr", PixelInternalFormat.Rgba32f);
-        skyTex.Lable = "Sky texture";
+        skyTex.Label = "Sky texture";
 
         pathTracingShaderController = new(content, "Graphics/Shaders/voxel_path_tracing_shader.comp");
-        pathTracingShaderController.Shader.Lable = "* voxel PT shader";
+        pathTracingShaderController.Shader.Label = "* voxel PT shader";
 
         TAAShaderController = new(content, "Graphics/Shaders/taa_shader.comp");
-        TAAShaderController.Shader.Lable = "* TAA shader";
+        TAAShaderController.Shader.Label = "* TAA shader";
 
         compositingShaderController = new(content,
             "Graphics/Shaders/voxel_compositing_shader.vert",
             "Graphics/Shaders/voxel_compositing_shader.frag");
-        compositingShaderController.Shader.Lable = "* Compositing shader";
+        compositingShaderController.Shader.Label = "* Compositing shader";
 
         voxelPathTracingModule = new VoxelPathTracingModule(
             shaderControllerPT: pathTracingShaderController,
@@ -124,15 +124,15 @@ public sealed class VoxelPTRP : RenderingPipeline
 
         directIllumination_depthPT = new Texture2D();
         directIllumination_depthPT.Alloc(resolution, PixelInternalFormat.Rgba32f);
-        directIllumination_depthPT.Lable = "directIllum_depthPT";
+        directIllumination_depthPT.Label = "directIllum_depthPT";
 
         indirectIlluminationPT = new Texture2D();
         indirectIlluminationPT.Alloc(resolution, PixelInternalFormat.Rgba32f);
-        indirectIlluminationPT.Lable = "indirectIllumPT";
+        indirectIlluminationPT.Label = "indirectIllumPT";
 
         normalCompound_motionPT = new Texture2D();
         normalCompound_motionPT.Alloc(resolution, PixelInternalFormat.Rgba32f);
-        normalCompound_motionPT.Lable = "normal_motionPT";
+        normalCompound_motionPT.Label = "normal_motionPT";
     }
     
     public void MapSizeChanged(Vector3i newSize)

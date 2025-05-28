@@ -124,7 +124,7 @@ public class Buffer : GLResource
         Format[] data = Retrieve<Format>(startOffsetInBytes, count);
 
         StringBuilder stringBuilder = new();
-        stringBuilder.Append($"Content of {Lable} from {startOffsetInBytes} to {startOffsetInBytes + count * itemSize} ({count} items)\n");
+        stringBuilder.Append($"Content of {Label} from {startOffsetInBytes} to {startOffsetInBytes + count * itemSize} ({count} items)\n");
         for (int i = 0; i < data.Length; i++)
         {
             stringBuilder.Append($"{data[i]}\n");

@@ -105,7 +105,10 @@ public class BrickmapGenerator : MapGenerator
         }
 
         for (int i = 0; i < numberOfBricks; i++)
-            ScheduleBrick(new(position.X, i, position.Z), brickValues[i], brickOccupancies[i]);
+        {
+            if (brickOccupancies[i].Bitmask != 0)
+                ScheduleBrick(new(position.X, i, position.Z), brickValues[i], brickOccupancies[i]);
+        }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
