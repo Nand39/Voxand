@@ -10,6 +10,7 @@ using GLAV.Types.Extended;
 using Voxand.Engine.Systems.Structures;
 using Voxand.Helpers.ExtensionMethods;
 using GLAV.Helpers.Public.Extensions.Unsafe;
+using Voxand.Helpers;
 
 namespace Voxand.Engine.Systems.Voxels;
 public class VoxelBrickmap : VoxelMap, ISinglePlaceable
@@ -96,8 +97,20 @@ public class VoxelBrickmap : VoxelMap, ISinglePlaceable
     }
     public unsafe void SetVoxelValueAndBit(Vector3i position, uint value, bool solid)
     {
-        VoxelBrickHandle brickHandle = GetOrAllocBrick(position);
+        Vector3i brickPosition = VoxelPositionToBrickPosition(position);
+
+        if (!solid && GetBrickHandleDirect(brickPosition).IsEmpty)
+            return;
+
+        VoxelBrickHandle brickHandle = GetOrAllocBrickDirect(brickPosition);
         Vector3i localPosition = VoxelPositionToLocalPosition(position);
+
+        if (!solid && C_BrickOccupancy[brickHandle.BrickIndex]->GetVoxelBit(localPosition) == C_BrickOccupancy[brickHandle.BrickIndex]->Bitmask)
+        {
+            RemoveBrick(brickPosition);
+            return;
+        }
+
         SetVoxelValueInBrick(localPosition, brickHandle, value);
         SetVoxelBitInBrick(localPosition, brickHandle, solid);
     }
@@ -935,6 +948,14 @@ public class VoxelBrickmap : VoxelMap, ISinglePlaceable
         }
         return brickHandle;
     }
+
+    public void RemoveBrick(Vector3i brickPosition)
+    {
+        Console.WriteLine($"Brick at position {brickPosition} was removed.");
+        SetBrickHandleDirectSync(brickPosition, new(DistanceToNearestOccupiedBrick(brickPosition)));
+        UpdateDistanceFieldOnBrickRemoved(brickPosition);
+    }
+
     VoxelBrickHandle GetBrickHandleDirect(Vector3i brickPosition) => C_BrickGrid[brickPosition.Y, brickPosition.Z, brickPosition.X];
     void SetBrickHandleDirectSync(Vector3i brickPosition, VoxelBrickHandle brickHandle)
     {
@@ -948,7 +969,8 @@ public class VoxelBrickmap : VoxelMap, ISinglePlaceable
         return C_BrickGrid[brickPosition.Y, brickPosition.Z, brickPosition.X];
     }
 
-    public void UpdateDistanceFieldOnBrickAllocated(Vector3i brickPosition)
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    void UpdateDistanceFieldOnBrickAllocated(Vector3i brickPosition)
     {
         Vector3i min = Vector3i.Clamp(brickPosition - new Vector3i((int)MAX_DISTANCE_FIELD), Vector3i.Zero, brickmapSize);
         Vector3i max = Vector3i.Clamp(brickPosition + new Vector3i((int)MAX_DISTANCE_FIELD), Vector3i.Zero, brickmapSize);
@@ -964,11 +986,63 @@ public class VoxelBrickmap : VoxelMap, ISinglePlaceable
                         continue;
                     
                     float distance = Vector3.Distance(pos, brickPosition) + DISTANCE_FIELD_BIAS;
-                    distance = distance < DISTANCE_MIN ? DISTANCE_MIN : distance;
-                    
+                    distance = Math.Max(distance, DISTANCE_MIN);
+
                     if (distance < brickHandle.DistanceFieldValue)
                         SetBrickHandleDirectSync(pos, new VoxelBrickHandle(distance));
                 }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    void UpdateDistanceFieldOnBrickRemoved(Vector3i brickPosition)
+    {
+        Vector3i min = Vector3i.Clamp(brickPosition - new Vector3i((int)MAX_DISTANCE_FIELD), Vector3i.Zero, brickmapSize);
+        Vector3i max = Vector3i.Clamp(brickPosition + new Vector3i((int)MAX_DISTANCE_FIELD), Vector3i.Zero, brickmapSize);
+        Vector3i pos;
+        VoxelBrickHandle brickHandle;
+        for (pos.Y = min.Y; pos.Y < max.Y; pos.Y++)
+            for (pos.Z = min.Z; pos.Z < max.Z; pos.Z++)
+                for (pos.X = min.X; pos.X < max.X; pos.X++)
+                {
+                    brickHandle = GetBrickHandleDirect(pos);
+
+                    if (!brickHandle.IsEmpty)
+                        continue;
+
+                    float distance = Vector3.Distance(pos, brickPosition) + DISTANCE_FIELD_BIAS;
+                    distance = Math.Max(distance, DISTANCE_MIN);
+
+                    if (distance == brickHandle.DistanceFieldValue)
+                    {
+                        Console.WriteLine($"Brick index at {pos} was substituted with DF.");
+                        SetBrickHandleDirectSync(pos, new VoxelBrickHandle(DistanceToNearestOccupiedBrick(pos)));
+                    }
+                }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    float DistanceToNearestOccupiedBrick(Vector3i brickPosition)
+    {
+        Vector3i min = Vector3i.Clamp(brickPosition - new Vector3i((int)MAX_DISTANCE_FIELD), Vector3i.Zero, brickmapSize);
+        Vector3i max = Vector3i.Clamp(brickPosition + new Vector3i((int)MAX_DISTANCE_FIELD), Vector3i.Zero, brickmapSize);
+        Vector3i pos;
+        VoxelBrickHandle brickHandle;
+        float minDistance = float.MaxValue;
+
+        for (pos.Y = min.Y; pos.Y < max.Y; pos.Y++)
+            for (pos.Z = min.Z; pos.Z < max.Z; pos.Z++)
+                for (pos.X = min.X; pos.X < max.X; pos.X++)
+                {
+                    brickHandle = GetBrickHandleDirect(pos);
+
+                    if (brickHandle.IsEmpty)
+                        continue;
+
+                    float distance = Vector3.Distance(pos, brickPosition) + DISTANCE_FIELD_BIAS;
+                    distance = Math.Max(distance, DISTANCE_MIN);
+                    minDistance = Math.Min(distance, minDistance);
+                }
+        return minDistance;
     }
 }
 
