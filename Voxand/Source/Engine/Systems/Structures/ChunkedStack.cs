@@ -5,8 +5,10 @@ public class ChunkedStack<T>
     int chunkCapacity;
     LinkedListNode<T[]> lastChunk;
     int indexOfNext = 0;
-    int Count = 0;
-    
+
+    public int Count { get; private set; } = 0;
+    public bool Empty => Count == 0;
+
     public ChunkedStack(int chunkCapacity)
     {
         this.chunkCapacity = chunkCapacity;
