@@ -24,6 +24,8 @@ using Voxand.App.VoxelEditing;
 using Voxand.App.Map.Generation;
 using Voxand.App.Map;
 using Voxand.Engine.Systems.Voxels.VoxelMaterialServices;
+using Voxand.Helpers.Reflection;
+using System.Reflection;
 
 namespace Voxand.Engine.ExecutionControl;
 
@@ -150,8 +152,9 @@ public interface ISupportsEngineState
 public sealed class MainExecutionManager : ExecutionManager,
     ISupportsWindowState, ISupportsObjectRegistry, ISupportsEngineState
 {
-    Vector3i numberOfChunks = new(128, 42, 128);
+    Vector3i numberOfChunks = new(128, 48, 128);
     Framewatch fps;
+    Action<double> frameTimeSetter;
     
     readonly EngineState engineState;
     readonly WindowState windowState;
@@ -201,7 +204,8 @@ public sealed class MainExecutionManager : ExecutionManager,
 
         UI_Manager.Initialize(WindowState.Window.Content);
 
-        UI_PaletteWindow paletteWindow = new(engineState.VoxelPalette);
+        UI_PaletteWindow paletteWindow = new();
+        paletteWindow.SetPalette(engineState.VoxelPalette);
         UI_MaterialEditorWindow materialEditorWindow = new(engineState.VoxelPalette);
         UI_SettingsWindow renderSettingsWindow = new();
         UI_DebugWindow debugWindow = new(engineState.VoxelMap.RawStructure);
@@ -234,13 +238,15 @@ public sealed class MainExecutionManager : ExecutionManager,
             engineState.RenderingPipeline.antiAliasingSettings.ResetAccumulated(); 
         });
 
-        fps = new Framewatch(Util.FrameTimeData, 1);
+        frameTimeSetter = typeof(FrameTime).GetProperty(nameof(FrameTime.PreciseDelta), BindingFlags.Static | BindingFlags.Public)!.GetSetMethod(true)!.CreateDelegate<Action<double>>();
+
+        fps = new Framewatch(Util.FrameTimeAnalytics, 1);
 
         engineState.RenderingPipeline = new(
             content: WindowState.Window.Content,
             camera: engineState.MainCamera,
             map: engineState.VoxelMap,
-            output: DefaultRenderTarget.Instance,
+            output: RenderTarget.Default,
             renderingResolution: new((windowState.Window.ClientSize.X / 2) & ~7, (windowState.Window.ClientSize.Y / 2) & ~7));
 
         objectRegistry.AddObjects(viewer, voxelTool);
@@ -263,6 +269,8 @@ public sealed class MainExecutionManager : ExecutionManager,
     Vector3 sunDirection = Vector3.UnitX;
     public override void Update(FrameEventArgs args)
     {
+        frameTimeSetter(args.Time);
+
         objectRegistry.Update(args);
 
         sunDirection.Xz = sunDirection.Xz.Rotated(0.014f * (float)args.Time);
@@ -288,7 +296,7 @@ public sealed class MainExecutionManager : ExecutionManager,
     }
     public override void OnResize(ResizeEventArgs args)
     {
-        engineState.RenderingPipeline.SetRenderingResolution(new((args.Size.X) & ~7, (args.Size.Y) & ~7));
+        engineState.RenderingPipeline.SetRenderingResolution(new((args.Size.X / 2) & ~7, (args.Size.Y / 2) & ~7));
     }
     void GLDebugCallback(DebugSource source, DebugType type, int id, DebugSeverity severity, int messageLength, nint messagePtr, nint userParamPtr)
     {

@@ -3,6 +3,7 @@ using Nvec3 = System.Numerics.Vector3;
 using Nvec2 = System.Numerics.Vector2;
 
 using OpenTK.Mathematics;
+using ImGuiNET;
 
 namespace Voxand.Helpers.ExtensionMethods;
 public static class VectorTKExtensions
@@ -480,6 +481,12 @@ public static class VecotorNumExtensions
     public static Vector2 AsTK(this Nvec2 vector) => new(vector.X, vector.Y);
     public static Vector3 AsTK(this Nvec3 vector) => new(vector.X, vector.Y, vector.Z);
     public static Vector4 AsTK(this Nvec4 vector) => new(vector.X, vector.Y, vector.Z, vector.W);
+
+    #endregion
+
+    #region
+
+    public static uint AsImGuiU32(this Nvec4 vector) => ImGui.ColorConvertFloat4ToU32(vector);
 
     #endregion
 }

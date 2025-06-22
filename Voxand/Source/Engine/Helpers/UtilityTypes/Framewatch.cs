@@ -1,9 +1,8 @@
 ﻿using OpenTK.Windowing.Common;
-using Voxand.Engine;
 
 namespace Voxand.Helpers.UtilityObjects;
 
-public class FrameTimeData
+public class FrameTimeAnalytics
 {
     public double FPS { get; set; }
     public TimeSpan MinTime { get; set; }
@@ -20,12 +19,14 @@ public class Framewatch
     public double MinTime { get; protected set; }
     public double MaxTime { get; protected set; }
     public double AvgTime { get; protected set; }
-    public FrameTimeData FrameTimeData { get; protected set; }
-    public event Action? OnElapsed;
-    public Framewatch(FrameTimeData output, double interval)
+    public FrameTimeAnalytics FrameTimeAnalytics { get; protected set; }
+
+    public event Action? OnUpdate;
+
+    public Framewatch(FrameTimeAnalytics output, double interval)
     {
         Interval = interval;
-        FrameTimeData = output;
+        FrameTimeAnalytics = output;
     }
     public void Tick(FrameEventArgs args)
     {
@@ -38,17 +39,17 @@ public class Framewatch
         }
         else
         {
-            FrameTimeData.FPS = Math.Round(Frames / Elapsed, OutputPrecision);
-            FrameTimeData.AvgTime = new((long)(Elapsed / Frames * TimeSpan.TicksPerSecond));
-            FrameTimeData.MinTime = new((long)(MinTime * TimeSpan.TicksPerSecond));
-            FrameTimeData.MaxTime = new((long)(MaxTime * TimeSpan.TicksPerSecond));
+            FrameTimeAnalytics.FPS = Math.Round(Frames / Elapsed, OutputPrecision);
+            FrameTimeAnalytics.AvgTime = new((long)(Elapsed / Frames * TimeSpan.TicksPerSecond));
+            FrameTimeAnalytics.MinTime = new((long)(MinTime * TimeSpan.TicksPerSecond));
+            FrameTimeAnalytics.MaxTime = new((long)(MaxTime * TimeSpan.TicksPerSecond));
 
             Elapsed = 0;
             Frames = 0;
             MinTime = double.MaxValue;
             MaxTime = double.MinValue;
 
-            OnElapsed?.Invoke();
+            OnUpdate?.Invoke();
         }
     }
 }

@@ -174,6 +174,12 @@ public class Viewer : BaseObject
                 }
             }
         }
+
+        if (Win.KeyboardState.IsKeyPressed(Keys.Backspace))
+            VoxelTool.Cancel();
+
+        if (Win.KeyboardState.IsKeyPressed(Keys.Enter))
+            VoxelTool.Apply();
     }
     void HandleMapLoading()
     {

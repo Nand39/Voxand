@@ -10,6 +10,26 @@ using DisposableExt;
 namespace Voxand.Engine.Systems.Graphics.Tools;
 public abstract class RenderTarget
 {
+    sealed class DefaultRenderTarget : RenderTarget
+    {
+        static DefaultRenderTarget instance;
+        public static DefaultRenderTarget Instance
+        {
+            get
+            {
+                if (instance is null)
+                    instance = new();
+                return instance;
+            }
+        }
+        DefaultRenderTarget() { }
+        public override void Use()
+        {
+            GLRegistry.Instance.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+            GL.Viewport(0, 0, Util.ClientSize.X, Util.ClientSize.Y);
+        }
+    }
+    public static RenderTarget Default => DefaultRenderTarget.Instance;
     public abstract void Use();
 }
 public class TexturedRenderTarget : RenderTarget, IDisposableExt
@@ -41,23 +61,4 @@ public class TexturedRenderTarget : RenderTarget, IDisposableExt
     }
     void IDisposableExt.Free() => framebuffer.Dispose();
     ~TexturedRenderTarget() => this.Dispose();
-}
-public sealed class DefaultRenderTarget : RenderTarget
-{
-    static DefaultRenderTarget instance;
-    public static DefaultRenderTarget Instance
-    {
-        get
-        {
-            if (instance is null)
-                instance = new();
-            return instance;
-        }
-    }
-    DefaultRenderTarget() { }
-    public override void Use()
-    {
-        GLRegistry.Instance.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
-        GL.Viewport(0, 0, Util.ClientSize.X, Util.ClientSize.Y);
-    }
 }

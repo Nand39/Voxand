@@ -40,7 +40,7 @@ public class VoxelPalette : IDisposableExt
     {
         materialPalette[index] = newMaterial;
         gpuMaterialPalette[index] = new VoxelMaterialInternal(newMaterial);
-        Events.Invoke("material_modified", index);
+        Events.Invoke("material_modified", (index, newMaterial));
     }
     public void SetMaterial(object args)
     {

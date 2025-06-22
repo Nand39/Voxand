@@ -1,5 +1,7 @@
-﻿using OpenTK.Graphics.OpenGL4;
+﻿using ImGuiNET;
+using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
+using System;
 using System.Runtime.CompilerServices;
 using Voxand.Engine.Systems.Voxels;
 using Voxand.Engine.Systems.Voxels.VoxelMaterialServices;
@@ -16,7 +18,8 @@ public static class Util
     public static readonly Random Random = new();
     public static readonly int ProcessorCount = Environment.ProcessorCount;
     public static Vector2i ClientSize;
-    public static FrameTimeData FrameTimeData = new();
+    public static FrameTimeAnalytics FrameTimeAnalytics { get; } = new();
+
     public static Vector3 RotateY(Vector3 vect, float r)
     {
         float sin = MathF.Sin(r);
@@ -137,5 +140,110 @@ public static class Util
         }
     }
 
+    #endregion
+
+    #region ImGui
+
+    // AI generated (Gemini 2.5 Flash)
+    public static int MaxColumns(float availableSpace, float columnContentWidth, ImGuiTableFlags tableFlags)
+    {
+        const float TABLE_BORDER_SIZE = 1.0f;
+
+        if (columnContentWidth <= 0.0f)
+        {
+            // A column must have some width, or division by zero/negative logic could occur.
+            // If it's 0, assume it can fit at least 1 column for practical purposes.
+            return 1;
+        }
+
+        var style = ImGui.GetStyle();
+        float cellPaddingX = style.CellPadding.X;
+
+        // --- Calculate Fixed Outer Table Overhead ---
+        float fixedOuterOverhead = 0;
+
+        bool hasOuterVerticalBorders = tableFlags.HasFlag(ImGuiTableFlags.BordersOuterV) ||
+                                       tableFlags.HasFlag(ImGuiTableFlags.BordersOuter) ||
+                                       tableFlags.HasFlag(ImGuiTableFlags.Borders);
+        if (hasOuterVerticalBorders)
+        {
+            fixedOuterOverhead += (2 * TABLE_BORDER_SIZE); // Left and Right outer borders
+        }
+
+        bool hasExplicitPadOuterX = tableFlags.HasFlag(ImGuiTableFlags.PadOuterX);
+        bool hasNoPadOuterX = tableFlags.HasFlag(ImGuiTableFlags.NoPadOuterX);
+
+        if (!hasNoPadOuterX && (hasExplicitPadOuterX || hasOuterVerticalBorders))
+        {
+            fixedOuterOverhead += (2 * cellPaddingX); // Left and Right outer padding
+        }
+
+        // Remaining space after fixed outer overheads
+        float remainingSpaceForColumnsAndInternalSeparators = availableSpace - fixedOuterOverhead;
+
+        // --- Calculate Per-Column Contribution to total width ---
+        bool hasInnerVerticalBorders = tableFlags.HasFlag(ImGuiTableFlags.BordersInnerV) ||
+                                       tableFlags.HasFlag(ImGuiTableFlags.BordersInner) ||
+                                       tableFlags.HasFlag(ImGuiTableFlags.Borders);
+
+        if (tableFlags.HasFlag(ImGuiTableFlags.NoPadInnerX))
+        {
+            // When NoPadInnerX is set, the padding between columns is removed.
+            // Each column is its content width. The `2 * cellPaddingX` are used only once
+            // for the very first column's left edge and very last column's right edge.
+            // The formula becomes:
+            // totalSpace = (N * columnContentWidth) + (2 * cellPaddingX) + ((N-1) * TABLE_BORDER_SIZE if inner borders)
+
+            float spaceRequiredForPaddingsAroundColumns = 2 * cellPaddingX; // Outer edge paddings of the column block
+
+            float dynamicColumnAndBorderWidth = columnContentWidth;
+            if (hasInnerVerticalBorders)
+            {
+                dynamicColumnAndBorderWidth += TABLE_BORDER_SIZE; // For the (N-1) inner borders
+            }
+            // `dynamicColumnAndBorderWidth` now represents `columnContentWidth + TABLE_BORDER_SIZE` (if applicable)
+
+            // Solve for N:
+            // remainingSpaceForColumnsAndInternalSeparators = (N * dynamicColumnAndBorderWidth) - TABLE_BORDER_SIZE (if N-1 borders) + spaceRequiredForPaddingsAroundColumns
+            // N * dynamicColumnAndBorderWidth = remainingSpaceForColumnsAndInternalSeparators - spaceRequiredForPaddingsAroundColumns + TABLE_BORDER_SIZE (if inner borders)
+            // N = (remainingSpaceForColumnsAndInternalSeparators - spaceRequiredForPaddingsAroundColumns + (hasInnerVerticalBorders ? TABLE_BORDER_SIZE : 0)) / dynamicColumnAndBorderWidth
+            // Note: the `+ TABLE_BORDER_SIZE` for inner borders here compensates for the `- TABLE_BORDER_SIZE` of (N-1) terms if we group `N * (col + border)`
+
+            float numerator = remainingSpaceForColumnsAndInternalSeparators - spaceRequiredForPaddingsAroundColumns;
+            if (hasInnerVerticalBorders)
+            {
+                // This accounts for the 'missing' border on the last column's right side in the (N-1) borders model
+                numerator += TABLE_BORDER_SIZE;
+            }
+
+            return Math.Max(1, (int)(numerator / dynamicColumnAndBorderWidth));
+        }
+        else // Default inner padding behavior (NoPadInnerX is NOT set)
+        {
+            // Each column consumes its content width plus its own left and right cell padding.
+            // Inner vertical borders add an additional fixed width between columns.
+            // The formula becomes:
+            // totalSpace = N * (columnContentWidth + 2 * cellPaddingX) + ((N-1) * TABLE_BORDER_SIZE if inner borders)
+
+            float effectiveColumnWidthPerUnit = columnContentWidth + (2 * cellPaddingX);
+
+            if (hasInnerVerticalBorders)
+            {
+                effectiveColumnWidthPerUnit += TABLE_BORDER_SIZE; // Each column's "pitch" includes the border to its right
+                // Solve for N:
+                // remainingSpaceForColumnsAndInternalSeparators = N * effectiveColumnWidthPerUnit - TABLE_BORDER_SIZE
+                // N * effectiveColumnWidthPerUnit = remainingSpaceForColumnsAndInternalSeparators + TABLE_BORDER_SIZE
+                // N = (remainingSpaceForColumnsAndInternalSeparators + TABLE_BORDER_SIZE) / effectiveColumnWidthPerUnit
+                return Math.Max(1, (int)((remainingSpaceForColumnsAndInternalSeparators + TABLE_BORDER_SIZE) / effectiveColumnWidthPerUnit));
+            }
+            else
+            {
+                // Solve for N:
+                // remainingSpaceForColumnsAndInternalSeparators = N * effectiveColumnWidthPerUnit
+                // N = remainingSpaceForColumnsAndInternalSeparators / effectiveColumnWidthPerUnit
+                return Math.Max(1, (int)(remainingSpaceForColumnsAndInternalSeparators / effectiveColumnWidthPerUnit));
+            }
+        }
+    }
     #endregion
 }

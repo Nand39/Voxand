@@ -10,6 +10,11 @@ public struct RemoteProperty<T>
         get = (Func<T>)propInfo.GetGetMethod()!.CreateDelegate(typeof(Func<T>), target);
         set = (Action<T>)propInfo.GetSetMethod()!.CreateDelegate(typeof(Action<T>), target);
     }
+    public RemoteProperty(Func<T> get, Action<T> set)
+    {
+        this.get = get;
+        this.set = set;
+    }
     public T Get() => get();
     public void Set(T value) => set(value);
 }

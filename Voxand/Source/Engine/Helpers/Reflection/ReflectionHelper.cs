@@ -4,6 +4,12 @@ namespace Voxand.Helpers.Reflection;
 
 public static class ReflectionHelper
 {
+    public static void ForEachMember(object obj, BindingFlags bindingFlags, Action<MemberInfo> action)
+    {
+        MemberInfo[] members = obj.GetType().GetMembers(bindingFlags);
+        foreach (MemberInfo member in members)
+            action(member);
+    }
     public static void ForEachMethod(object obj, BindingFlags bindingFlags, Action<MethodInfo> action)
     {
         MethodInfo[] methods = obj.GetType().GetMethods(bindingFlags);
@@ -31,6 +37,13 @@ public static class ReflectionHelper
     }
 
     #region Composed operations
+    public static void ForEachAttribOfEachMember<AttribType>(object obj, BindingFlags bindingFlags, Action<MemberInfo, AttribType> action)
+        where AttribType : Attribute
+    {
+        ForEachMember(obj, bindingFlags, (member) =>
+            ForEachAttrib<AttribType>(member, (attrib) =>
+                action(member, attrib)));
+    }
     public static void ForEachAttribOfEachEvent<AttribType>(object obj, BindingFlags bindingFlags, Action<EventInfo, AttribType> action)
             where AttribType : Attribute
     {

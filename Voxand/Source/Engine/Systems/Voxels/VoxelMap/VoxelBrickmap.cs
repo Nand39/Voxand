@@ -935,8 +935,6 @@ public class VoxelBrickmap : VoxelMap, ISinglePlaceable
                 *C_BrickValues[brickIndex] = values;
                 *C_BrickOccupancy[brickIndex] = occupancy;
             }
-
-            Console.WriteLine("Pool hit; index=" + brickIndex);
         }
         else
         {
@@ -945,8 +943,6 @@ public class VoxelBrickmap : VoxelMap, ISinglePlaceable
 
             C_BrickValues.Add(values);
             C_BrickOccupancy.Add(occupancy);
-
-            Console.WriteLine("Pool miss; index=" + brickIndex);
         }
         
 
@@ -1035,9 +1031,9 @@ public class VoxelBrickmap : VoxelMap, ISinglePlaceable
         Vector3i max = Vector3i.Clamp(brickPosition + new Vector3i((int)MAX_DISTANCE_FIELD), Vector3i.Zero, brickmapSize);
         Vector3i pos;
         VoxelBrickHandle brickHandle;
-        for (pos.Y = min.Y; pos.Y < max.Y; pos.Y++)
-            for (pos.Z = min.Z; pos.Z < max.Z; pos.Z++)
-                for (pos.X = min.X; pos.X < max.X; pos.X++)
+        for (pos.Y = min.Y; pos.Y <= max.Y; pos.Y++)
+            for (pos.Z = min.Z; pos.Z <= max.Z; pos.Z++)
+                for (pos.X = min.X; pos.X <= max.X; pos.X++)
                 {
                     brickHandle = GetBrickHandle(pos);
 

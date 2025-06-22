@@ -1,4 +1,5 @@
 ﻿using OpenTK.Mathematics;
+using System;
 using Voxand.App.Map;
 using Voxand.Engine.Systems.General.Events;
 using Voxand.Engine.Systems.Graphics;
@@ -13,10 +14,11 @@ public class VoxelTool : BaseObject
     ChunkMap map;
     public EventDispatcher Events { get; private set; } = new("user_voxelTool_events");
     public event Action? OnActivePlacementTechniqueChanged;
-    int activeMaterialIndex;
     int activePlacementTechniqueIndex;
 
     List<PlacementTechnique> builders = [];
+
+    VoxelToolContext context = new();
 
     public int TechniqueCount => builders.Count;
 
@@ -39,10 +41,10 @@ public class VoxelTool : BaseObject
 
     public int ActiveMaterialIndex
     {
-        get => activeMaterialIndex; 
+        get => context.Material; 
         set
         {
-            activeMaterialIndex = value;
+            context.Material = value;
             Events.Invoke("activeMaterial_changed", ActiveMaterialIndex);
         }
     }
@@ -77,17 +79,28 @@ public class VoxelTool : BaseObject
 
     public void Use(RaycastResult raycastResult)
     {
-        ActivePlacementTechnique.Use(new(raycastResult, activeMaterialIndex));
+        ActivePlacementTechnique.Use(new(raycastResult, context));
+    }
+
+    public void Apply()
+    {
+        if (ActivePlacementTechnique is ComplexPlacementTechnique complexTechnique)
+            complexTechnique.Apply(context);
+    }
+    public void Cancel()
+    {
+        if (ActivePlacementTechnique is ComplexPlacementTechnique complexTechnique)
+            complexTechnique.Cancel();
     }
 
     public void NextTechnique() => ActivePlacementTechniqueIndex = Util.Mod(ActivePlacementTechniqueIndex + 1, builders.Count);
     public void PreviousTechnique() => ActivePlacementTechniqueIndex = Util.Mod(ActivePlacementTechniqueIndex - 1, builders.Count);
 }
 
-public struct PlacementInput(RaycastResult raycastResult, int material)
+public struct PlacementInput(RaycastResult raycastResult, VoxelToolContext context)
 {
-    public RaycastResult raycastResult = raycastResult;
-    public int material = material;
+    public RaycastResult RaycastResult { get; set; } = raycastResult;
+    public VoxelToolContext Context { get; set; } = context;
 }
 public abstract class PlacementTechnique
 {
@@ -111,8 +124,8 @@ public class SingleBuilder : PlacementTechnique
 
     public override void Use(PlacementInput input)
     {
-        Vector3i position = input.raycastResult.voxelHitPos + Util.VectorFromNormalIndex(input.raycastResult.normal);
-        singlePlaceable.PlaceSingle(position, input.material);
+        Vector3i position = input.RaycastResult.voxelHitPos + Util.VectorFromNormalIndex(input.RaycastResult.normal);
+        singlePlaceable.PlaceSingle(position, input.Context.Material);
     }
 }
 public class SingleRemover : PlacementTechnique
@@ -124,76 +137,144 @@ public class SingleRemover : PlacementTechnique
 
     public override void Use(PlacementInput input)
     {
-        singlePlaceable.RemoveSingle(input.raycastResult.voxelHitPos);
+        singlePlaceable.RemoveSingle(input.RaycastResult.voxelHitPos);
     }
 }
 
-public abstract class BatchPlacementTechnique : PlacementTechnique
+public struct VoxelToolContext
 {
-    protected PlacementInput[] InputBatch { get; set; }
-    int inputsReceived = 0;
+    public int Material { get; set; }
+}
+
+public abstract class ComplexPlacementTechnique : PlacementTechnique
+{
+    public abstract void Cancel();
+    public abstract void Apply(VoxelToolContext context);
+}
+
+public abstract class BatchPlacementTechnique : ComplexPlacementTechnique
+{
+    int nextInputIndex = 0;
+    int batchLength;
+    protected bool IsBatchFull { get; private set; }
 
     public BatchPlacementTechnique(int batchLength)
     {
-        InputBatch = new PlacementInput[batchLength];
+        this.batchLength = batchLength;
     }
 
     public sealed override void Use(PlacementInput input)
     {
-        InputBatch[inputsReceived] = input;
-        inputsReceived++;
-        if (inputsReceived == InputBatch.Length)
+        if (IsBatchFull)
+            return;
+
+        OnInputReceived(input, nextInputIndex);
+        nextInputIndex++;
+        if (nextInputIndex == batchLength)
         {
+            IsBatchFull = true;
             OnBatchFull();
-            inputsReceived = 0;
         }
     }
 
-    protected abstract void OnBatchFull();
+    protected abstract void OnInputReceived(PlacementInput input, int index);
+    protected virtual void OnBatchFull() { }
+    protected void ResetCounter()
+    {
+        nextInputIndex = 0;
+        IsBatchFull = false;
+    }
 }
 
 public class BlockBuilder : BatchPlacementTechnique
 {
+
     readonly ISinglePlaceable singlePlaceable;
     readonly Vector3i mapSize;
 
+    [InspectorProperty("Points", "Two voxel positions that define a region to fill", 0)]
+    public Vector3i[] Positions { get; set; }
+
     public BlockBuilder(ISinglePlaceable singlePlaceable, Vector3i mapSize) : base(2)
     {
+        Positions = new Vector3i[2];
         this.singlePlaceable = singlePlaceable;
         this.mapSize = mapSize;
     }
 
     protected override string DefaultName => "Block builder";
 
-    protected override void OnBatchFull()
+    protected override void OnInputReceived(PlacementInput input, int index)
     {
-        Vector3i start = Vector3i.Clamp(InputBatch[0].raycastResult.voxelHitPos, Vector3i.Zero, mapSize - Vector3i.One);
-        Vector3i finish = Vector3i.Clamp(InputBatch[1].raycastResult.voxelHitPos, Vector3i.Zero, mapSize - Vector3i.One);
+        Positions[index] = input.RaycastResult.voxelHitPos;
+    }
+
+    [InspectorProperty("button cuz i said so", "meaningful tooltip", 1)]
+    public void Place()
+    {
+        Console.WriteLine("meaningful button clicked");
+    }
+
+    public override void Cancel()
+    {
+        Positions[0] = Vector3i.Zero;
+        Positions[1] = Vector3i.Zero;
+        ResetCounter();
+    }
+
+    public override void Apply(VoxelToolContext context)
+    {
+        Vector3i start = Vector3i.Clamp(Positions[0], Vector3i.Zero, mapSize - Vector3i.One);
+        Vector3i finish = Vector3i.Clamp(Positions[1], Vector3i.Zero, mapSize - Vector3i.One);
         Util.OrderBounds(start, finish, out Vector3i min, out Vector3i max);
-        int material = InputBatch[0].material;
-        Util.LoopYZX(min, max, (pos) => singlePlaceable.PlaceSingle(pos, material));
+        Util.LoopYZX(min, max, (pos) => singlePlaceable.PlaceSingle(pos, context.Material));
+
+        Positions[0] = Vector3i.Zero;
+        Positions[1] = Vector3i.Zero;
+        ResetCounter();
     }
 }
 
 public class BlockRemover : BatchPlacementTechnique
 {
+
     readonly ISinglePlaceable singlePlaceable;
     readonly Vector3i mapSize;
-    protected override string DefaultName => "Block remover";
+
+    [InspectorProperty("Points", "Two voxel positions that define a region to clear", 0)]
+    public Vector3i[] Positions { get; set; }
 
     public BlockRemover(ISinglePlaceable singlePlaceable, Vector3i mapSize) : base(2)
     {
+        Positions = new Vector3i[2];
         this.singlePlaceable = singlePlaceable;
         this.mapSize = mapSize;
     }
 
-    protected override void OnBatchFull()
+    protected override string DefaultName => "Block remover";
+
+    protected override void OnInputReceived(PlacementInput input, int index)
     {
-        Vector3i start = Vector3i.Clamp(InputBatch[0].raycastResult.voxelHitPos, Vector3i.Zero, mapSize - Vector3i.One);
-        Vector3i finish = Vector3i.Clamp(InputBatch[1].raycastResult.voxelHitPos, Vector3i.Zero, mapSize - Vector3i.One);
+        Positions[index] = input.RaycastResult.voxelHitPos;
+    }
+
+    public override void Cancel()
+    {
+        Positions[0] = Vector3i.Zero;
+        Positions[1] = Vector3i.Zero;
+        ResetCounter();
+    }
+
+    public override void Apply(VoxelToolContext context)
+    {
+        Vector3i start = Vector3i.Clamp(Positions[0], Vector3i.Zero, mapSize - Vector3i.One);
+        Vector3i finish = Vector3i.Clamp(Positions[1], Vector3i.Zero, mapSize - Vector3i.One);
         Util.OrderBounds(start, finish, out Vector3i min, out Vector3i max);
-        int material = InputBatch[0].material;
         Util.LoopYZX(min, max, singlePlaceable.RemoveSingle);
+
+        Positions[0] = Vector3i.Zero;
+        Positions[1] = Vector3i.Zero;
+        ResetCounter();
     }
 }
 
@@ -202,7 +283,7 @@ public class SphereBuilder : PlacementTechnique
     readonly ISinglePlaceable singlePlaceable;
     readonly Vector3i mapSize;
 
-    [Configurable("Radius", "placeholder")]
+    [InspectorProperty("Radius", "A radius of the sphere to fill; in voxels", 0)]
     public float Radius { get; set; } = 5;
     protected override string DefaultName => "Sphere builder";
 
@@ -216,13 +297,13 @@ public class SphereBuilder : PlacementTechnique
     {
         int radiusBoxSize = (int)MathF.Ceiling(Radius);
         float radiusSq = Radius * Radius;
-        Vector3i start = Vector3i.Clamp(input.raycastResult.voxelHitPos - new Vector3i(radiusBoxSize), Vector3i.Zero, mapSize - Vector3i.One);
-        Vector3i finish = Vector3i.Clamp(input.raycastResult.voxelHitPos + new Vector3i(radiusBoxSize), Vector3i.Zero, mapSize - Vector3i.One);
+        Vector3i start = Vector3i.Clamp(input.RaycastResult.voxelHitPos - new Vector3i(radiusBoxSize), Vector3i.Zero, mapSize - Vector3i.One);
+        Vector3i finish = Vector3i.Clamp(input.RaycastResult.voxelHitPos + new Vector3i(radiusBoxSize), Vector3i.Zero, mapSize - Vector3i.One);
 
         Util.LoopYZX(start, finish, (pos) => 
         {
-            if ((input.raycastResult.voxelHitPos - pos).EuclideanLengthSquared < radiusSq)
-                singlePlaceable.PlaceSingle(pos, input.material);
+            if ((input.RaycastResult.voxelHitPos - pos).EuclideanLengthSquared < radiusSq)
+                singlePlaceable.PlaceSingle(pos, input.Context.Material);
         });
     }
 }
@@ -232,7 +313,7 @@ public class SphereRemover : PlacementTechnique
     readonly ISinglePlaceable singlePlaceable;
     readonly Vector3i mapSize;
 
-    [Configurable("Radius", "placeholder")]
+    [InspectorProperty("Radius", "A radius of the sphere to clear; in voxels", 0)]
     public float Radius { get; set; } = 5;
     protected override string DefaultName => "Sphere remover";
 
@@ -246,12 +327,12 @@ public class SphereRemover : PlacementTechnique
     {
         int radiusBoxSize = (int)MathF.Ceiling(Radius);
         float radiusSq = Radius * Radius;
-        Vector3i start = Vector3i.Clamp(input.raycastResult.voxelHitPos - new Vector3i(radiusBoxSize), Vector3i.Zero, mapSize - Vector3i.One);
-        Vector3i finish = Vector3i.Clamp(input.raycastResult.voxelHitPos + new Vector3i(radiusBoxSize), Vector3i.Zero, mapSize - Vector3i.One);
+        Vector3i start = Vector3i.Clamp(input.RaycastResult.voxelHitPos - new Vector3i(radiusBoxSize), Vector3i.Zero, mapSize - Vector3i.One);
+        Vector3i finish = Vector3i.Clamp(input.RaycastResult.voxelHitPos + new Vector3i(radiusBoxSize), Vector3i.Zero, mapSize - Vector3i.One);
 
         Util.LoopYZX(start, finish, (pos) =>
         {
-            if ((input.raycastResult.voxelHitPos - pos).EuclideanLengthSquared < radiusSq)
+            if ((input.RaycastResult.voxelHitPos - pos).EuclideanLengthSquared < radiusSq)
                 singlePlaceable.RemoveSingle(pos);
         });
     }
