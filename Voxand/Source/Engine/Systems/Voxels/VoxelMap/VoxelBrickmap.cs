@@ -6,11 +6,11 @@ using OpenTK.Mathematics;
 
 using DisposableExt;
 using GLAV.Types.Extended;
+using GLAV.Helpers.Public.Extensions.Unsafe;
 
 using Voxand.Engine.Systems.Structures;
 using Voxand.Helpers.ExtensionMethods;
-using GLAV.Helpers.Public.Extensions.Unsafe;
-using Voxand.Helpers;
+using Voxand.App.VoxelEditing;
 
 namespace Voxand.Engine.Systems.Voxels;
 public class VoxelBrickmap : VoxelMap, ISinglePlaceable
@@ -35,6 +35,7 @@ public class VoxelBrickmap : VoxelMap, ISinglePlaceable
 
     const float MAX_DISTANCE_FIELD = 10;
     const float MIN_DISTANCE_FIELD = 0.01f;
+    const float MAX_DISTANCE_FIELD_SQUARED = MAX_DISTANCE_FIELD * MAX_DISTANCE_FIELD;
     const float DISTANCE_FIELD_BIAS = -0.8f;
 
     public VoxelBrickmap(Vector3i dimensions, IVoxelMapPersistence persistenceModule) : base(dimensions, persistenceModule)
@@ -49,7 +50,7 @@ public class VoxelBrickmap : VoxelMap, ISinglePlaceable
             for (int z = 0, lz = C_BrickGrid.GetLength(1); z < lz; z++)
                 for (int x = 0, lx = C_BrickGrid.GetLength(2); x < lx; x++)
                 {
-                    C_BrickGrid[y, z, x] = new(MAX_DISTANCE_FIELD);
+                    C_BrickGrid[y, z, x] = new(MAX_DISTANCE_FIELD + DISTANCE_FIELD_BIAS);
                 }
 
         C_BrickValues = new UnmanagedList<VoxelBrickValues>(1);
@@ -218,7 +219,7 @@ public class VoxelBrickmap : VoxelMap, ISinglePlaceable
                         hit = true,
                         hitPos = origin,
                         voxelHitPos = traversalResult.lastVoxelPosition + brickOffset,
-                        normal = 0,
+                        normal = -1,
                         depth = 0
                     };
                 }
@@ -1003,21 +1004,25 @@ public class VoxelBrickmap : VoxelMap, ISinglePlaceable
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     void UpdateDistanceFieldOnBrickAllocated(Vector3i brickPosition)
     {
-        Vector3i min = Vector3i.Clamp(brickPosition - new Vector3i((int)MAX_DISTANCE_FIELD), Vector3i.Zero, brickmapSize);
-        Vector3i max = Vector3i.Clamp(brickPosition + new Vector3i((int)MAX_DISTANCE_FIELD), Vector3i.Zero, brickmapSize);
+        Vector3i min = Vector3i.Clamp(brickPosition - new Vector3i((int)MAX_DISTANCE_FIELD), Vector3i.Zero, brickmapSize - Vector3i.One);
+        Vector3i max = Vector3i.Clamp(brickPosition + new Vector3i((int)MAX_DISTANCE_FIELD), Vector3i.Zero, brickmapSize - Vector3i.One);
         Vector3i pos;
         VoxelBrickHandle brickHandle;
-        for (pos.Y = min.Y; pos.Y < max.Y; pos.Y++)
-            for (pos.Z = min.Z; pos.Z < max.Z; pos.Z++)
-                for (pos.X = min.X; pos.X < max.X; pos.X++)
+        for (pos.Y = min.Y; pos.Y <= max.Y; pos.Y++)
+            for (pos.Z = min.Z; pos.Z <= max.Z; pos.Z++)
+                for (pos.X = min.X; pos.X <= max.X; pos.X++)
                 {
                     brickHandle = GetBrickHandle(pos);
 
                     if (!brickHandle.IsEmpty)
                         continue;
                     
-                    float distance = Vector3.Distance(pos, brickPosition) + DISTANCE_FIELD_BIAS;
-                    distance = Math.Max(distance, MIN_DISTANCE_FIELD);
+                    float distance = MinDistanceBetweenBricksSquared(pos, brickPosition);
+
+                    if (distance > MAX_DISTANCE_FIELD_SQUARED)
+                        continue;
+
+                    distance = Math.Max(MathF.Sqrt(distance) + DISTANCE_FIELD_BIAS, MIN_DISTANCE_FIELD);
 
                     if (distance < brickHandle.DistanceFieldValue)
                         SetBrickHandleSync(pos, new VoxelBrickHandle(distance));
@@ -1027,8 +1032,8 @@ public class VoxelBrickmap : VoxelMap, ISinglePlaceable
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     void UpdateDistanceFieldOnBrickRemoved(Vector3i brickPosition)
     {
-        Vector3i min = Vector3i.Clamp(brickPosition - new Vector3i((int)MAX_DISTANCE_FIELD), Vector3i.Zero, brickmapSize);
-        Vector3i max = Vector3i.Clamp(brickPosition + new Vector3i((int)MAX_DISTANCE_FIELD), Vector3i.Zero, brickmapSize);
+        Vector3i min = Vector3i.Clamp(brickPosition - new Vector3i((int)MAX_DISTANCE_FIELD), Vector3i.Zero, brickmapSize - Vector3i.One);
+        Vector3i max = Vector3i.Clamp(brickPosition + new Vector3i((int)MAX_DISTANCE_FIELD), Vector3i.Zero, brickmapSize - Vector3i.One);
         Vector3i pos;
         VoxelBrickHandle brickHandle;
         for (pos.Y = min.Y; pos.Y <= max.Y; pos.Y++)
@@ -1040,8 +1045,12 @@ public class VoxelBrickmap : VoxelMap, ISinglePlaceable
                     if (!brickHandle.IsEmpty)
                         continue;
 
-                    float distance = Vector3.Distance(pos, brickPosition) + DISTANCE_FIELD_BIAS;
-                    distance = Math.Max(distance, MIN_DISTANCE_FIELD);
+                    float distance = MinDistanceBetweenBricksSquared(pos, brickPosition);
+
+                    if (distance > MAX_DISTANCE_FIELD_SQUARED)
+                        continue;
+
+                    distance = Math.Max(MathF.Sqrt(distance) + DISTANCE_FIELD_BIAS, MIN_DISTANCE_FIELD);
 
                     if (distance == brickHandle.DistanceFieldValue)
                         SetBrickHandleSync(pos, new VoxelBrickHandle(DistanceToNearestOccupiedBrick(pos)));
@@ -1051,26 +1060,38 @@ public class VoxelBrickmap : VoxelMap, ISinglePlaceable
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     float DistanceToNearestOccupiedBrick(Vector3i brickPosition)
     {
-        Vector3i min = Vector3i.Clamp(brickPosition - new Vector3i((int)MAX_DISTANCE_FIELD), Vector3i.Zero, brickmapSize);
-        Vector3i max = Vector3i.Clamp(brickPosition + new Vector3i((int)MAX_DISTANCE_FIELD), Vector3i.Zero, brickmapSize);
+        Vector3i min = Vector3i.Clamp(brickPosition - new Vector3i((int)MAX_DISTANCE_FIELD), Vector3i.Zero, brickmapSize - Vector3i.One);
+        Vector3i max = Vector3i.Clamp(brickPosition + new Vector3i((int)MAX_DISTANCE_FIELD), Vector3i.Zero, brickmapSize - Vector3i.One);
         Vector3i pos;
         VoxelBrickHandle brickHandle;
-        float minDistance = float.MaxValue;
+        float minDistance = MAX_DISTANCE_FIELD + DISTANCE_FIELD_BIAS;
 
-        for (pos.Y = min.Y; pos.Y < max.Y; pos.Y++)
-            for (pos.Z = min.Z; pos.Z < max.Z; pos.Z++)
-                for (pos.X = min.X; pos.X < max.X; pos.X++)
+        for (pos.Y = min.Y; pos.Y <= max.Y; pos.Y++)
+            for (pos.Z = min.Z; pos.Z <= max.Z; pos.Z++)
+                for (pos.X = min.X; pos.X <= max.X; pos.X++)
                 {
                     brickHandle = GetBrickHandle(pos);
 
                     if (brickHandle.IsEmpty)
                         continue;
 
-                    float distance = Vector3.Distance(pos, brickPosition) + DISTANCE_FIELD_BIAS;
-                    distance = Math.Max(distance, MIN_DISTANCE_FIELD);
+                    float distance = MinDistanceBetweenBricksSquared(pos, brickPosition);
+                    
+                    if (distance > MAX_DISTANCE_FIELD_SQUARED)
+                        continue;
+
+                    distance = Math.Max(MathF.Sqrt(distance) + DISTANCE_FIELD_BIAS, MIN_DISTANCE_FIELD);
                     minDistance = Math.Min(distance, minDistance);
                 }
+
         return minDistance;
+    }
+
+    static float MinDistanceBetweenBricksSquared(Vector3i pos0, Vector3i pos1)
+    {
+        Vector3i delta = pos0 - pos1;
+        delta -= delta.Sign();
+        return delta.EuclideanLengthSquared;
     }
 }
 
@@ -1140,6 +1161,11 @@ public struct VoxelBrickHandle
     public unsafe VoxelBrickHandle(float distanceToNearest)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(distanceToNearest);
+
+        if (distanceToNearest > 10)
+        {
+            throw new ArgumentOutOfRangeException(nameof(distanceToNearest), "Distance to nearest brick cannot be greater than 10. This is a safety check to prevent overflow in the distance field.");
+        }
 
         distanceToNearest = -distanceToNearest;
         value = *(int*)&distanceToNearest;

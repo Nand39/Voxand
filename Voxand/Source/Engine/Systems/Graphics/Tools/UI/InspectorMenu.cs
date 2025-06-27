@@ -1,6 +1,6 @@
 ﻿using System.Reflection;
 using Voxand.Helpers.Reflection;
-using Voxand.Source.Engine.Systems.Graphics.Tools.UI.InspectorComponents;
+using Voxand.Engine.Systems.Graphics.Tools.UI.InspectorComponents;
 using Voxand.UI.Components;
 
 namespace Voxand.Engine.Systems.Graphics.Tools.UI;

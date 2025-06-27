@@ -474,6 +474,18 @@ public static class VectorTKExtensions
     }
     #endregion
     #endregion
+
+    #region Sign
+    // Integer-based vectors
+    public static Vector2i Sign(this Vector2i vect) => new(Math.Sign(vect.X), Math.Sign(vect.Y));
+    public static Vector3i Sign(this Vector3i vect) => new(Math.Sign(vect.X), Math.Sign(vect.Y), Math.Sign(vect.Z));
+    public static Vector4i Sign(this Vector4i vect) => new(Math.Sign(vect.X), Math.Sign(vect.Y), Math.Sign(vect.Z), Math.Sign(vect.W));
+
+    // Float-based vectors
+    public static Vector2 Sign(this Vector2 vect) => new(Math.Sign(vect.X), Math.Sign(vect.Y));
+    public static Vector3 Sign(this Vector3 vect) => new(Math.Sign(vect.X), Math.Sign(vect.Y), Math.Sign(vect.Z));
+    public static Vector4 Sign(this Vector4 vect) => new(Math.Sign(vect.X), Math.Sign(vect.Y), Math.Sign(vect.Z), Math.Sign(vect.W));
+    #endregion
 }
 public static class VecotorNumExtensions
 {

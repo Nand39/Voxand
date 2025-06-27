@@ -1,6 +1,5 @@
 ﻿using ImGuiNET;
 using OpenTK.Mathematics;
-using System.Numerics;
 
 namespace Voxand.UI.Components;
 
@@ -36,7 +35,7 @@ public class IntPicker(string label) : UI_Element
     public override void Display()
     {
         bool valueChanged = ImGui.InputInt(label, ref value);
-        
+
         IsHovered = ImGui.IsItemHovered();
 
         if (valueChanged)

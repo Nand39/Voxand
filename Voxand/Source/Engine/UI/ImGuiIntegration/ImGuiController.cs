@@ -1,15 +1,22 @@
-﻿using ImGuiNET;
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
+using System.Text.Json;
+using System.Diagnostics;
+
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.Desktop;
 using OpenTK.Windowing.GraphicsLibraryFramework;
-using System.Diagnostics;
-using ErrorCode = OpenTK.Graphics.OpenGL4.ErrorCode;
-using System.Text.Json;
+
+using ImGuiNET;
+
 using GLAV;
 
-namespace Voxand.UI;
+using Voxand.UI.Systems.DragAndDrop;
+
+using ErrorCode = OpenTK.Graphics.OpenGL4.ErrorCode;
+using NVec2 = System.Numerics.Vector2;
+
+namespace Voxand.UI.ImGuiIntegration;
 public class ImGuiController : IDisposable
 {
     bool _frameBegun;
@@ -31,7 +38,7 @@ public class ImGuiController : IDisposable
     int _windowWidth;
     int _windowHeight;
 
-    System.Numerics.Vector2 _scaleFactor = System.Numerics.Vector2.One;
+    NVec2 _scaleFactor = NVec2.One;
 
     static bool KHRDebugAvailable = false;
 
@@ -40,7 +47,129 @@ public class ImGuiController : IDisposable
 
     static JsonSerializerOptions styleSerializationOptions;
 
+    IImGuiInputCacheInternals imGuiInputCache;
+
     Keys[] keys = (Keys[])Enum.GetValues(typeof(Keys));
+
+    static Payload? activePayload;
+    static Action<Payload>? dragDropTooltipBuilder;
+    public static bool IsDraggingPayload { get; private set; }
+
+    private interface IImGuiInputCacheInternals
+    {
+        void Update();
+    }
+    public class ImGuiInputCache : IImGuiInputCacheInternals
+    {
+        public class FrameInputState
+        {
+            public NVec2 MousePosition { get; set; }
+            public MouseButtonsMask IsMouseButtonDragging { get; set; }
+        }
+
+        public FrameInputState State { get; private set; }
+        public FrameInputState Past { get; private set; }
+
+        public NVec2[] mouseClickPositions = new NVec2[3];
+
+        public ImGuiInputCache()
+        {
+            State = new FrameInputState();
+            Past = new FrameInputState();
+        }
+
+        void IImGuiInputCacheInternals.Update()
+        {
+            MakeCurrentStatePrevious();
+            UpdateInput();
+        }
+
+        void MakeCurrentStatePrevious()
+        {
+            FrameInputState temp = Past;
+            Past = State;
+            State = temp;
+        }
+        void UpdateInput()
+        {
+            State.MousePosition = ImGui.GetMousePos();
+
+            State.IsMouseButtonDragging = 0;
+            for (int i = 0; i < 3; i++)
+            {
+                if (ImGui.IsMouseDragging((ImGuiMouseButton)i))
+                    State.IsMouseButtonDragging |= (MouseButtonsMask)(1 << i);
+
+                if (ImGui.IsMouseClicked((ImGuiMouseButton)i))
+                    mouseClickPositions[i] = State.MousePosition;
+            }
+        }
+    }
+
+    static void BeginDragDrop(Payload payload, Action<Payload> dragDropTooltipBuilder)
+    {
+        activePayload = payload;
+        IsDraggingPayload = true;
+        ImGuiController.dragDropTooltipBuilder = dragDropTooltipBuilder;
+    }
+    static void EndDragDrop()
+    {
+        if (!IsDraggingPayload)
+            throw new InvalidOperationException("Cannot end drag-drop when no payload is being dragged.");
+
+        IsDraggingPayload = false;
+
+        NVec2 mousePos = ImGui.GetMousePos();
+
+        foreach (DragDropTarget target in dragDropTargets)
+        {
+            if (ImGuiInput.IsHovering(target.Rect))
+                target.HandlePayloadDropped(activePayload!);
+        }
+
+        activePayload = null;
+        dragDropTooltipBuilder = null;
+    }
+
+    static HashSet<DragDropSource> dragDropSources = new();
+    static void OnDragStarted(MouseButtonsMask mouseButtons)
+    {
+        foreach (DragDropSource source in dragDropSources)
+        {
+            if (!source.Enabled)
+                continue;
+
+            if ((source.TrackedMouseButtons & mouseButtons) != 0)
+            {
+                if (!ImGuiInput.WasHoveringOnLastClick(source.Rect, mouseButtons))
+                    continue;
+
+                BeginDragDrop(source.Payload, source.DragDropTooltipBuilder);
+            }
+                
+        }
+    }
+
+
+    static HashSet<DragDropTarget> dragDropTargets = new();
+    public static void RegisterDragDropTarget(DragDropTarget target)
+    {
+        dragDropTargets.Add(target);
+    }
+    public static void RegisterDragDropSource(DragDropSource target)
+    {
+        dragDropSources.Add(target);
+    }
+
+    static void RenderDragDropTooltip()
+    {
+        if (IsDraggingPayload)
+        {
+            ImGui.BeginTooltip();
+            dragDropTooltipBuilder?.Invoke(activePayload!);
+            ImGui.EndTooltip();
+        }
+    }
 
     /// <summary>
     /// Constructs a new ImGuiController.
@@ -69,7 +198,13 @@ public class ImGuiController : IDisposable
         // Enable Docking
         io.ConfigFlags |= ImGuiConfigFlags.DockingEnable;
 
+        io.MouseDragThreshold = 3f;
+
         CreateDeviceResources();
+
+        ImGuiInputCache imGuiInputCacheObject = new ImGuiInputCache();
+        imGuiInputCache = imGuiInputCacheObject;
+        ImGuiInput.Initialize(imGuiInputCacheObject);
 
         SetPerFrameImGuiData(1f / 60f);
 
@@ -206,6 +341,8 @@ void main()
     /// </summary>
     public void Render()
     {
+        RenderDragDropTooltip();
+
         if (_frameBegun)
         {
             _frameBegun = false;
@@ -229,6 +366,18 @@ void main()
 
         _frameBegun = true;
         ImGui.NewFrame();
+
+        imGuiInputCache.Update();
+
+        if (IsDraggingPayload)
+        {
+            if (ImGuiInput.IsAnyMouseButtonDragChanged())
+                EndDragDrop();
+        }
+        else if (ImGuiInput.MouseDragStarted())
+        {
+            OnDragStarted(ImGuiInput.GetMouseDragMask());
+        }
     }
 
     /// <summary>
@@ -284,7 +433,7 @@ void main()
 
     public void PressChar(uint codepoint) => PressedChars.Add(codepoint);
 
-    internal void MouseScroll(Vector2 offset)
+    internal void MouseScroll(OpenTK.Mathematics.Vector2 offset)
     {
         ImGuiIOPtr io = ImGui.GetIO();
 
@@ -471,9 +620,6 @@ void main()
         }
     }
 
-    /// <summary>
-    /// Frees all graphics resources used by the renderer.
-    /// </summary>
     public void Dispose()
     {
         GL.DeleteVertexArray(_vertexArray);

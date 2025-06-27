@@ -1,12 +1,11 @@
 ﻿using ImGuiNET;
 using OpenTK.Mathematics;
-using Voxand.Engine.Systems.Graphics.Tools.UI;
 using Voxand.Helpers;
 using Voxand.UI.Components;
 
 using NVec2 = System.Numerics.Vector2;
 
-namespace Voxand.Source.Engine.Systems.Graphics.Tools.UI.InspectorComponents;
+namespace Voxand.Engine.Systems.Graphics.Tools.UI.InspectorComponents;
 
 public abstract class PropertyEntryHandler : UI_Element
 {

@@ -14,17 +14,18 @@ using Voxand.Helpers.ExtensionMethods;
 namespace Voxand.App;
 public class Viewer : BaseObject
 {
-    public Camera Camera { get; set; }
-    public VoxelTool VoxelTool { get; set; }
+    public required Camera Camera { get; set; }
+    public required VoxelTool VoxelTool { get; set; }
+    public required VoxelToolHotbar VoxelToolHotbar { get; set; }
 
     public bool lockMovement;
     public bool fastMovement;
     public bool cameraFollow;
     public bool hideCursorWhenRotatingCamera;
     public float sensitivity = 0.0038f;
-    float speed = 8;
+    float speed = 32;
     Vector2i screenCenter;
-    int chunkLoadingDistance = 42;
+    int chunkLoadingDistance = 8;
 
     public event Action? recreateMapRequest;
     public event Action<Vector3>? setSunDirectionRequest;
@@ -71,7 +72,20 @@ public class Viewer : BaseObject
 
             setSunDirectionRequest?.Invoke(sunDir);
         }
+
+        for (int i = 0; i < 10; i++)
+        {
+            Keys numKey = i == 9 ? Keys.D0 : (Keys.D1 + i);
+
+            if (Win.KeyboardState.IsKeyPressed(numKey))
+            {
+                int index = VoxelToolHotbar[i];
+                if (index >= 0)
+                    VoxelTool.ActivePlacementTechniqueIndex = index;
+            }
+        }
     }
+
     bool HandleMovement(float deltaTime)
     {
         if (!lockMovement)

@@ -18,6 +18,8 @@ public class VoxelTool : BaseObject
 
     List<PlacementTechnique> builders = [];
 
+    public event Action? OnPlacementTechniquesLoaded;
+
     VoxelToolContext context = new();
 
     public int TechniqueCount => builders.Count;
@@ -33,6 +35,9 @@ public class VoxelTool : BaseObject
         get => activePlacementTechniqueIndex;
         set
         {
+            if (value < 0 || value >= TechniqueCount)
+                throw new ArgumentOutOfRangeException(nameof(value), $"{nameof (ActivePlacementTechniqueIndex)} should be between zero and {nameof(TechniqueCount)} - 1.");
+
             activePlacementTechniqueIndex = value;
             Events.Invoke("activePlacementTechnique_changed", ActivePlacementTechnique);
             OnActivePlacementTechniqueChanged?.Invoke();
@@ -58,14 +63,14 @@ public class VoxelTool : BaseObject
 
         EngineState.Events.Subscribe("main_voxelMap_changed", (args) => {
             map = (ChunkMap)args;
-            UpdateBuilders();
+            LoadPlacementTechniques();
         });
         map = EngineState.VoxelMap;
-        UpdateBuilders();
+        LoadPlacementTechniques();
         ActivePlacementTechniqueIndex = 0;
     }
 
-    void UpdateBuilders()
+    void LoadPlacementTechniques()
     {
         ISinglePlaceable singlePlaceable = map.RawStructure as ISinglePlaceable ?? throw new Exception($"Map should support {nameof(ISinglePlaceable)}.");
         builders.Clear();
@@ -75,6 +80,7 @@ public class VoxelTool : BaseObject
         builders.Add(new BlockRemover(singlePlaceable, map.Dimensions));
         builders.Add(new SphereBuilder(singlePlaceable, map.Dimensions));
         builders.Add(new SphereRemover(singlePlaceable, map.Dimensions));
+        OnPlacementTechniquesLoaded?.Invoke();
     }
 
     public void Use(RaycastResult raycastResult)
@@ -107,7 +113,7 @@ public abstract class PlacementTechnique
     protected abstract string DefaultName { get; }
 
     string? name;
-    public string? Name
+    public string Name
     {
         get => name ?? DefaultName;
         set => name = value;
@@ -124,7 +130,8 @@ public class SingleBuilder : PlacementTechnique
 
     public override void Use(PlacementInput input)
     {
-        Vector3i position = input.RaycastResult.voxelHitPos + Util.VectorFromNormalIndex(input.RaycastResult.normal);
+        Vector3i normalOffset = input.RaycastResult.normal < 0 ? Vector3i.Zero : Util.VectorFromNormalIndex(input.RaycastResult.normal);
+        Vector3i position = input.RaycastResult.voxelHitPos + normalOffset;
         singlePlaceable.PlaceSingle(position, input.Context.Material);
     }
 }
@@ -207,12 +214,6 @@ public class BlockBuilder : BatchPlacementTechnique
     protected override void OnInputReceived(PlacementInput input, int index)
     {
         Positions[index] = input.RaycastResult.voxelHitPos;
-    }
-
-    [InspectorProperty("button cuz i said so", "meaningful tooltip", 1)]
-    public void Place()
-    {
-        Console.WriteLine("meaningful button clicked");
     }
 
     public override void Cancel()

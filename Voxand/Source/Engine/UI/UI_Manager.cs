@@ -3,7 +3,6 @@
 using ImGuiNET;
 
 using Voxand.Content;
-using Voxand.Engine.Systems.Graphics;
 using Voxand.Engine.Systems.Voxels;
 using Voxand.Helpers;
 using Voxand.UI.Components;
@@ -11,11 +10,10 @@ using Voxand.Engine.Systems.General.Events;
 using Voxand.Helpers.ExtensionMethods;
 using Voxand.App.Map;
 using Voxand.App.VoxelEditing;
-using Voxand.Helpers.Reflection;
-using System.Reflection;
 using Voxand.Engine.Systems.Graphics.Tools.UI;
 using Voxand.Engine.Systems.Voxels.VoxelMaterialServices;
-using static System.Runtime.InteropServices.JavaScript.JSType;
+using Voxand.UI.Systems.DragAndDrop;
+using Voxand.UI.ImGuiIntegration;
 
 namespace Voxand.UI;
 public static class UI_Manager
@@ -239,11 +237,9 @@ public sealed class UI_SettingsWindow : UI_Window
 public sealed class UI_DebugWindow : UI_Window
 {
     VoxelMap voxelMap;
-    List<UI_TableColumnInfo> columnInfos;
-
     public UI_DebugWindow(VoxelMap map)
     {
-        voxelMap = map;
+        voxelMap = map; 
     }
     
     [ImportEvent("engine_state_events", "main_voxelMap_changed")]
@@ -269,13 +265,133 @@ public sealed class UI_DebugWindow : UI_Window
     }
 }
 
+public sealed class UI_VoxelToolHotbar : UI_Window
+{
+    UI_Table hotbarTable;
+
+    DragDropTarget[] hotbarDropTargets = new DragDropTarget[VoxelToolHotbar.MAX_SLOTS];
+    DragDropSource[] hotbarDragSources = new DragDropSource[VoxelToolHotbar.MAX_SLOTS];
+
+    float tableHeight = 0;
+
+    public UI_VoxelToolHotbar(VoxelTool tool, VoxelToolHotbar hotbar)
+    {
+        for (int i = 0; i < VoxelToolHotbar.MAX_SLOTS; i++)
+        {
+            hotbarDropTargets[i] = new DragDropTarget(
+                position: Vector2.Zero,
+                size: Vector2.Zero);
+
+            int slotIndex = i;
+            hotbarDropTargets[i].OnPayloadDropped += (payload) =>
+            {
+                Console.WriteLine($"Dropped to {hotbarDropTargets[slotIndex].Rect.Bottom}-{hotbarDropTargets[slotIndex].Rect.Top}");
+
+                if (payload.Type == "voxel_placement_technique_hotbar")
+                {
+                    (int techniqueIndex, int sourceSlotIndex) = ((int, int))payload.Data;
+                    SetTechniqueIndex(hotbar, sourceSlotIndex, hotbar[slotIndex]);
+                    SetTechniqueIndex(hotbar, slotIndex, techniqueIndex);
+                }
+                else
+                {
+                    SetTechniqueIndex(hotbar, slotIndex, (int)payload.Data);
+                }
+            };
+
+            hotbarDragSources[i] = new DragDropSource(
+                payload: new Payload(null!, "voxel_placement_technique_hotbar"),
+                flags: ImGuiDragDropFlags.None,
+                dragDropTooltipBuilder: (payload) =>
+                {
+                    ImGui.Text(tool[hotbar[slotIndex]].Name);
+                })
+            {
+                Enabled = false
+            };
+        }
+
+        hotbarTable = new UI_Table(
+            label: "hotbar",
+            flags: ImGuiTableFlags.None, 
+            columnInfos: [new UI_TableColumnInfo("techniques", ImGuiTableColumnFlags.None, 100, 1, (row) => {
+                
+                int index = hotbar[row];
+
+                Vector2 position = ImGui.GetCursorScreenPos();
+                Vector2 slotSize = new(ImGui.GetContentRegionAvail().X, ImGui.GetFrameHeight());
+                bool isHovering = ImGuiInput.IsHovering(new(position.AsTK(), slotSize.AsTK()));
+
+                ImGui.PushID(row);
+                if (index < 0)
+                {
+                    ImGui.Selectable(
+                        label: $"{(row < 9 ? row + 1 : 0)}. Empty slot",
+                        selected: false,
+                        flags: ImGuiSelectableFlags.Disabled | (isHovering  ? ImGuiSelectableFlags.Highlight : ImGuiSelectableFlags.None),
+                        size: slotSize);
+                }
+                else if (ImGui.Selectable(
+                    label: $"{(row < 9 ? row + 1 : 0)}. {tool[index].Name}",
+                    selected: index == tool.ActivePlacementTechniqueIndex, 
+                    flags: isHovering ? ImGuiSelectableFlags.Highlight : ImGuiSelectableFlags.None,
+                    size: slotSize))
+                {
+                    tool.ActivePlacementTechniqueIndex = index;
+                }
+                ImGui.PopID();
+
+                hotbarDropTargets[row].Position = position;
+                hotbarDropTargets[row].Size = slotSize;
+
+                hotbarDragSources[row].Position = position;
+                hotbarDragSources[row].Size = slotSize;
+            })], 
+            numRows: 10,
+            displayHeadersRow: false);
+    }
+
+    void SetTechniqueIndex(VoxelToolHotbar hotbar, int hotbarItemIndex, int techniqueIndex)
+    {
+        if (hotbarItemIndex < 0 || hotbarItemIndex >= VoxelToolHotbar.MAX_SLOTS)
+            throw new ArgumentOutOfRangeException(nameof(hotbarItemIndex), "Hotbar item index must be between zero and " + (VoxelToolHotbar.MAX_SLOTS - 1));
+
+        hotbar[hotbarItemIndex] = techniqueIndex;
+        hotbarDragSources[hotbarItemIndex].Payload.Data = (techniqueIndex, hotbarItemIndex);
+        hotbarDragSources[hotbarItemIndex].Enabled = techniqueIndex < 0 ? false : true;
+    }
+
+    protected override void Display()
+    {
+        if (tableHeight == 0)
+        {
+            ImGui.Begin("_tmp");
+            hotbarTable.Display();
+            tableHeight = ImGui.GetCursorPosY() + ImGui.GetStyle().WindowPadding.Y;
+            ImGui.End();
+        }
+        ImGui.SetNextWindowSizeConstraints(new(0, 0), new(float.MaxValue, tableHeight));
+        ImGui.Begin("Voxel Tool Hotbar");
+        hotbarTable.Display();
+        ImGui.End();
+    }
+}
+
 public sealed class UI_VoxelToolSettingsWindow : UI_Window
 {
     VoxelTool tool;
     InspectorMenu toolConfigMenu;
+    (string name, DragDropSource dragDropSource)[] placementTechniqueDescriptors;
+    DragDropSource previewDragDropSource;
     public UI_VoxelToolSettingsWindow(VoxelTool tool)
     {
         this.tool = tool;
+
+        BuildPlacementTechniqueDescriptors();
+        tool.OnPlacementTechniquesLoaded += BuildPlacementTechniqueDescriptors;
+
+        toolConfigMenu = new(tool.ActivePlacementTechnique);
+
         tool.OnActivePlacementTechniqueChanged += () =>
         {
             try
@@ -286,6 +402,10 @@ public sealed class UI_VoxelToolSettingsWindow : UI_Window
             {
                 Console.WriteLine(e.Message);
             }
+
+            previewDragDropSource.Payload.Data = tool.ActivePlacementTechniqueIndex;
+            string activeTechniqueName = tool.ActivePlacementTechnique.Name;
+            previewDragDropSource.DragDropTooltipBuilder = (payload) => ImGui.Text(activeTechniqueName);
         };
     }
 
@@ -295,14 +415,18 @@ public sealed class UI_VoxelToolSettingsWindow : UI_Window
 
         ImGui.SeparatorText("Modes");
 
-        if (ImGui.BeginCombo("", tool.ActivePlacementTechnique.Name))
+        bool comboOpen = ImGui.BeginCombo("", tool.ActivePlacementTechnique.Name);
+
+        previewDragDropSource.CoverLastImGuiItem();
+
+        if (comboOpen)
         {
-            for (int i = 0; i < tool.TechniqueCount; i++)
+            for (int i = 0; i < placementTechniqueDescriptors.Length; i++)
             {
-                if (ImGui.Selectable(tool[i].Name, i == tool.ActivePlacementTechniqueIndex))
-                {
+                if (ImGui.Selectable(placementTechniqueDescriptors[i].name, i == tool.ActivePlacementTechniqueIndex))
                     tool.ActivePlacementTechniqueIndex = i;
-                }
+
+                placementTechniqueDescriptors[i].dragDropSource.CoverLastImGuiItem();
             }
             ImGui.EndCombo();
         }
@@ -317,5 +441,32 @@ public sealed class UI_VoxelToolSettingsWindow : UI_Window
         toolConfigMenu.Display();
 
         ImGui.End();
+    }
+
+    void BuildPlacementTechniqueDescriptors()
+    {
+        placementTechniqueDescriptors = new (string, DragDropSource)[tool.TechniqueCount];
+        for (int i = 0; i < tool.TechniqueCount; i++)
+        {
+            string techniqueName = tool[i].Name;
+            DragDropSource dragDropSource = new(
+                payload: new Payload(i, "voxel_placement_technique"),
+                flags: ImGuiDragDropFlags.None,
+                dragDropTooltipBuilder: (payload) =>
+                {
+                    ImGui.Text(techniqueName);
+                });
+            placementTechniqueDescriptors[i] = (techniqueName, dragDropSource);
+        }
+
+        int activeTechniqueIndex = tool.ActivePlacementTechniqueIndex;
+        string activeTechniqueName = tool.ActivePlacementTechnique.Name;
+        previewDragDropSource = new DragDropSource(
+            payload: new Payload(tool.ActivePlacementTechniqueIndex, "voxel_placement_technique"),
+            flags: ImGuiDragDropFlags.None,
+            dragDropTooltipBuilder: (payload) =>
+            {
+                ImGui.Text(activeTechniqueName);
+            });
     }
 }

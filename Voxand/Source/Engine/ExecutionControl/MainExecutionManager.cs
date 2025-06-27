@@ -1,4 +1,5 @@
 ﻿using System.Runtime.InteropServices;
+using System.Reflection;
 using System.Text;
 
 using OpenTK.Windowing.Common;
@@ -24,8 +25,6 @@ using Voxand.App.VoxelEditing;
 using Voxand.App.Map.Generation;
 using Voxand.App.Map;
 using Voxand.Engine.Systems.Voxels.VoxelMaterialServices;
-using Voxand.Helpers.Reflection;
-using System.Reflection;
 
 namespace Voxand.Engine.ExecutionControl;
 
@@ -181,6 +180,8 @@ public sealed class MainExecutionManager : ExecutionManager,
 
         GL.ClearColor(0.2f, 0.3f, 0.3f, 1);
 
+        windowState.Window.VSync = VSyncMode.On;
+
         ComputeUtility.Initialize(windowState.Window.Content, "Graphics/Shaders/copy_tex8_shader.comp");
 
         engineState.MainCamera = new Camera();
@@ -213,11 +214,15 @@ public sealed class MainExecutionManager : ExecutionManager,
         paletteWindow.Select(0);
 
         VoxelTool voxelTool = new();
+        VoxelToolHotbar hotbar = new();
         viewer = new()
         {
             VoxelTool = voxelTool,
+            VoxelToolHotbar = hotbar,
             Camera = engineState.MainCamera
         };
+
+        objectRegistry.AddObjects(viewer, voxelTool);
 
         engineState.Events.ExportEvents(materialEditorWindow);
         engineState.Events.ExportEvents(paletteWindow);
@@ -229,6 +234,7 @@ public sealed class MainExecutionManager : ExecutionManager,
         UI_Manager.AddWindow(renderSettingsWindow);
         UI_Manager.AddWindow(debugWindow);
         UI_Manager.AddWindow(new UI_VoxelToolSettingsWindow(voxelTool));
+        UI_Manager.AddWindow(new UI_VoxelToolHotbar(voxelTool, hotbar));
 
         UI_Manager.Events.Subscribe("voxel_material_edited", engineState.VoxelPalette.SetMaterial);
         UI_Manager.Events.Subscribe("voxel_material_selected", (args) => { viewer.VoxelTool.ActiveMaterialIndex = (int)args; });
@@ -249,7 +255,6 @@ public sealed class MainExecutionManager : ExecutionManager,
             output: RenderTarget.Default,
             renderingResolution: new((windowState.Window.ClientSize.X / 2) & ~7, (windowState.Window.ClientSize.Y / 2) & ~7));
 
-        objectRegistry.AddObjects(viewer, voxelTool);
 
         viewer.VoxelTool.Events.ExportEvents(materialEditorWindow);
         viewer.VoxelTool.Events.ExportEvents(paletteWindow);
@@ -296,7 +301,7 @@ public sealed class MainExecutionManager : ExecutionManager,
     }
     public override void OnResize(ResizeEventArgs args)
     {
-        engineState.RenderingPipeline.SetRenderingResolution(new((args.Size.X / 2) & ~7, (args.Size.Y / 2) & ~7));
+        engineState.RenderingPipeline.SetRenderingResolution(new((args.Size.X) & ~7, (args.Size.Y) & ~7));
     }
     void GLDebugCallback(DebugSource source, DebugType type, int id, DebugSeverity severity, int messageLength, nint messagePtr, nint userParamPtr)
     {

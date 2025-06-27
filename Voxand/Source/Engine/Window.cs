@@ -11,7 +11,7 @@ using GLAV;
 using Voxand.Content;
 using Voxand.Engine.ExecutionControl;
 using Voxand.Helpers;
-using Voxand.UI;
+using Voxand.UI.ImGuiIntegration;
 using Voxand.Helpers.Interop;
 using Voxand.Helpers.Exceptions;
 

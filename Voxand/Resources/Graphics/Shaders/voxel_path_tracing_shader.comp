@@ -230,6 +230,11 @@ void executePathTracing(vec3 origin, vec3 dir, out vec3 directIllum, out vec3 in
         directIllum = skySample(dir);
         return;
     }
+    if (firstHitResult == 2)
+    {
+        directIllum = vec3(1, 0.8, 0.2);
+        return;
+    }
 
     vec3 indirectContribution = vec3(0);
 
@@ -358,13 +363,6 @@ int raycast(vec3 origin, vec3 dir, out vec3 hitPosition, out ivec3 voxelHitPosit
             brickPosition = any(lessThan(pointInNearestSafeBrick, vec3(0))) ? ivec3(-1) : ivec3(pointInNearestSafeBrick);
         }
 
-        if (brickPosition == prevBrickPosition) // This is a safety check that makes pixel white when encountered. On each iteration coordinates of the current voxel brick the ray "stays on" should be changed, otherwise something is very wrong. For unknown reason Z- side of some (!) voxels flickers with white pixels. Flickering suggests it happens when tracing secondary rays whose direction is randomized over a hemisphere. Normalizing `dir` at the beginning of the function seems to help although `dir` should be a unit vector already.
-        {
-            showDebug = true;
-            debugColor = vec4(dir, 2000);
-            return 0;
-        }
-
         if (any(lessThan(brickPosition, ivec3(0))) || any(greaterThanEqual(brickPosition, voxelBrickmapSize)))
         {
             hitPosition = (depth * 4) * dir + origin; // Depth should be converted to voxel space by multiplying by 4 before returning
@@ -382,6 +380,15 @@ int raycast(vec3 origin, vec3 dir, out vec3 hitPosition, out ivec3 voxelHitPosit
                 uint bitmask1 = brickOccupancyList[(brickValue << 1) + 1];
 
                 entrance = fract(rayPosition) * 4;
+
+//                // highlight edges of bricks
+//                float debugGridThickness = 0.1;
+//                ivec3 isEdge = ivec3(lessThan(entrance, vec3(debugGridThickness))) + ivec3(greaterThan(entrance, vec3(4 - debugGridThickness)));
+//                if (isEdge.x + isEdge.y + isEdge.z > 1)
+//                {
+//                    return 2;
+//                }
+
                 entrance[lastAxis] = dir[lastAxis] > 0 ? 0 : 4;
                 ivec3 entranceVoxel = ivec3(entrance);
                 entranceVoxel[lastAxis] = dir[lastAxis] > 0 ? 0 : 3;
@@ -492,7 +499,7 @@ vec3 skySample(vec3 dir)
     float sunVisibility = acos(clamp(-dot(dir, sunDirection), -1, 1)) * INV_PI;
     sunVisibility = clamp(64 * (sunVisibility - 0.98), 0, 1);
 
-    return mix(vec3(0.75, 1.3, 1.9), sunColor, sunVisibility);
+    return mix(vec3(0.75, 1.3, 1.9) * 2.7, sunColor, sunVisibility);
 
     //float absFactor = fma(tanh(5 * dir.y - 0.5), 0.5, 0.5);
     //return mix(vec3(3.7, 1.2, 0.4), vec3(0.188, 0.192, 0.459), absFactor);
