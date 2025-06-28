@@ -2,7 +2,7 @@
 
 using Voxand.App.MathR.Noise;
 
-namespace Voxand.App.Map.Generation;
+namespace Voxand.App.Voxels.Map.Generation;
 
 public abstract class MapGenerator
 {

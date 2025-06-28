@@ -7,10 +7,10 @@ using GLAV;
 using Voxand.Engine.Systems.Voxels;
 using Voxand.Helpers;
 
-namespace Voxand.App.Map.Generation;
+namespace Voxand.App.Voxels.Map.Generation;
 public class BrickmapGenerator : MapGenerator
 {
-    public VoxelMap map;
+    public VoxelStructure map;
     NoiseAdapter noiseLarge, noiseSmall, mudNoise;
     Vector2 cellSize;
     int height;
@@ -26,7 +26,7 @@ public class BrickmapGenerator : MapGenerator
             }
         }
     }
-    public BrickmapGenerator(VoxelMap map, Vector2 cellSize, int height)
+    public BrickmapGenerator(VoxelStructure map, Vector2 cellSize, int height)
     {
         this.map = map;
         CellSize = cellSize;

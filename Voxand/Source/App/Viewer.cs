@@ -1,20 +1,20 @@
 ﻿using OpenTK.Mathematics;
-using OpenTK.Windowing.Common;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 
-using ImGuiNET;
-
-using Voxand.Engine.Systems.Graphics;
-using Voxand.Engine.Systems.ScriptableObjects;
+using Voxand.Engine.Systems.Scripts;
 using Voxand.Engine.Systems.Voxels;
 using Voxand.Helpers;
-using Voxand.App.VoxelEditing;
+using Voxand.App.Voxels.Editing;
 using Voxand.Helpers.ExtensionMethods;
+using Voxand.Engine.Systems.Common;
+using Voxand.Engine.Systems.Services.General;
+using Voxand.Engine.Systems.Services.Voxels;
+using ImGuiNET;
 
 namespace Voxand.App;
-public class Viewer : BaseObject
+public class Viewer : Script
 {
-    public required Camera Camera { get; set; }
+    public required ICamera Camera { get; set; }
     public required VoxelTool VoxelTool { get; set; }
     public required VoxelToolHotbar VoxelToolHotbar { get; set; }
 
@@ -27,48 +27,54 @@ public class Viewer : BaseObject
     Vector2i screenCenter;
     int chunkLoadingDistance = 8;
 
+    Window win;
+    IWindowService windowService;
+    IVoxelMap voxelMap;
+    IVoxelMapVerticalChunks voxelMapChunks;
+
     public event Action? recreateMapRequest;
     public event Action<Vector3>? setSunDirectionRequest;
     public override void Initialize()
     {
-        Win.Resize += (args) => screenCenter = args.Size / 2;
+        windowService = EngineServices.GetService<IWindowService>();
+        voxelMap = EngineServices.GetService<IVoxelMap>();
+        voxelMapChunks = EngineServices.GetService<IVoxelMapVerticalChunks>();
+        win = windowService.Window;
+
+        win.Resize += (args) => screenCenter = args.Size / 2;
         HandleMapLoading();
+
+        EngineServices.AddReplacementCallback<ICamera>((camera) => Camera = camera);
+        EngineServices.AddReplacementCallback<IVoxelMap>((map) => voxelMap = map);
     }
-    public override void Update(FrameEventArgs args)
+    public override void Update()
     {
-        if (Win.KeyboardState.IsKeyPressed(Keys.LeftControl))
+        if (win.KeyboardState.IsKeyPressed(Keys.LeftControl))
             fastMovement = !fastMovement;
 
-        if (Win.KeyboardState.IsKeyPressed(Keys.L))
+        if (win.KeyboardState.IsKeyPressed(Keys.L))
             lockMovement = !lockMovement;
 
-        bool moved = HandleMovement((float)args.Time);
+        bool moved = HandleMovement(FrameTime.Delta);
         
         if (moved)
             HandleMapLoading();
 
         HandleCameraMouseFollow();
 
-        if (Win.KeyboardState.IsKeyPressed(Keys.X))
-            VoxelTool.NextTechnique();
-        if (Win.KeyboardState.IsKeyPressed(Keys.Z))
-            VoxelTool.PreviousTechnique();
-
-        HandleBuilding();
-
-        if (Win.KeyboardState.IsKeyPressed(Keys.R))
+        if (win.KeyboardState.IsKeyPressed(Keys.R))
         {
-            (uint value, ulong bit, VoxelBrickHandle brickHandle) = EngineState.VoxelMap.RawStructure.Examine((Vector3i)Camera.position, false);
-            Console.WriteLine($"! CPU SIDE: voxel data at {(Vector3i)Camera.position}: value={value}; empty={bit == 0}; brick={(brickHandle.IsEmpty ? brickHandle.DistanceFieldValue : brickHandle.BrickIndex)}");
-            (value, bit, brickHandle) = EngineState.VoxelMap.RawStructure.Examine((Vector3i)Camera.position, true);
-            Console.WriteLine($"* GPU SIDE: voxel data at {(Vector3i)Camera.position}: value={value}; empty={bit == 0}; brick={(brickHandle.IsEmpty ? brickHandle.DistanceFieldValue : brickHandle.BrickIndex)}");
+            (uint value, ulong bit, VoxelBrickHandle brickHandle) = (voxelMap.RawStructure as VoxelBrickmap)!.Examine((Vector3i)Camera.Pose.position, false);
+            Console.WriteLine($"! CPU SIDE: voxel data at {(Vector3i)Camera.Pose.position}: value={value}; empty={bit == 0}; brick={(brickHandle.IsEmpty ? brickHandle.DistanceFieldValue : brickHandle.BrickIndex)}");
+            (value, bit, brickHandle) = (voxelMap.RawStructure as VoxelBrickmap)!.Examine((Vector3i)Camera.Pose.position, true);
+            Console.WriteLine($"* GPU SIDE: voxel data at {(Vector3i)Camera.Pose.position}: value={value}; empty={bit == 0}; brick={(brickHandle.IsEmpty ? brickHandle.DistanceFieldValue : brickHandle.BrickIndex)}");
         }
 
-        if (Win.KeyboardState.IsKeyPressed(Keys.P))
+        if (win.KeyboardState.IsKeyPressed(Keys.P))
         {
             Vector3 sunDir = Camera.PixelToRay(
-                uv: Win.MouseState.Position / Win.ClientSize,
-                aspectRatio: Win.ClientSize.Ratio());
+                uv: win.MouseState.Position / win.ClientSize,
+                aspectRatio: win.ClientSize.Ratio());
 
             setSunDirectionRequest?.Invoke(sunDir);
         }
@@ -77,7 +83,7 @@ public class Viewer : BaseObject
         {
             Keys numKey = i == 9 ? Keys.D0 : (Keys.D1 + i);
 
-            if (Win.KeyboardState.IsKeyPressed(numKey))
+            if (win.KeyboardState.IsKeyPressed(numKey))
             {
                 int index = VoxelToolHotbar[i];
                 if (index >= 0)
@@ -93,30 +99,30 @@ public class Viewer : BaseObject
             float speed = this.speed * deltaTime;
             Vector3 forward, tangent; Vector3 movement = Vector3.Zero;
 
-            forward = Util.RotateY(Vector3.UnitZ, Camera.rotation.Y);
+            forward = Util.RotateY(Vector3.UnitZ, Camera.Pose.rotation.Y);
             tangent = Vector3.Cross(Vector3.UnitY, forward);
 
-            if (Win.KeyboardState.IsKeyDown(Keys.W))
+            if (win.KeyboardState.IsKeyDown(Keys.W))
             {
                 movement.Z--;
             }
-            if (Win.KeyboardState.IsKeyDown(Keys.S))
+            if (win.KeyboardState.IsKeyDown(Keys.S))
             {
                 movement.Z++;
             }
-            if (Win.KeyboardState.IsKeyDown(Keys.A))
+            if (win.KeyboardState.IsKeyDown(Keys.A))
             {
                 movement.X--;
             }
-            if (Win.KeyboardState.IsKeyDown(Keys.D))
+            if (win.KeyboardState.IsKeyDown(Keys.D))
             {
                 movement.X++;
             }
-            if (Win.KeyboardState.IsKeyDown(Keys.Space))
+            if (win.KeyboardState.IsKeyDown(Keys.Space))
             {
                 movement.Y++;
             }
-            if (Win.KeyboardState.IsKeyDown(Keys.LeftShift))
+            if (win.KeyboardState.IsKeyDown(Keys.LeftShift))
             {
                 movement.Y--;
             }
@@ -125,10 +131,10 @@ public class Viewer : BaseObject
                 movement.Normalize();
                 if (fastMovement)
                     movement *= 8;
-                Camera.position += forward * movement.Z * speed;
-                Camera.position += tangent * movement.X * speed;
-                Camera.position += Vector3.UnitY * movement.Y * speed;
-                Camera.position = Vector3.Clamp(Camera.position, Vector3.Zero, new(EngineState.VoxelMap.Dimensions.X - 1, EngineState.VoxelMap.Dimensions.Y - 1, EngineState.VoxelMap.Dimensions.Z - 1));
+                Camera.Pose.position += forward * movement.Z * speed;
+                Camera.Pose.position += tangent * movement.X * speed;
+                Camera.Pose.position += Vector3.UnitY * movement.Y * speed;
+                Camera.Pose.position = Vector3.Clamp(Camera.Pose.position, Vector3.Zero, new(voxelMap.Dimensions.X - 1, voxelMap.Dimensions.Y - 1, voxelMap.Dimensions.Z - 1));
                 return true;
             }
         }
@@ -136,70 +142,48 @@ public class Viewer : BaseObject
     }
     void HandleCameraMouseFollow()
     {
-        if (Win.KeyboardState.IsKeyPressed(Keys.E))
+        if (win.KeyboardState.IsKeyPressed(Keys.E))
         {
             if (cameraFollow)
             {
                 cameraFollow = false;
                 if (hideCursorWhenRotatingCamera)
-                    WindowState.CursorMode = CursorModeValue.CursorNormal;
+                    windowService.CursorMode = CursorModeValue.CursorNormal;
                     
             }
             else
             {
-                Win.MousePosition = screenCenter;
                 cameraFollow = true;
+                win.MousePosition = screenCenter;
+                ImGui.SetWindowFocus(null);
                 if (hideCursorWhenRotatingCamera)
-                    WindowState.CursorMode = CursorModeValue.CursorHidden;
+                    windowService.CursorMode = CursorModeValue.CursorHidden;
             }
         }
         else if (cameraFollow)
         {
-            Vector2 mouseShift = (Win.MousePosition - screenCenter) * sensitivity;
-            Win.MousePosition = screenCenter;
+            Vector2 mouseShift = (win.MousePosition - screenCenter) * sensitivity;
+            win.MousePosition = screenCenter;
 
             if (mouseShift.X != 0)
             {
-                Camera.rotation.Y += mouseShift.X;
-                Camera.rotation.Y %= MathF.Tau;
+                
+                Camera.Pose.rotation.Y += mouseShift.X;
+                Camera.Pose.rotation.Y %= MathF.Tau;
             }
             if (mouseShift.Y != 0)
             {
-                Camera.rotation.X += mouseShift.Y;
-                Camera.rotation.X = Math.Clamp(Camera.rotation.X, -MathF.PI / 2, MathF.PI / 2);
+                Camera.Pose.rotation.X += mouseShift.Y;
+                Camera.Pose.rotation.X = Math.Clamp(Camera.Pose.rotation.X, -MathF.PI / 2, MathF.PI / 2);
             }
         }
     }
-    void HandleBuilding()
-    {
-        if (Win.MouseState.IsButtonPressed(MouseButton.Left))
-        {
-            if (!ImGui.IsAnyItemHovered() && !ImGui.IsWindowHovered(ImGuiHoveredFlags.AnyWindow | ImGuiHoveredFlags.None | ImGuiHoveredFlags.RootWindow))
-            {
-                Vector3 raycastDir = Camera.PixelToRay(
-                    uv: Win.MouseState.Position / Win.ClientSize,
-                    aspectRatio: Win.ClientSize.Ratio());
-
-                RaycastResult result = EngineState.VoxelMap.RawStructure.Raycast(Camera.position, raycastDir);
-
-                if (result.hit)
-                {
-                    VoxelTool.Use(result);
-                }
-            }
-        }
-
-        if (Win.KeyboardState.IsKeyPressed(Keys.Backspace))
-            VoxelTool.Cancel();
-
-        if (Win.KeyboardState.IsKeyPressed(Keys.Enter))
-            VoxelTool.Apply();
-    }
+    
     void HandleMapLoading()
     {
-        Vector2i camChunk = new((int)Camera.position.X >> 2, (int)Camera.position.Z >> 2);
-        Vector2i start = Vector2i.Clamp(new(camChunk.X - chunkLoadingDistance, camChunk.Y - chunkLoadingDistance), Vector2i.Zero, EngineState.VoxelMap.Dimensions.Xz / 4);
-        Vector2i finish = Vector2i.Clamp(new(camChunk.X + chunkLoadingDistance + 1, camChunk.Y + chunkLoadingDistance + 1), Vector2i.Zero, EngineState.VoxelMap.Dimensions.Xz / 4);
+        Vector2i camChunk = new((int)Camera.Pose.position.X >> 2, (int)Camera.Pose.position.Z >> 2);
+        Vector2i start = Vector2i.Clamp(new Vector2i(camChunk.X - chunkLoadingDistance, camChunk.Y - chunkLoadingDistance), Vector2i.Zero, voxelMap.Dimensions.Xz / 4);
+        Vector2i finish = Vector2i.Clamp(new Vector2i(camChunk.X + chunkLoadingDistance + 1, camChunk.Y + chunkLoadingDistance + 1), Vector2i.Zero, voxelMap.Dimensions.Xz / 4);
         Vector2i chunk;
         int chunkLoadingDistanceSquared = chunkLoadingDistance * chunkLoadingDistance;
 
@@ -208,7 +192,7 @@ public class Viewer : BaseObject
             for (chunk.X = start.X; chunk.X < finish.X; chunk.X++)
             {
                 if ((chunk - camChunk).EuclideanLengthSquared <= chunkLoadingDistanceSquared)
-                EngineState.VoxelMap.StartLoadingChunkIfUnloaded(chunk);
+                voxelMapChunks.StartLoadingChunkIfUnloaded(chunk);
             }
         }
     }

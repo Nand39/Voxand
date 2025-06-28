@@ -14,15 +14,10 @@ using Voxand.Engine.Systems.Graphics.Pipelines.DefaultVoxelPTRP.Helpers;
 using Voxand.Helpers;
 using Voxand.Helpers.ExtensionMethods;
 using Voxand.Engine.Systems.Graphics.Tools.ShaderServices;
+using Voxand.Engine.Systems.Services.Graphics;
 
 namespace Voxand.Engine.Systems.Graphics.Pipelines.Modules;
-
-public interface IVoxelPathTracingModuleSettings
-{
-    public UniformAccessor<int> Samples { get; }
-    public UniformAccessor<Vector3> SunDirection { get; }
-}
-public sealed class VoxelPathTracingModule : RenderingPipeline, IVoxelPathTracingModuleSettings
+public sealed class VoxelPathTracingModule : RenderingPipeline, IRendererPathTracing
 {
     ShaderController pathTracingShaderController;
     Texture2D directIllum_depthOutput, indirectIllumOutput, normalCompound_motionOutput;
@@ -144,7 +139,7 @@ public sealed class VoxelPathTracingModule : RenderingPipeline, IVoxelPathTracin
         shaderInputStreaming.invCameraMatrix = Matrix4.Invert(cameraMat);
 
         shaderInputStreaming.prevCameraPosition = shaderInputStreaming.cameraPosition;
-        shaderInputStreaming.cameraPosition = Camera.position;
+        shaderInputStreaming.cameraPosition = Camera.Pose.position;
         shaderInputStreaming.randSalt = Util.Random.NextSingle() + 1;
         shaderInputSSBO.Store(ref shaderInputStreaming, 0);
     }

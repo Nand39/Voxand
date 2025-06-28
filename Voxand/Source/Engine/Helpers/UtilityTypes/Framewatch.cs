@@ -1,6 +1,6 @@
 ﻿using OpenTK.Windowing.Common;
 
-namespace Voxand.Helpers.UtilityObjects;
+namespace Voxand.Helpers.UtilityTypes;
 
 public class FrameTimeAnalytics
 {

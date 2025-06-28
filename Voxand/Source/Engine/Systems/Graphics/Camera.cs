@@ -1,28 +1,24 @@
 ﻿using OpenTK.Mathematics;
+
 using Voxand.Helpers.ExtensionMethods;
+using Voxand.Engine.Systems.Services.General;
+using Voxand.Engine.Systems.Common;
 
 namespace Voxand.Engine.Systems.Graphics;
-public class Camera 
+public class Camera : ICamera
 {
-    public Vector3 position;
-    public Vector3 rotation;
+    public Pose Pose { get; set; } = new();
 
-    /// <summary>
-    /// Angle of the field of view in radians used to create camera projection matrix.
-    /// </summary>
+    /// <inheritdoc/>
     public float FOV { get; set; }
 
-    /// <summary>
-    /// Creates a perspective projection matrix of the camera based on its rotation and FOV. 
-    /// Translation is NOT included.
-    /// </summary>
-    /// <param name="aspectRatio">Aspect ratio of the target display.</param>
+    /// <inheritdoc/>
     public Matrix4 CreateCameraMatrix(float aspectRatio)
     {
         return
-            Matrix4.CreateRotationY(rotation.Y) *
-            Matrix4.CreateRotationX(rotation.X) *
-            Matrix4.CreateRotationZ(rotation.Z) * 
+            Matrix4.CreateRotationY(Pose.rotation.Y) *
+            Matrix4.CreateRotationX(Pose.rotation.X) *
+            Matrix4.CreateRotationZ(Pose.rotation.Z) * 
             CreateProjectionMatrix(aspectRatio);
     }
     Matrix4 CreateProjectionMatrix(float aspectRatio)
@@ -30,12 +26,7 @@ public class Camera
         return Matrix4.CreatePerspectiveFieldOfView(FOV, aspectRatio, 1, 2);
     }
 
-    /// <summary>
-    /// Generates ray direction from the camera through a point on the screen specified by <paramref name="uv"/>.
-    /// </summary>
-    /// <param name="uv">Point on the screen that defines ray direction based on the field of view of the camera.</param>
-    /// <param name="aspectRatio">Aspect ratio of the screen.</param>
-    /// <returns></returns>
+    /// <inheritdoc/>
     public Vector3 PixelToRay(Vector2 uv, float aspectRatio)
     {
         Vector2 targetNDC = uv * 2f;
@@ -46,12 +37,7 @@ public class Camera
         return (transformedViewPlaneCoord.Xyz / transformedViewPlaneCoord.W).Normalized();
     }
 
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="rayDirection"></param>
-    /// <param name="aspectRatio"></param>
-    /// <returns></returns>
+    /// <inheritdoc/>
     public Vector2 RayToPixel(Vector3 rayDirection, float aspectRatio)
     {
         rayDirection = rayDirection.Normalized();

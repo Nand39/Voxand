@@ -5,170 +5,112 @@ using System.Text;
 using OpenTK.Windowing.Common;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
-using OpenTK.Windowing.GraphicsLibraryFramework;
 
 using DisposableExt;
 
 using Voxand.Helpers;
-using Voxand.Helpers.UtilityObjects;
+using Voxand.Helpers.UtilityTypes;
 using Voxand.Helpers.ExtensionMethods;
-using Voxand.Engine.Systems.General.Events;
 using Voxand.Engine.Systems.Graphics;
 using Voxand.Engine.Systems.Graphics.Tools;
 using Voxand.Engine.Systems.Graphics.Pipelines.DefaultVoxelPTRP;
 using Voxand.Engine.Systems.Graphics.Tools.Utility;
 using Voxand.Engine.Systems.Voxels;
-using Voxand.Engine.Systems.ScriptableObjects;
+using Voxand.Engine.Systems.Scripts;
 using Voxand.UI;
 using Voxand.App;
-using Voxand.App.VoxelEditing;
-using Voxand.App.Map.Generation;
-using Voxand.App.Map;
+using Voxand.App.Voxels.Editing;
+using Voxand.App.Voxels.Map.Generation;
+using Voxand.App.Voxels.Map;
 using Voxand.Engine.Systems.Voxels.VoxelMaterialServices;
+using Voxand.Engine.Systems.Services.General;
+using Voxand.Engine.Systems.Services.Voxels;
+using Voxand.Engine.Systems.Services.Graphics;
+using Voxand.Engine.Systems.Services.UI.Windows;
+using Voxand.App.Voxels.Materials;
+using Voxand.Engine.Systems.Common;
 
 namespace Voxand.Engine.ExecutionControl;
-
-public class WindowState(Window window) : IWindowState
-{
-    public Window Window { get; set; } = window;
-    public unsafe CursorModeValue CursorMode
-    {
-        get => cursorMode;
-        set
-        {
-            cursorMode = value;
-            GLFW.SetInputMode(Window.WindowPtr, CursorStateAttribute.Cursor, cursorMode);
-        }
-    }
-    CursorModeValue cursorMode;
-}
-public class EngineState : IEngineState
-{
-    public EngineState()
-    {
-        Events.AddEvent("main_renderingPipeline_changed");
-        Events.AddEvent("main_voxelMap_changed");
-        Events.AddEvent("main_voxelPalette_changed");
-        Events.AddEvent("main_camera_changed");
-    }
-
-    public EventDispatcher Events { get; set; } = new("engine_state_events");
-
-    public VoxelPTRP RenderingPipeline { get => renderingPipeline; set { renderingPipeline = value; Events.Invoke("main_renderingPipeline_changed", RenderingPipeline); } }
-    VoxelPTRP renderingPipeline;
-
-    public ChunkMap VoxelMap { get => voxelMap; set { voxelMap = value; Events.Invoke("main_voxelMap_changed", VoxelMap); } }
-    ChunkMap voxelMap;
-
-    public VoxelPalette VoxelPalette { get => voxelPalette; set { voxelPalette = value; Events.Invoke("main_voxelPalette_changed", VoxelPalette); } }
-    VoxelPalette voxelPalette;
-
-    public Camera MainCamera { get => mainCamera; set { mainCamera = value; Events.Invoke("main_camera_changed", MainCamera); } }
-    Camera mainCamera;
-}
-public class ObjectRegistry : IObjectRegistry, IDisposableExt
-{
-    List<BaseObject> objects = [];
-    Dictionary<BaseObject, int> indexMap = [];
-
-    public DisposeHelper DisposeHelper { get; }
-    public ObjectRegistry() => DisposeHelper = new(this);
-
-    public void AddObject(BaseObject objectToAdd)
-    {
-        ArgumentNullException.ThrowIfNull(objectToAdd);
-        objectToAdd.Initialize();
-        indexMap[objectToAdd] = objects.Count;
-        objects.Add(objectToAdd);
-    }
-    public void AddObjects(params BaseObject[] objects)
-    {
-        foreach (var obj in objects)
-            AddObject(obj);
-    }
-    public void DeleteObject(BaseObject objectToDelete)
-    {
-        ArgumentNullException.ThrowIfNull(objectToDelete);
-        if (indexMap.TryGetValue(objectToDelete, out int index))
-        {
-            objects[index] = objects[objects.Count - 1];
-            objects[objects.Count - 1] = null;
-            indexMap.Remove(objectToDelete);
-            objectToDelete.Dispose();
-            return;
-        }
-        throw new KeyNotFoundException($"Cannot remove object from the registry. Object not found.");
-    }
-    public void DeleteObjects(params BaseObject[] objects)
-    {
-        foreach (var obj in objects)
-            DeleteObject(obj);
-    }
-    public void Update(FrameEventArgs args)
-    {
-        for (int i = 0; i < objects.Count; i++)
-            objects[i].Update(args);
-    }
-    void IDisposableExt.Free()
-    {
-        for (int i = 0; i < objects.Count; i++)
-            DeleteObject(objects[0]);
-    }
-}
-
-public interface IWindowState
-{
-    public Window Window { get; }
-    public CursorModeValue CursorMode { get; set; }
-}
-public interface IObjectRegistry
-{
-    public void AddObject(BaseObject objectToAdd);
-    public void AddObjects(params BaseObject[] objectToAdd);
-}
-public interface IEngineState
-{
-    public EventDispatcher Events { get; }
-    public VoxelPTRP RenderingPipeline { get; }
-    public ChunkMap VoxelMap { get; }
-    public VoxelPalette VoxelPalette { get; }
-    public Camera MainCamera { get; }
-}
-
-public interface ISupportsWindowState
-{
-    public IWindowState WindowState { get; }
-}
-public interface ISupportsObjectRegistry
-{
-    public IObjectRegistry ObjectRegistry { get; }
-}
-public interface ISupportsEngineState
-{
-    public IEngineState EngineState { get; }
-}
-
-public sealed class MainExecutionManager : ExecutionManager,
-    ISupportsWindowState, ISupportsObjectRegistry, ISupportsEngineState
+public sealed class MainExecutionManager : ExecutionManager
 {
     Vector3i numberOfChunks = new(128, 48, 128);
     Framewatch fps;
     Action<double> frameTimeSetter;
     
-    readonly EngineState engineState;
-    readonly WindowState windowState;
-    readonly ObjectRegistry objectRegistry;
-    public IWindowState WindowState => windowState;
-    public IEngineState EngineState => engineState;
-    public IObjectRegistry ObjectRegistry => objectRegistry;
+    public WindowService WindowService { get; private set; }
+    public ScriptManager ScriptManager { get; private set; }
+
+    VoxelPTRP renderer;
+    IRendererPathTracing pathTracing;
+    IRendererAntiAliasing antiAliasing;
 
     Viewer viewer;
     DebugProc debugCallback;
+
+    private interface IServiceRegistrator
+    {
+        void AddOrReplaceService<I>(I serviceImpl) where I : class;
+    }
+    public class ServiceRegistry : IServiceRegistrator
+    {
+        Dictionary<Type, object> serviceMap = [];
+        public Dictionary<Type, Action<object>> replacementCallbacks = [];
+        void IServiceRegistrator.AddOrReplaceService<I>(I service) where I : class
+        {
+            if (serviceMap.ContainsKey(typeof(I)))
+            {
+                object oldService = serviceMap[typeof(I)];
+                if (oldService == service)
+                    return;
+                serviceMap[typeof(I)] = service;
+                replacementCallbacks[typeof(I)]?.Invoke(service);
+            }
+            else
+            {
+                serviceMap[typeof(I)] = service;
+                replacementCallbacks[typeof(I)] = null!;
+            }
+                
+        }
+
+        public bool TryGetService<I>(out I service) where I : class
+        {
+            
+            if (!serviceMap.TryGetValue(typeof(I), out object? serviceObj))
+            {
+                service = null!;
+                return false;
+            }
+            service = (I)serviceObj;
+            return true;
+        }
+        public I? GetService<I>() where I : class
+        {
+            if (!serviceMap.TryGetValue(typeof(I), out object? serviceObj))
+                return null!;
+            return (I)serviceObj;
+        }
+
+        public void AddReplacementCallback<I>(Action<object> callback) where I : class
+        {
+            if (!replacementCallbacks.ContainsKey(typeof(I)))
+                throw new InvalidOperationException($"Service of type {typeof(I)} is not registered. Cannot add replacement callback.");
+
+            if (replacementCallbacks[typeof(I)] is not null)
+                replacementCallbacks[typeof(I)] += callback;
+            else
+                replacementCallbacks[typeof(I)] = callback;
+        }
+    }
+
+    ServiceRegistry services;
+
     public MainExecutionManager(Window win)
     {
-        windowState = new WindowState(win);
-        engineState = new();
-        objectRegistry = new();
+        WindowService = new WindowService(win);
+        ScriptManager = new ScriptManager();
+        services = new ServiceRegistry();
+        EngineServices.Initialize(services);
     }
 
     public override void Load()
@@ -180,14 +122,18 @@ public sealed class MainExecutionManager : ExecutionManager,
 
         GL.ClearColor(0.2f, 0.3f, 0.3f, 1);
 
-        windowState.Window.VSync = VSyncMode.On;
+        WindowService.Window.VSync = VSyncMode.On;
 
-        ComputeUtility.Initialize(windowState.Window.Content, "Graphics/Shaders/copy_tex8_shader.comp");
+        IServiceRegistrator serviceRegistrator = services;
 
-        engineState.MainCamera = new Camera();
-        engineState.MainCamera.position = new Vector3(0.5f, numberOfChunks.Y * 3.7f, 0.5f);
-        engineState.MainCamera.FOV = 90 * Util.DEG2RAD;
-        engineState.MainCamera.rotation = new(0, 45, 0);
+        serviceRegistrator.AddOrReplaceService<IWindowService>(WindowService);
+
+        Camera camera = new Camera();
+        camera.Pose.position = new Vector3(0.5f, numberOfChunks.Y * 3.7f, 0.5f);
+        camera.Pose.rotation = new(0, 45, 0);
+        camera.FOV = 90 * Util.DEG2RAD;
+
+        serviceRegistrator.AddOrReplaceService<ICamera>(camera);
 
         VoxelMaterial[] materials = new VoxelMaterial[256];
         materials[0] = new(Util.Hex2Vec("#92959c"), 0.5f, new(0, 0, 0), 0);
@@ -198,75 +144,101 @@ public sealed class MainExecutionManager : ExecutionManager,
         materials[5] = new(new(0.8f, 0.8f, 0.8f), 0, new(0, 1, 0), 1);
         materials[6] = new(new(0.8f, 0.8f, 0.8f), 0, new(0, 0, 1), 1);
 
-        engineState.VoxelPalette = new(materials, 3);
+        VoxelPalette palette = new VoxelPalette(materials, 3);
+        serviceRegistrator.AddOrReplaceService<IVoxelPalette>(palette);
 
-        engineState.VoxelMap = new(numberOfChunks.Xz, new(4), numberOfChunks.Y * 4);
-        engineState.VoxelMap.MapGenerator = new BrickmapGenerator(engineState.VoxelMap.RawStructure, new(200, 200), 120);
+        VoxelBrickmap brickmap = new(numberOfChunks * 4, new VoxelBrickmapDefaultPersistenceModule());
+        BrickmapGenerator mapGenerator = new(brickmap, new(200, 200), 120);
+        ChunkMap chunkMap = new ChunkMap(numberOfChunks.Xz, new(4), numberOfChunks.Y * 4, brickmap, mapGenerator);
 
-        UI_Manager.Initialize(WindowState.Window.Content);
+        serviceRegistrator.AddOrReplaceService<IVoxelMap>(chunkMap);
+        serviceRegistrator.AddOrReplaceService<IVoxelMapVerticalChunks>(chunkMap);
 
+
+
+        ComputeUtility.Initialize(WindowService.Window.Content, "Graphics/Shaders/copy_tex8_shader.comp");
+
+        UI_Manager.Initialize(WindowService.Window.Content);
+
+        
+        
         UI_PaletteWindow paletteWindow = new();
-        paletteWindow.SetPalette(engineState.VoxelPalette);
-        UI_MaterialEditorWindow materialEditorWindow = new(engineState.VoxelPalette);
-        UI_SettingsWindow renderSettingsWindow = new();
-        UI_DebugWindow debugWindow = new(engineState.VoxelMap.RawStructure);
+        paletteWindow.SetPalette(palette);
+        UI_Manager.AddWindow(paletteWindow);
+        serviceRegistrator.AddOrReplaceService<IVoxelMaterialSelector>(paletteWindow);
 
-        paletteWindow.Select(0);
+
+        UI_MaterialEditorWindow materialEditorWindow = new();
+        MaterialEditorController MaterialEditorController = new() { MaterialEditor = materialEditorWindow };
+
+        UI_Manager.AddWindow(materialEditorWindow);
+
+
 
         VoxelTool voxelTool = new();
+        VoxelToolController toolController = new() 
+        {
+            VoxelTool = voxelTool,
+            Camera = camera
+        };
         VoxelToolHotbar hotbar = new();
+
         viewer = new()
         {
             VoxelTool = voxelTool,
             VoxelToolHotbar = hotbar,
-            Camera = engineState.MainCamera
+            Camera = camera
         };
+        ScriptManager.AddScripts(viewer, voxelTool, toolController, MaterialEditorController);
 
-        objectRegistry.AddObjects(viewer, voxelTool);
+        voxelTool.OnMaterialChanged += (index) => MaterialEditorController.EditedMaterialIndex = index;
+        voxelTool.OnMaterialChanged += paletteWindow.ActiveMaterialChanged; 
 
-        engineState.Events.ExportEvents(materialEditorWindow);
-        engineState.Events.ExportEvents(paletteWindow);
-        engineState.Events.ExportEvents(debugWindow);
-        engineState.VoxelPalette.Events.ExportEvents(paletteWindow);
-
-        UI_Manager.AddWindow(materialEditorWindow);
-        UI_Manager.AddWindow(paletteWindow);
-        UI_Manager.AddWindow(renderSettingsWindow);
-        UI_Manager.AddWindow(debugWindow);
-        UI_Manager.AddWindow(new UI_VoxelToolSettingsWindow(voxelTool));
+        UI_Manager.AddWindow(new UI_VoxelToolSettingsWindow(voxelTool, toolController));
         UI_Manager.AddWindow(new UI_VoxelToolHotbar(voxelTool, hotbar));
 
-        UI_Manager.Events.Subscribe("voxel_material_edited", engineState.VoxelPalette.SetMaterial);
-        UI_Manager.Events.Subscribe("voxel_material_selected", (args) => { viewer.VoxelTool.ActiveMaterialIndex = (int)args; });
-        UI_Manager.Events.Subscribe("renderSettings_TAA_switched", (args) => 
-        {
-            engineState.RenderingPipeline.UseTAA = (bool)args;
-            engineState.RenderingPipeline.antiAliasingSettings.ResetAccumulated(); 
-        });
+        paletteWindow.Select(0);
+
 
         frameTimeSetter = typeof(FrameTime).GetProperty(nameof(FrameTime.PreciseDelta), BindingFlags.Static | BindingFlags.Public)!.GetSetMethod(true)!.CreateDelegate<Action<double>>();
 
         fps = new Framewatch(Util.FrameTimeAnalytics, 1);
 
-        engineState.RenderingPipeline = new(
-            content: WindowState.Window.Content,
-            camera: engineState.MainCamera,
-            map: engineState.VoxelMap,
+        renderer = new(
+            content: WindowService.Window.Content,
+            camera: camera,
+            map: chunkMap,
             output: RenderTarget.Default,
-            renderingResolution: new((windowState.Window.ClientSize.X / 2) & ~7, (windowState.Window.ClientSize.Y / 2) & ~7));
+            renderingResolution: new((WindowService.Window.ClientSize.X / 2) & ~7, (WindowService.Window.ClientSize.Y / 2) & ~7),
+            antiAliasing: out antiAliasing,
+            pathTracing: out pathTracing);
 
+        serviceRegistrator.AddOrReplaceService<IRendererAntiAliasingUsage>(renderer);
+        serviceRegistrator.AddOrReplaceService(pathTracing);
+        serviceRegistrator.AddOrReplaceService(antiAliasing);
 
-        viewer.VoxelTool.Events.ExportEvents(materialEditorWindow);
-        viewer.VoxelTool.Events.ExportEvents(paletteWindow);
+        EngineServices.AddReplacementCallback<IRendererPathTracing>((newPathTracing) => pathTracing = newPathTracing);
+        EngineServices.AddReplacementCallback<IRendererAntiAliasing>((newAntiAliasing) => antiAliasing = newAntiAliasing);
+        
+        
+        UI_SettingsWindow renderSettingsWindow = new();
+        UI_DebugWindow debugWindow = new();
+
+        UI_Manager.AddWindow(renderSettingsWindow);
+        UI_Manager.AddWindow(debugWindow);
 
         viewer.recreateMapRequest += () =>
         {
-            engineState.VoxelMap.Dispose();
-            engineState.VoxelMap = new(numberOfChunks.Xz, new(4), numberOfChunks.Y * 4);
+            EngineServices.TryGetService(out IVoxelMap map);
+            map.Dispose();
+            VoxelBrickmap brickmap = new(numberOfChunks * 4, new VoxelBrickmapDefaultPersistenceModule());
+            BrickmapGenerator mapGenerator = new(brickmap, new(200, 200), 120);
+            map = new ChunkMap(numberOfChunks.Xz, new(4), numberOfChunks.Y * 4, brickmap, mapGenerator);
+            serviceRegistrator.AddOrReplaceService(map);
         };
 
         viewer.setSunDirectionRequest += (args) => sunDirection = args;
-        engineState.RenderingPipeline.antiAliasingSettings.Intensity = 0.95f;
+        antiAliasing.Intensity = 0.95f;
 
         Console.WriteLine("Loaded");
     }
@@ -276,32 +248,34 @@ public sealed class MainExecutionManager : ExecutionManager,
     {
         frameTimeSetter(args.Time);
 
-        objectRegistry.Update(args);
+        ScriptManager.Update();
 
         sunDirection.Xz = sunDirection.Xz.Rotated(0.014f * (float)args.Time);
-        engineState.RenderingPipeline.voxelPathTracingSettings.SunDirection.Set(sunDirection);
+        pathTracing.SunDirection.Set(sunDirection);
 
         fps.Tick(args);
     }
     public override void Render(FrameEventArgs args)
     {
-        if (!WindowState.Window.IsMinimized)
-            engineState.RenderingPipeline.Execute();
+        if (!WindowService.Window.IsMinimized)
+            renderer.Execute();
 
         UI_Manager.Display();
     }
     public override void Unload()
     {
-        engineState.RenderingPipeline.Dispose();
-        engineState.VoxelMap.Dispose();
-        engineState.VoxelPalette.Dispose();
-        objectRegistry.Dispose();
+        renderer.Dispose();
+        EngineServices.TryGetService<IVoxelMap>(out var map);
+        EngineServices.TryGetService<IVoxelPalette>(out var palette);
+        map.Dispose();
+        palette.Dispose();
+        ScriptManager.Dispose();
 
         Console.WriteLine("Unloaded");
     }
     public override void OnResize(ResizeEventArgs args)
     {
-        engineState.RenderingPipeline.SetRenderingResolution(new((args.Size.X) & ~7, (args.Size.Y) & ~7));
+        renderer.SetRenderingResolution(new((args.Size.X / 2) & ~7, (args.Size.Y / 2) & ~7));
     }
     void GLDebugCallback(DebugSource source, DebugType type, int id, DebugSeverity severity, int messageLength, nint messagePtr, nint userParamPtr)
     {

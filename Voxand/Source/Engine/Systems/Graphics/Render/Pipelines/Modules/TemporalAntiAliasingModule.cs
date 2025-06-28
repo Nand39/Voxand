@@ -7,14 +7,10 @@ using DisposableExt;
 
 using Voxand.Engine.Systems.Graphics.Tools.ShaderServices;
 using Voxand.Engine.Systems.Graphics.Tools.Utility;
+using Voxand.Engine.Systems.Services.Graphics;
 
 namespace Voxand.Engine.Systems.Graphics.Pipelines.Modules;
-public interface IAntiAliasingBasicModuleSettings
-{
-    float Intensity { get; set; }
-    void ResetAccumulated();
-}
-public sealed class AntiAliasingBasicModule : RenderingPipeline, IAntiAliasingBasicModuleSettings
+public sealed class AntiAliasingModule : RenderingPipeline, IRendererAntiAliasing
 {
     ShaderController shaderController;
     Texture2D luminanceAccum, luminanceBuffer;
@@ -33,7 +29,7 @@ public sealed class AntiAliasingBasicModule : RenderingPipeline, IAntiAliasingBa
     }
     float prevIntensity;
     bool isResetPushed;
-    public AntiAliasingBasicModule(ShaderController shaderControllerTAA, Texture2D luminanceToAccumulate, Texture2D normalCompound_motionTexture)
+    public AntiAliasingModule(ShaderController shaderControllerTAA, Texture2D luminanceToAccumulate, Texture2D normalCompound_motionTexture)
     {
         ExceptionConstructor.ThrowIfTextureSizeNotDivisible(luminanceToAccumulate, 8);
 

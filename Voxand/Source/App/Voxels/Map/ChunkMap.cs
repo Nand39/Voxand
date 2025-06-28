@@ -1,23 +1,23 @@
 ﻿using DisposableExt;
 using OpenTK.Mathematics;
-using Voxand.App.Map.Generation;
+using Voxand.App.Voxels.Map.Generation;
+using Voxand.Engine.Systems.Services.Voxels;
 using Voxand.Engine.Systems.Voxels;
-using Voxand.Helpers;
 using Voxand.Helpers.ExtensionMethods;
 
-namespace Voxand.App.Map;
+namespace Voxand.App.Voxels.Map;
 
-public class ChunkMap : IDisposableExt
+public class ChunkMap : IVoxelMap, IVoxelMapVerticalChunks, IDisposableExt
 {
     VoxelBrickmap voxelMap;
-    public VoxelBrickmap RawStructure => voxelMap;
+    public VoxelStructure RawStructure => voxelMap;
     public MapGenerator MapGenerator { get; set; }
     public Vector3i Dimensions { get; private set; }
 
     public DisposeHelper DisposeHelper { get; }
 
     bool[,] chunkPresence;
-    public ChunkMap(Vector2i numberOfChunks, Vector2i chunkSize, int height)
+    public ChunkMap(Vector2i numberOfChunks, Vector2i chunkSize, int height, VoxelBrickmap brickmap, BrickmapGenerator mapGenerator)
     {
         if (height <= 0)
             throw new ArgumentOutOfRangeException($"{nameof(height)} should be greater than zero.");
@@ -26,17 +26,13 @@ public class ChunkMap : IDisposableExt
 
         Dimensions = new(numberOfChunks.X * chunkSize.X, height, numberOfChunks.Y * chunkSize.Y);
 
-        voxelMap = new VoxelBrickmap(Dimensions, new VoxelBrickmapDefaultPersistenceModule());
+        voxelMap = brickmap;
+        MapGenerator = mapGenerator;
 
         chunkPresence = new bool[numberOfChunks.X, numberOfChunks.Y];
 
-        MapGenerator = new BrickmapGenerator(voxelMap, new Vector2(16), 16);
-
         DisposeHelper = new(this);
     }
-
-    public void Place(Vector3i position, int material) => RawStructure.PlaceSingle(position, material);
-    public void Remove(Vector3i position) => RawStructure.RemoveSingle(position);
 
     public bool IsChunkLoaded(Vector2i position) => chunkPresence[position.X, position.Y];
     public void StartLoadingChunkIfUnloaded(Vector2i position)

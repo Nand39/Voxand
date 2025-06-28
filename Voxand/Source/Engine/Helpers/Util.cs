@@ -1,11 +1,12 @@
-﻿using ImGuiNET;
+﻿using System.Runtime.CompilerServices;
+
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
-using System;
-using System.Runtime.CompilerServices;
-using Voxand.Engine.Systems.Voxels;
+
+using ImGuiNET;
+
 using Voxand.Engine.Systems.Voxels.VoxelMaterialServices;
-using Voxand.Helpers.UtilityObjects;
+using Voxand.Helpers.UtilityTypes;
 
 namespace Voxand.Helpers;
 

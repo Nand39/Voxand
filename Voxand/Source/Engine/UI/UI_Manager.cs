@@ -6,21 +6,23 @@ using Voxand.Content;
 using Voxand.Engine.Systems.Voxels;
 using Voxand.Helpers;
 using Voxand.UI.Components;
-using Voxand.Engine.Systems.General.Events;
 using Voxand.Helpers.ExtensionMethods;
-using Voxand.App.Map;
-using Voxand.App.VoxelEditing;
+using Voxand.App.Voxels.Editing;
 using Voxand.Engine.Systems.Graphics.Tools.UI;
 using Voxand.Engine.Systems.Voxels.VoxelMaterialServices;
 using Voxand.UI.Systems.DragAndDrop;
 using Voxand.UI.ImGuiIntegration;
+using Voxand.Engine.Systems.Services.Voxels;
+using Voxand.Engine.Systems.Common;
+using Voxand.Engine.Systems.UI.Windows;
+using Voxand.Engine.Systems.Services.UI.Windows;
+using Voxand.Engine.Systems.Services.Graphics;
 
 namespace Voxand.UI;
 public static class UI_Manager
 {
     static List<UI_Window> windows;
 
-    public static EventDispatcher Events = new("ui_events");
     public static void Initialize(ContentManager content)
     {
         windows = new List<UI_Window>();
@@ -49,8 +51,6 @@ public static class UI_Manager
     }
     public static void AddWindow(UI_Window window)
     {
-        Events.ImportEvents(window);
-        Events.ExportEvents(window);
         windows.Add(window);
     }
 }
@@ -64,7 +64,7 @@ public abstract class UI_Window()
     }
     protected abstract void Display();
 }
-public sealed class UI_PaletteWindow : UI_Window
+public sealed class UI_PaletteWindow : UI_Window, IVoxelMaterialSelector
 {
     UI_Grid paletteGrid;
     uint[] materialDisplayColors;
@@ -73,16 +73,15 @@ public sealed class UI_PaletteWindow : UI_Window
     readonly Vector2 CellSize = new(26, 26);
     readonly float slotBorderThickness = 2f;
 
-    [ExportEvent("ui_events", "voxel_material_selected")] 
-    public event Action<object>? OnMaterialSelected;
+    public event Action<int>? OnMaterialSelected;
 
-    [ImportEvent("engine_state_events", "main_voxelPalette_changed")]
-    public void SetPalette(object newPalette)
+    public void SetPalette(IVoxelPalette newPalette)
     {
         ArgumentNullException.ThrowIfNull(newPalette);
-        BuildPaletteUI((VoxelPalette)newPalette);
+        BuildPaletteUI(newPalette);
+        newPalette.MaterialModified += UpdatePaletteButton;
     }
-    void BuildPaletteUI(VoxelPalette palette)
+    void BuildPaletteUI(IVoxelPalette palette)
     {
         materialDisplayColors = new uint[palette.MaterialCount];
         for (int i = 0; i < palette.MaterialCount; i++)
@@ -132,34 +131,29 @@ public sealed class UI_PaletteWindow : UI_Window
         ImGui.End();
     }
 
-    [ImportEvent("voxelPalette_events", "material_modified")]
-    public void UpdatePaletteButton((int index, VoxelMaterial material) arg)
+    public void UpdatePaletteButton(int index, VoxelMaterial material)
     {
-        materialDisplayColors[arg.index] = new Vector4(Util.GetMaterialDisplayColor(arg.material).AsNum(), 1).AsImGuiU32();
+        materialDisplayColors[index] = new Vector4(Util.GetMaterialDisplayColor(material).AsNum(), 1).AsImGuiU32();
     }
 
     public void Select(int newActiveMaterialIndex) => OnMaterialSelected?.Invoke(newActiveMaterialIndex);
 
-    [ImportEvent("user_voxelTool_events", "activeMaterial_changed")]
     public void ActiveMaterialChanged(int newActiveMaterialIndex) => SelectedMaterial = newActiveMaterialIndex;
 }
 
-public sealed class UI_MaterialEditorWindow : UI_Window
+public sealed class UI_MaterialEditorWindow : UI_Window, IVoxelMaterialEditor
 {
     ColorPicker baseColorPicker;
     FloatPicker baseColorVariancePicker;
     ColorPicker emissionPicker;
     FloatPicker emissionIntensityPicker;
-    VoxelPalette palette;
-    int selectedMaterial;
+    VoxelMaterial material;
+    public VoxelMaterial Material => material;
 
-    [ExportEvent("ui_events", "voxel_material_edited")] 
-    public event Action<object>? OnMaterialEdited;
+    public event Action<VoxelMaterial>? OnMaterialEdited;
 
-    public UI_MaterialEditorWindow(VoxelPalette palette)
+    public UI_MaterialEditorWindow()
     {
-        this.palette = palette;
-
         baseColorPicker = new("Voxel color");
         baseColorVariancePicker = new("Color variance");
         emissionPicker = new("Voxel emission");
@@ -167,24 +161,29 @@ public sealed class UI_MaterialEditorWindow : UI_Window
 
         baseColorPicker.OnColorChange += (color) =>
         {
-            OnMaterialEdited?.Invoke((palette.GetMaterial(selectedMaterial) with { baseColor = color.AsTK() }, selectedMaterial));
+            material.baseColor = color.AsTK();
+            OnMaterialEdited?.Invoke(Material);
         };
 
         baseColorVariancePicker.OnValueChange += (variance) =>
         {
-            OnMaterialEdited?.Invoke((palette.GetMaterial(selectedMaterial) with { baseColorVariance = variance}, selectedMaterial));
+            material.baseColorVariance = variance;
+            OnMaterialEdited?.Invoke(Material);
         };
 
         emissionPicker.OnColorChange += (emissionColor) =>
         {
-            OnMaterialEdited?.Invoke((palette.GetMaterial(selectedMaterial) with { emissionColor = emissionColor.AsTK() }, selectedMaterial));
+            material.emissionColor = emissionColor.AsTK();
+            OnMaterialEdited?.Invoke(Material);
         };
 
         emissionIntensityPicker.OnValueChange += (emissionIntensity) =>
         {
-            OnMaterialEdited?.Invoke((palette.GetMaterial(selectedMaterial) with { emissionIntensity = emissionIntensity }, selectedMaterial));
+            material.emissionIntensity = emissionIntensity;
+            OnMaterialEdited?.Invoke(Material);
         };
     }
+
     protected override void Display()
     {
         ImGui.Begin("Material properties");
@@ -195,17 +194,9 @@ public sealed class UI_MaterialEditorWindow : UI_Window
         ImGui.End();
     }
 
-    [ImportEvent("engine_state_events", "main_voxelPalette_changed")]
-    public void OnPaletteChanged(object newPalette)
+    public void SetEditedMaterial(VoxelMaterial material)
     {
-        palette = newPalette as VoxelPalette ?? throw new ArgumentNullException(nameof(newPalette));
-    }
-
-    [ImportEvent("user_voxelTool_events", "activeMaterial_changed")]
-    public void SelectMaterial(int newMaterialIndex)
-    {
-        selectedMaterial = newMaterialIndex;
-        VoxelMaterial material = palette.GetMaterial(newMaterialIndex);
+        this.material = material;
         baseColorPicker.color = material.baseColor.AsNum();
         baseColorVariancePicker.Value = material.baseColorVariance;
         emissionPicker.color = material.emissionColor.AsNum();
@@ -216,9 +207,21 @@ public sealed class UI_SettingsWindow : UI_Window
 {
     bool UseTAA = true;
 
-    [ExportEvent("ui_events", "renderSettings_TAA_switched")]
-    public event Action<object>? OnTAASwitched;
+    IRendererAntiAliasingUsage antiAliasingUsage;
+    IRendererAntiAliasing antiAliasingSettings;
 
+    public UI_SettingsWindow()
+    {
+        antiAliasingUsage = EngineServices.GetService<IRendererAntiAliasingUsage>();
+        EngineServices.AddReplacementCallback<IRendererAntiAliasingUsage>((newAntiAliasing) =>
+        {
+            antiAliasingUsage = newAntiAliasing;
+            UseTAA = antiAliasingUsage.UseAntiAliasing;
+        });
+
+        antiAliasingSettings = EngineServices.GetService<IRendererAntiAliasing>();
+        EngineServices.AddReplacementCallback<IRendererAntiAliasing>((newSettings) => antiAliasingSettings = newSettings);
+    }
     protected override void Display()
     {
         ImGui.Begin("Render settings");
@@ -227,7 +230,8 @@ public sealed class UI_SettingsWindow : UI_Window
         if (ImGui.RadioButton("Use TAA", UseTAA))
         {
             UseTAA = !UseTAA;
-            OnTAASwitched?.Invoke(UseTAA);
+            antiAliasingUsage.UseAntiAliasing = UseTAA;
+            antiAliasingSettings.ResetAccumulated();
         }
 
         ImGui.End();
@@ -236,16 +240,11 @@ public sealed class UI_SettingsWindow : UI_Window
 
 public sealed class UI_DebugWindow : UI_Window
 {
-    VoxelMap voxelMap;
-    public UI_DebugWindow(VoxelMap map)
+    VoxelStructure voxelStructure;
+    public UI_DebugWindow()
     {
-        voxelMap = map; 
-    }
-    
-    [ImportEvent("engine_state_events", "main_voxelMap_changed")]
-    public void OnVoxelMapChanged(object newVoxelMap)
-    {
-        voxelMap = (newVoxelMap as ChunkMap ?? throw new ArgumentNullException(nameof(newVoxelMap))).RawStructure;
+        voxelStructure = EngineServices.GetService<IVoxelMap>().RawStructure;
+        EngineServices.AddReplacementCallback<IVoxelMap>((newMap) => voxelStructure = newMap.RawStructure);
     }
     protected override void Display()
     {
@@ -258,8 +257,8 @@ public sealed class UI_DebugWindow : UI_Window
         ImGui.Text($"Min: {Util.FrameTimeAnalytics.MinTime.TotalMilliseconds} ms");
 
         ImGui.SeparatorText("Memory usage");
-        ImGui.Text($"RAM usage: {Math.Round(Util.BytesConverter(voxelMap.GetMemoryUsage(), 2), 3)} mb");
-        ImGui.Text($"VRAM usage: {Math.Round(Util.BytesConverter(voxelMap.GetGraphicsMemoryUsage(), 2), 3)} mb");
+        ImGui.Text($"RAM usage: {Math.Round(Util.BytesConverter(voxelStructure.GetMemoryUsage(), 2), 3)} mb");
+        ImGui.Text($"VRAM usage: {Math.Round(Util.BytesConverter(voxelStructure.GetGraphicsMemoryUsage(), 2), 3)} mb");
 
         ImGui.End();
     }
@@ -380,30 +379,32 @@ public sealed class UI_VoxelToolHotbar : UI_Window
 public sealed class UI_VoxelToolSettingsWindow : UI_Window
 {
     VoxelTool tool;
+    VoxelToolController toolController;
     InspectorMenu toolConfigMenu;
     (string name, DragDropSource dragDropSource)[] placementTechniqueDescriptors;
     DragDropSource previewDragDropSource;
-    public UI_VoxelToolSettingsWindow(VoxelTool tool)
+    public UI_VoxelToolSettingsWindow(VoxelTool tool, VoxelToolController toolController)
     {
         this.tool = tool;
+        this.toolController = toolController;
 
         BuildPlacementTechniqueDescriptors();
         tool.OnPlacementTechniquesLoaded += BuildPlacementTechniqueDescriptors;
 
         toolConfigMenu = new(tool.ActivePlacementTechnique);
 
-        tool.OnActivePlacementTechniqueChanged += () =>
+        tool.OnPlacementTechniqueChanged += (index) =>
         {
             try
             {
-                toolConfigMenu = new(tool.ActivePlacementTechnique);
+                toolConfigMenu = new(tool[index]);
             }
             catch (Exception e)
             {
                 Console.WriteLine(e.Message);
             }
 
-            previewDragDropSource.Payload.Data = tool.ActivePlacementTechniqueIndex;
+            previewDragDropSource!.Payload.Data = index;
             string activeTechniqueName = tool.ActivePlacementTechnique.Name;
             previewDragDropSource.DragDropTooltipBuilder = (payload) => ImGui.Text(activeTechniqueName);
         };
@@ -437,6 +438,17 @@ public sealed class UI_VoxelToolSettingsWindow : UI_Window
         }
 
         ImGui.SeparatorText("Settings");
+
+        if (tool.ActivePlacementTechnique is not ComplexPlacementTechnique)
+        {
+            bool automatic = toolController.AutomaticMode;
+            ImGui.Checkbox("Automatic", ref automatic);
+            toolController.AutomaticMode = automatic;
+
+            float delay = toolController.AutomaticModeDelay * 1000;
+            ImGui.SliderFloat("delay", ref delay, 1f, 400f, "%.1f ms");
+            toolController.AutomaticModeDelay = delay / 1000;
+        }
 
         toolConfigMenu.Display();
 

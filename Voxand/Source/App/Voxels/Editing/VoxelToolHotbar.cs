@@ -1,5 +1,5 @@
 ﻿
-namespace Voxand.App.VoxelEditing;
+namespace Voxand.App.Voxels.Editing;
 public class VoxelToolHotbar
 {
     public const int MAX_SLOTS = 10;

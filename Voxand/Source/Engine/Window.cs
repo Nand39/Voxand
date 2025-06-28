@@ -13,7 +13,6 @@ using Voxand.Engine.ExecutionControl;
 using Voxand.Helpers;
 using Voxand.UI.ImGuiIntegration;
 using Voxand.Helpers.Interop;
-using Voxand.Helpers.Exceptions;
 
 namespace Voxand;
 public sealed class Window : GameWindow
@@ -82,12 +81,6 @@ public sealed class Window : GameWindow
         ImGuiController.Render();
         Context.SwapBuffers();
         base.OnRenderFrame(args);
-    }
-
-    public T TryAccessExecutionManager<T>() where T : class
-    {
-        return ExecutionManager as T ??
-            throw new FeatureUnsupportedException($"Current execution manager does not support {nameof(T)} feature.");
     }
     void OnException(object sender, UnhandledExceptionEventArgs args)
     {

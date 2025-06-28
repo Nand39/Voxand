@@ -9,11 +9,12 @@ using Voxand.Content;
 using Voxand.Engine.Systems.Graphics.Tools.ShaderServices;
 using Voxand.Engine.Systems.Graphics.Pipelines.Modules;
 using Voxand.Engine.Systems.Graphics.Tools;
-using Voxand.App.Map;
+using Voxand.App.Voxels.Map;
+using Voxand.Engine.Systems.Services.Graphics;
 
 namespace Voxand.Engine.Systems.Graphics.Pipelines.DefaultVoxelPTRP;
 
-public sealed class VoxelPTRP : RenderingPipeline
+public sealed class VoxelPTRP : RenderingPipeline, IRendererAntiAliasingUsage
 {
     Camera Camera;
     Texture2D directIllumination_depthPT, indirectIlluminationPT, normalCompound_motionPT;
@@ -27,13 +28,10 @@ public sealed class VoxelPTRP : RenderingPipeline
     DisposalList varyingRenderDataStorage;
 
     VoxelPathTracingModule voxelPathTracingModule;
-    AntiAliasingBasicModule antiAliasingModule;
+    AntiAliasingModule antiAliasingModule;
     CompositingModule compositingModule;
 
-    public bool UseTAA { get; set; } = true;
-
-    public IAntiAliasingBasicModuleSettings antiAliasingSettings => antiAliasingModule;
-    public IVoxelPathTracingModuleSettings voxelPathTracingSettings => voxelPathTracingModule;
+    public bool UseAntiAliasing { get; set; } = true;
     public Vector2i RenderingResolution { get; private set; }
     public RenderTarget RenderTarget
     {
@@ -44,7 +42,7 @@ public sealed class VoxelPTRP : RenderingPipeline
             compositingModule.RenderTarget = value;
         }
     }
-    public VoxelPTRP(ContentManager content, Camera camera, ChunkMap map, RenderTarget output, Vector2i renderingResolution)
+    public VoxelPTRP(ContentManager content, Camera camera, ChunkMap map, RenderTarget output, Vector2i renderingResolution, out IRendererAntiAliasing antiAliasing, out IRendererPathTracing pathTracing)
     {
         lifetimeResources = new(); varyingRenderDataStorage = new();
 
@@ -80,6 +78,9 @@ public sealed class VoxelPTRP : RenderingPipeline
 
         antiAliasingModule = new(TAAShaderController, indirectIlluminationPT, normalCompound_motionPT);
 
+        pathTracing = voxelPathTracingModule;
+        antiAliasing = antiAliasingModule;
+
         compositingModule = new(compositingShaderController, directIllumination_depthPT, indirectIlluminationPT, normalCompound_motionPT, output);
 
         lifetimeResources.Add(
@@ -89,7 +90,7 @@ public sealed class VoxelPTRP : RenderingPipeline
     public override void Execute()
     {
         voxelPathTracingModule.Execute();
-        if (UseTAA) antiAliasingModule.Execute();
+        if (UseAntiAliasing) antiAliasingModule.Execute();
         compositingModule.Execute();
     }
     public void VPT() => voxelPathTracingModule.Execute();

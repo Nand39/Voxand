@@ -2,13 +2,13 @@
 using OpenTK.Mathematics;
 
 namespace Voxand.Engine.Systems.Voxels;
-public abstract class VoxelMap : IDisposableExt
+public abstract class VoxelStructure : IDisposableExt
 {
     public readonly Vector3i Dimensions;
     readonly IVoxelMapPersistence persistenceModule;
     public DisposeHelper DisposeHelper { get; }
 
-    public VoxelMap(Vector3i dimensions, IVoxelMapPersistence persistenceModule)
+    public VoxelStructure(Vector3i dimensions, IVoxelMapPersistence persistenceModule)
     {
         Dimensions = dimensions;
         this.persistenceModule = persistenceModule;
@@ -24,7 +24,7 @@ public abstract class VoxelMap : IDisposableExt
     public abstract long GetGraphicsMemoryUsage();
     protected abstract void Free();
     void IDisposableExt.Free() => Free();
-    ~VoxelMap() => this.Dispose();
+    ~VoxelStructure() => this.Dispose();
 }
 public interface ISinglePlaceable
 {

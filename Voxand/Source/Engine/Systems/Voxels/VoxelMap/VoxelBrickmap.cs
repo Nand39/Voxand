@@ -10,10 +10,10 @@ using GLAV.Helpers.Public.Extensions.Unsafe;
 
 using Voxand.Engine.Systems.Structures;
 using Voxand.Helpers.ExtensionMethods;
-using Voxand.App.VoxelEditing;
+using Voxand.App.Voxels.Editing;
 
 namespace Voxand.Engine.Systems.Voxels;
-public class VoxelBrickmap : VoxelMap, ISinglePlaceable
+public class VoxelBrickmap : VoxelStructure, ISinglePlaceable
 {
     Vector3i brickmapSize;
 

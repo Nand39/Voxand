@@ -3,11 +3,11 @@
 using DisposableExt;
 using GLAV.Types.Extended;
 
-using Voxand.Engine.Systems.General.Events;
 using Voxand.Engine.Systems.Voxels.VoxelMaterialServices;
+using Voxand.Engine.Systems.Services.Voxels;
 
 namespace Voxand.Engine.Systems.Voxels;
-public class VoxelPalette : IDisposableExt
+public class VoxelPalette : IVoxelPalette, IDisposableExt
 {
     readonly VoxelMaterial[] materialPalette;
     readonly TypedArray<VoxelMaterialInternal> gpuMaterialPalette;
@@ -23,7 +23,8 @@ public class VoxelPalette : IDisposableExt
         }
     }
     public DisposeHelper DisposeHelper { get; }
-    public EventDispatcher Events { get; protected set; } = new("voxelPalette_events");
+
+    public event Action<int, VoxelMaterial>? MaterialModified;
 
     public VoxelPalette(VoxelMaterial[] materials, int binding)
     {
@@ -34,18 +35,13 @@ public class VoxelPalette : IDisposableExt
         Binding = binding;
 
         DisposeHelper = new(this);
-        Events.AddEvent("material_modified");
     }
-    public void SetMaterial(VoxelMaterial newMaterial, int index)
+    public void SetMaterial(int index, VoxelMaterial newMaterial)
     {
         materialPalette[index] = newMaterial;
         gpuMaterialPalette[index] = new VoxelMaterialInternal(newMaterial);
-        Events.Invoke("material_modified", (index, newMaterial));
-    }
-    public void SetMaterial(object args)
-    {
-        (VoxelMaterial newMaterial, int index) materialEditedArgs = ((VoxelMaterial, int))args;
-        SetMaterial(materialEditedArgs.newMaterial, materialEditedArgs.index);
+        Console.WriteLine($"set to: {newMaterial.baseColor}; {newMaterial.baseColorVariance}; {newMaterial.emissionColor}; {newMaterial.emissionIntensity}");
+        MaterialModified?.Invoke(index, newMaterial);
     }
     public VoxelMaterial GetMaterial(int index) => materialPalette[index];
     void IDisposableExt.Free()

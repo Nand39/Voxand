@@ -1,23 +1,21 @@
 ﻿using OpenTK.Mathematics;
-using System;
-using Voxand.App.Map;
-using Voxand.Engine.Systems.General.Events;
-using Voxand.Engine.Systems.Graphics;
+
+using Voxand.Engine.Systems.Common;
 using Voxand.Engine.Systems.Graphics.Tools.UI;
-using Voxand.Engine.Systems.ScriptableObjects;
+using Voxand.Engine.Systems.Scripts;
+using Voxand.Engine.Systems.Services.Voxels;
 using Voxand.Engine.Systems.Voxels;
 using Voxand.Helpers;
 
-namespace Voxand.App.VoxelEditing;
-public class VoxelTool : BaseObject
+namespace Voxand.App.Voxels.Editing;
+public class VoxelTool : Script
 {
-    ChunkMap map;
-    public EventDispatcher Events { get; private set; } = new("user_voxelTool_events");
-    public event Action? OnActivePlacementTechniqueChanged;
     int activePlacementTechniqueIndex;
 
     List<PlacementTechnique> builders = [];
 
+    public event Action<int>? OnPlacementTechniqueChanged;
+    public event Action<int>? OnMaterialChanged;
     public event Action? OnPlacementTechniquesLoaded;
 
     VoxelToolContext context = new();
@@ -39,8 +37,7 @@ public class VoxelTool : BaseObject
                 throw new ArgumentOutOfRangeException(nameof(value), $"{nameof (ActivePlacementTechniqueIndex)} should be between zero and {nameof(TechniqueCount)} - 1.");
 
             activePlacementTechniqueIndex = value;
-            Events.Invoke("activePlacementTechnique_changed", ActivePlacementTechnique);
-            OnActivePlacementTechniqueChanged?.Invoke();
+            OnPlacementTechniqueChanged?.Invoke(value);
         }
     }
 
@@ -50,7 +47,7 @@ public class VoxelTool : BaseObject
         set
         {
             context.Material = value;
-            Events.Invoke("activeMaterial_changed", ActiveMaterialIndex);
+            OnMaterialChanged?.Invoke(value);
         }
     }
 
@@ -58,19 +55,14 @@ public class VoxelTool : BaseObject
 
     public override void Initialize()
     {
-        Events.AddEvent("activeMaterial_changed");
-        Events.AddEvent("activePlacementTechnique_changed");
+        LoadPlacementTechniques(EngineServices.GetService<IVoxelMap>());
 
-        EngineState.Events.Subscribe("main_voxelMap_changed", (args) => {
-            map = (ChunkMap)args;
-            LoadPlacementTechniques();
-        });
-        map = EngineState.VoxelMap;
-        LoadPlacementTechniques();
+        EngineServices.AddReplacementCallback<IVoxelMap>(LoadPlacementTechniques);
+
         ActivePlacementTechniqueIndex = 0;
     }
 
-    void LoadPlacementTechniques()
+    void LoadPlacementTechniques(IVoxelMap map)
     {
         ISinglePlaceable singlePlaceable = map.RawStructure as ISinglePlaceable ?? throw new Exception($"Map should support {nameof(ISinglePlaceable)}.");
         builders.Clear();
@@ -98,9 +90,6 @@ public class VoxelTool : BaseObject
         if (ActivePlacementTechnique is ComplexPlacementTechnique complexTechnique)
             complexTechnique.Cancel();
     }
-
-    public void NextTechnique() => ActivePlacementTechniqueIndex = Util.Mod(ActivePlacementTechniqueIndex + 1, builders.Count);
-    public void PreviousTechnique() => ActivePlacementTechniqueIndex = Util.Mod(ActivePlacementTechniqueIndex - 1, builders.Count);
 }
 
 public struct PlacementInput(RaycastResult raycastResult, VoxelToolContext context)
