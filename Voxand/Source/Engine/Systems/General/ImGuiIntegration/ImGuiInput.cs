@@ -1,11 +1,10 @@
 ﻿using System.Numerics;
 
 using ImGuiNET;
-
 using Voxand.Engine.Systems.Structures.PrimitiveStructs;
 using Voxand.Helpers.ExtensionMethods;
 
-namespace Voxand.UI.ImGuiIntegration;
+namespace Voxand.Engine.Systems.General.ImGuiIntegration;
 
 public static class ImGuiInput
 {
@@ -31,15 +30,15 @@ public static class ImGuiInput
 
 
     public static MouseButtonsMask GetMouseDragMask() => inputCache.State.IsMouseButtonDragging;
-    public static bool IsMouseDragging(ImGuiMouseButton button) => ((int)inputCache.State.IsMouseButtonDragging & (1 << (int)button)) != 0;
-    public static bool WasMouseDragging(ImGuiMouseButton button) => ((int)inputCache.Past.IsMouseButtonDragging & (1 << (int)button)) != 0;
+    public static bool IsMouseDragging(ImGuiMouseButton button) => ((int)inputCache.State.IsMouseButtonDragging & 1 << (int)button) != 0;
+    public static bool WasMouseDragging(ImGuiMouseButton button) => ((int)inputCache.Past.IsMouseButtonDragging & 1 << (int)button) != 0;
     public static bool IsAnyMouseButtonDragging() => inputCache.State.IsMouseButtonDragging != 0;
     public static bool WasAnyMouseButtonDragging() => inputCache.Past.IsMouseButtonDragging != 0;
     public static bool MouseDragStarted(ImGuiMouseButton button) => !WasMouseDragging(button) && IsMouseDragging(button);
     public static bool MouseDragEnded(ImGuiMouseButton button) => WasMouseDragging(button) && !IsMouseDragging(button);
     public static bool MouseDragStarted() => !WasAnyMouseButtonDragging() && IsAnyMouseButtonDragging();
     public static bool MouseDragEnded() => WasAnyMouseButtonDragging() && !IsAnyMouseButtonDragging();
-    public static bool IsAnyMouseButtonDragStarted() => ((~inputCache.Past.IsMouseButtonDragging) & inputCache.State.IsMouseButtonDragging) != 0;
+    public static bool IsAnyMouseButtonDragStarted() => (~inputCache.Past.IsMouseButtonDragging & inputCache.State.IsMouseButtonDragging) != 0;
     public static bool IsAnyMouseButtonDragEnded() => (inputCache.Past.IsMouseButtonDragging & inputCache.State.IsMouseButtonDragging) != inputCache.Past.IsMouseButtonDragging;
     public static bool IsAnyMouseButtonDragChanged() => inputCache.Past.IsMouseButtonDragging != inputCache.State.IsMouseButtonDragging;
     public static Vector2 GetLastClickPosition(ImGuiMouseButton button) => inputCache.mouseClickPositions[(int)button];

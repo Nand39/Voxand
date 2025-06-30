@@ -1,6 +1,4 @@
-﻿using System.Numerics;
-
-using ImGuiNET;
+﻿using ImGuiNET;
 
 using Voxand.Content;
 using Voxand.Engine.Systems.Voxels;
@@ -10,8 +8,6 @@ using Voxand.Helpers.ExtensionMethods;
 using Voxand.App.Voxels.Editing;
 using Voxand.Engine.Systems.Graphics.Tools.UI;
 using Voxand.Engine.Systems.Voxels.VoxelMaterialServices;
-using Voxand.UI.Systems.DragAndDrop;
-using Voxand.UI.ImGuiIntegration;
 using Voxand.Engine.Systems.Services.Voxels;
 using Voxand.Engine.Systems.Common;
 using Voxand.Engine.Systems.UI.Windows;
@@ -23,6 +19,8 @@ using OpenTK.Mathematics;
 using NVec2 = System.Numerics.Vector2;
 using NVec4 = System.Numerics.Vector4;
 using Vector2 = OpenTK.Mathematics.Vector2;
+using Voxand.Engine.Systems.General.ImGuiIntegration.Systems.DragAndDrop;
+using Voxand.Engine.Systems.General.ImGuiIntegration;
 
 namespace Voxand.UI;
 public static class UI_Manager
@@ -204,7 +202,7 @@ public sealed class UI_MaterialEditorWindow : UI_Window, IVoxelMaterialEditor
 public sealed class UI_SettingsWindow : UI_Window
 {
     bool UseTAA = true;
-    float renderResolutionFactor = 50;
+    float renderResolutionPercentage = 50;
     Window win;
 
     IRendererAntiAliasingUsage antiAliasingUsage;
@@ -226,6 +224,7 @@ public sealed class UI_SettingsWindow : UI_Window
         renderSettings = EngineServices.GetService<IRenderSettings>();
 
         win = EngineServices.GetService<IWindowService>().Window;
+        win.Resize += (args) => SetRenderingResolution(args.Size, renderResolutionPercentage / 100);
     }
     protected override void Display()
     {
@@ -241,18 +240,22 @@ public sealed class UI_SettingsWindow : UI_Window
 
         ImGui.Text("Rendering resolution");
         ImGui.SetNextItemWidth(-1);
-        if (ImGui.SliderFloat("##resSlider", ref renderResolutionFactor, 10f, 100f, "%.0f %%"))
+        if (ImGui.SliderFloat("##resSlider", ref renderResolutionPercentage, 10f, 100f, "%.0f %%"))
         {
-            Vector2i newResolution = (Vector2i)((Vector2)win.ClientSize * (renderResolutionFactor / 100));
-            if (newResolution.BitwiseAnd(new Vector2i(7, 7)) != Vector2i.Zero)
-            {
-                newResolution = newResolution.BitwiseAnd(new Vector2i(~7, ~7));
-            } 
-            
-            renderSettings.SetRenderingResolution(newResolution);
+            SetRenderingResolution(win.ClientSize, renderResolutionPercentage / 100);
         }
 
         ImGui.End();
+    }
+
+    void SetRenderingResolution(Vector2i baseResolution, float factor)
+    {
+        Vector2i newResolution = (Vector2i)((Vector2)baseResolution * factor);
+        
+        if (newResolution.BitwiseAnd(new Vector2i(7, 7)) != Vector2i.Zero)
+            newResolution = newResolution.BitwiseAnd(new Vector2i(~7, ~7));
+
+        renderSettings.SetRenderingResolution(newResolution);
     }
 }
 

@@ -11,9 +11,9 @@ using GLAV;
 using Voxand.Content;
 using Voxand.Engine.ExecutionControl;
 using Voxand.Helpers;
-using Voxand.UI.ImGuiIntegration;
 using Voxand.Helpers.Interop;
 using DisposableExt;
+using Voxand.Engine.Systems.General.ImGuiIntegration;
 
 namespace Voxand;
 public sealed class Window : GameWindow

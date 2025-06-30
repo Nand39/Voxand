@@ -10,19 +10,17 @@ using ImGuiNET;
 
 using GLAV.Types.Extended;
 using GLAV.Types;
-
-using Voxand.UI.Systems.DragAndDrop;
 using Voxand.Helpers;
 using Voxand.Helpers.ExtensionMethods;
 
 using NVec2 = System.Numerics.Vector2;
 using Voxand.Engine.Systems.Graphics.Tools.ShaderServices;
 using Voxand.Content;
-using Voxand.UI.ImGuiIntegration.Backend;
 using Voxand.Engine.Systems.Structures.PrimitiveStructs;
 using DisposableExt;
+using Voxand.Engine.Systems.General.ImGuiIntegration.Systems.DragAndDrop;
 
-namespace Voxand.UI.ImGuiIntegration;
+namespace Voxand.Engine.Systems.General.ImGuiIntegration;
 public class ImGuiBackend : IDisposableExt
 {
     bool _frameBegun;

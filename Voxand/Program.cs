@@ -5,7 +5,7 @@ using Voxand;
 Window window = new (GameWindowSettings.Default, new NativeWindowSettings()
 {
     Title = "Voxand Renderer",
-    ClientSize = new OpenTK.Mathematics.Vector2i(1920, 1080),
+    ClientSize = new OpenTK.Mathematics.Vector2i(780, 780),
     WindowBorder = WindowBorder.Resizable,
     StartVisible = false,
     StartFocused = true,

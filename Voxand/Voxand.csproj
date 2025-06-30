@@ -69,9 +69,6 @@
     <None Update="Resources\Graphics\UI\ImGuiStyles\style.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="Resources\Graphics\UI\ImGuiStyles\style2.json">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
   </ItemGroup>
 
   <ItemGroup>

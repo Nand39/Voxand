@@ -1,11 +1,9 @@
 ﻿using ImGuiNET;
 using System.Numerics;
-
 using Voxand.Engine.Systems.Structures.PrimitiveStructs;
 using Voxand.Helpers.ExtensionMethods;
-using Voxand.UI.ImGuiIntegration;
 
-namespace Voxand.UI.Systems.DragAndDrop;
+namespace Voxand.Engine.Systems.General.ImGuiIntegration.Systems.DragAndDrop;
 public class DragDropTarget
 {
     public Vector2 Position { get; set; }

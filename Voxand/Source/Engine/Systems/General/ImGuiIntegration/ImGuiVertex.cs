@@ -2,7 +2,7 @@
 using OpenTK.Mathematics;
 using System.Runtime.InteropServices;
 
-namespace Voxand.UI.ImGuiIntegration.Backend;
+namespace Voxand.Engine.Systems.General.ImGuiIntegration;
 
 [StructLayout(LayoutKind.Sequential)]
 public unsafe struct ImGuiVertex

@@ -204,6 +204,8 @@ public sealed class MainExecutionManager : ExecutionManager
         paletteWindow.Select(0);
 
 
+        windowService.Window.WindowState = WindowState.Maximized;
+
         frameTimeSetter = typeof(FrameTime).GetProperty(nameof(FrameTime.PreciseDelta), BindingFlags.Static | BindingFlags.Public)!.GetSetMethod(true)!.CreateDelegate<Action<double>>();
 
         fps = new Framewatch(Util.FrameTimeAnalytics, 1);
@@ -250,16 +252,13 @@ public sealed class MainExecutionManager : ExecutionManager
 
         try
         {
-            string styleJSON = content.ReadFile("Graphics/UI/ImGuiStyles/style2.json");
+            string styleJSON = content.ReadFile("Graphics/UI/ImGuiStyles/style.json");
             imGuiStyleLoader.SetJSON(styleJSON);
         }
         catch (Exception e)
         {
             Console.WriteLine("Failed to load ImGui style. Error:\n" + e.Message);
         }
-
-
-        windowService.Window.WindowState = WindowState.Maximized;
 
         Console.WriteLine("Loaded");
     }

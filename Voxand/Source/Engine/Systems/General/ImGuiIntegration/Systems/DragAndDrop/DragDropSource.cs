@@ -1,12 +1,10 @@
 ﻿using System.Numerics;
 
 using ImGuiNET;
-
 using Voxand.Engine.Systems.Structures.PrimitiveStructs;
-using Voxand.UI.ImGuiIntegration;
 using Voxand.Helpers.ExtensionMethods;
 
-namespace Voxand.UI.Systems.DragAndDrop;
+namespace Voxand.Engine.Systems.General.ImGuiIntegration.Systems.DragAndDrop;
 
 public class DragDropSource
 {
