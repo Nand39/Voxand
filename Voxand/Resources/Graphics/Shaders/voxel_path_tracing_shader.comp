@@ -176,7 +176,7 @@ void main()
 
             vec3 prevHit = prevNearestRayDir * prevDepth + prevCameraPosition;
 
-            if (abs(prevHit[normal >> 1] - hitPos[normal >> 1]) > clamp(0.001 * (prevDepth + depth) * 0.5, 0.2, 2))
+            if (abs(prevHit[normal >> 1] - hitPos[normal >> 1]) > clamp(0.001 * (prevDepth + depth) * 0.5, 0.2, 2.0f))
             {
                 motion = vec2(19, 39);
             }

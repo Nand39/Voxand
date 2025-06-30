@@ -100,7 +100,16 @@ public class ContentManager
         ShaderPart[] shaderAttachments = new ShaderPart[sourcePaths.Length];
         for (int i = 0; i < shaderAttachments.Length; i++)
         {
-            shaderAttachments[i] = LoadShaderPart(sourcePaths[i]);
+            try
+            {
+                shaderAttachments[i] = LoadShaderPart(sourcePaths[i]);
+            }
+            catch (ShaderPartCompilationException ex)
+            {
+                throw new ArgumentException(
+                    $"Failed to compile shader source code in {sourcePaths[i]}.\n" +
+                    $"Log: {ex.InfoLog}", ex);
+            }
         }
 
         try
@@ -133,7 +142,7 @@ public class ContentManager
         }
         catch (ShaderPartCompilationException ex)
         {
-            throw new ShaderPartCompilationException($"Failed to compile shader source code in {sourcePath}", ex.Message, ex);
+            throw new ShaderPartCompilationException($"Failed to compile shader source code in {sourcePath}", ex.InfoLog, ex);
         }
     }
     #endregion

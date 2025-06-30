@@ -119,10 +119,10 @@ public sealed class MainExecutionManager : ExecutionManager
 
     public override void Load()
     {
-        debugCallback = GLDebugCallback;
-        GL.Enable(EnableCap.DebugOutput);
-        GL.Enable(EnableCap.DebugOutputSynchronous);
-        GL.DebugMessageCallback(debugCallback, nint.Zero);
+        //debugCallback = GLDebugCallback;
+        //GL.Enable(EnableCap.DebugOutput);
+        //GL.Enable(EnableCap.DebugOutputSynchronous);
+        //GL.DebugMessageCallback(debugCallback, nint.Zero);
 
         GL.ClearColor(0.2f, 0.3f, 0.3f, 1);
 
