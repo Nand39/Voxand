@@ -108,6 +108,9 @@ public class ImGuiBackend : IDisposableExt
 
         foreach (DragDropTarget target in dragDropTargets)
         {
+            if (!target.Enabled)
+                continue;
+
             if (ImGuiInput.IsHovering(target.Rect))
                 target.HandlePayloadDropped(activePayload!);
         }
@@ -236,6 +239,16 @@ public class ImGuiBackend : IDisposableExt
 
     public void Render()
     {
+        if (IsDraggingPayload)
+        {
+            if (ImGuiInput.IsAnyMouseButtonDragChanged())
+                EndDragDrop();
+        }
+        else if (ImGuiInput.MouseDragStarted())
+        {
+            OnDragStarted(ImGuiInput.GetMouseDragMask());
+        }
+
         RenderDragDropTooltip();
 
         if (_frameBegun)
@@ -260,16 +273,6 @@ public class ImGuiBackend : IDisposableExt
         ImGui.NewFrame();
 
         imGuiInputCache.Update();
-
-        if (IsDraggingPayload)
-        {
-            if (ImGuiInput.IsAnyMouseButtonDragChanged())
-                EndDragDrop();
-        }
-        else if (ImGuiInput.MouseDragStarted())
-        {
-            OnDragStarted(ImGuiInput.GetMouseDragMask());
-        }
     }
 
     private void SetPerFrameImGuiData()

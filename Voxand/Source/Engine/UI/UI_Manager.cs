@@ -340,7 +340,6 @@ public sealed class UI_VoxelToolHotbar : UI_Window
 
                 NVec2 position = ImGui.GetCursorScreenPos();
                 NVec2 slotSize = new(ImGui.GetContentRegionAvail().X, ImGui.GetFrameHeight());
-                bool isHovering = ImGuiInput.IsHovering(new(position.AsTK(), slotSize.AsTK()));
 
                 ImGui.PushID(row);
                 if (index < 0)
@@ -348,24 +347,33 @@ public sealed class UI_VoxelToolHotbar : UI_Window
                     ImGui.Selectable(
                         label: $"{(row < 9 ? row + 1 : 0)}. Empty slot",
                         selected: false,
-                        flags: ImGuiSelectableFlags.Disabled | (isHovering  ? ImGuiSelectableFlags.Highlight : ImGuiSelectableFlags.None),
+                        flags: ImGuiSelectableFlags.None,
                         size: slotSize);
                 }
                 else if (ImGui.Selectable(
                     label: $"{(row < 9 ? row + 1 : 0)}. {tool[index].Name}",
                     selected: index == tool.ActivePlacementTechniqueIndex, 
-                    flags: isHovering ? ImGuiSelectableFlags.Highlight : ImGuiSelectableFlags.None,
+                    flags: ImGuiSelectableFlags.None,
                     size: slotSize))
                 {
                     tool.ActivePlacementTechniqueIndex = index;
                 }
+                if (ImGui.IsItemHovered())
+                {
+                    hotbarDropTargets[row].Enabled = true;
+                    hotbarDropTargets[row].Position = position;
+                    hotbarDropTargets[row].Size = slotSize;
+
+                    hotbarDragSources[row].Enabled = true;
+                    hotbarDragSources[row].Position = position;
+                    hotbarDragSources[row].Size = slotSize;
+                }
+                else 
+                {
+                    hotbarDropTargets[row].Enabled = false;
+                    hotbarDragSources[row].Enabled = false;
+                }
                 ImGui.PopID();
-
-                hotbarDropTargets[row].Position = position;
-                hotbarDropTargets[row].Size = slotSize;
-
-                hotbarDragSources[row].Position = position;
-                hotbarDragSources[row].Size = slotSize;
             })], 
             numRows: 10,
             displayHeadersRow: false);
