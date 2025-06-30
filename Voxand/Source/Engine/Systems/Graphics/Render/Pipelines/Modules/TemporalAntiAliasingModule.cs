@@ -13,9 +13,9 @@ namespace Voxand.Engine.Systems.Graphics.Pipelines.Modules;
 public sealed class AntiAliasingModule : RenderingPipeline, IRendererAntiAliasing
 {
     ShaderController shaderController;
-    Texture2D luminanceAccum, luminanceBuffer;
-    public Texture2D LuminanceToAccumulate { get; private set; }
-    public Texture2D NormalCompound_motionTexture { get; private set; }
+    MutableTexture2D luminanceAccum, luminanceBuffer;
+    public MutableTexture2D LuminanceToAccumulate { get; private set; }
+    public MutableTexture2D NormalCompound_motionTexture { get; private set; }
 
     float intensity = 0.5f;
     public float Intensity
@@ -29,7 +29,7 @@ public sealed class AntiAliasingModule : RenderingPipeline, IRendererAntiAliasin
     }
     float prevIntensity;
     bool isResetPushed;
-    public AntiAliasingModule(ShaderController shaderControllerTAA, Texture2D luminanceToAccumulate, Texture2D normalCompound_motionTexture)
+    public AntiAliasingModule(ShaderController shaderControllerTAA, MutableTexture2D luminanceToAccumulate, MutableTexture2D normalCompound_motionTexture)
     {
         ExceptionConstructor.ThrowIfTextureSizeNotDivisible(luminanceToAccumulate, 8);
 
@@ -59,8 +59,8 @@ public sealed class AntiAliasingModule : RenderingPipeline, IRendererAntiAliasin
         LuminanceToAccumulate.BindTex(0);
         luminanceAccum.BindTex(1);
         NormalCompound_motionTexture.BindTex(2);
-        luminanceBuffer.BindAsImage(0, TextureAccess.WriteOnly, SizedInternalFormat.Rgba32f);
-        NormalCompound_motionTexture.BindAsImage(1, TextureAccess.WriteOnly, SizedInternalFormat.Rgba32f);
+        luminanceBuffer.BindAsImage(0, TextureAccess.WriteOnly);
+        NormalCompound_motionTexture.BindAsImage(1, TextureAccess.WriteOnly);
 
         GL.DispatchCompute(LuminanceToAccumulate.Size.X / 8, LuminanceToAccumulate.Size.Y / 8, 1);
         GL.MemoryBarrier(MemoryBarrierFlags.ShaderImageAccessBarrierBit);
@@ -74,7 +74,7 @@ public sealed class AntiAliasingModule : RenderingPipeline, IRendererAntiAliasin
         }
     }
 
-    public void SetInputOutput(Texture2D luminanceToAccumulate, Texture2D normalCompound_motionTexture)
+    public void SetInputOutput(MutableTexture2D luminanceToAccumulate, MutableTexture2D normalCompound_motionTexture)
     {
         ExceptionConstructor.ThrowIfTextureSizeNotDivisible(luminanceToAccumulate, 8);
         ExceptionConstructor.ThrowIfTextureSizeNotEqual(luminanceToAccumulate, normalCompound_motionTexture);

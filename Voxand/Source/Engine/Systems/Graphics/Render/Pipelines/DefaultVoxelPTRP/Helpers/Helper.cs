@@ -14,19 +14,19 @@ public static class VoxelPTRPHelper
     /// <exception cref="ArgumentNullException"/> 
     /// <exception cref="ArgumentException"/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void ThrowIfTextureInvalid(Texture2D texture)
+    public static void ThrowIfTextureInvalid(MutableTexture2D texture)
     {
         ArgumentNullException.ThrowIfNull(texture);
         ExceptionConstructor.ThrowIfTextureSizeNotDivisible(texture, 8);
     }
 
     /// <summary>
-    /// For each texture calls <see cref="ThrowIfTextureInvalid(Texture2D)"/>.
+    /// For each texture calls <see cref="ThrowIfTextureInvalid(MutableTexture2D)"/>.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void ThrowIfAnyTextureInvalid(params Texture2D[] textures)
+    public static void ThrowIfAnyTextureInvalid(params MutableTexture2D[] textures)
     {
-        foreach (Texture2D texture in textures)
+        foreach (MutableTexture2D texture in textures)
             ThrowIfTextureInvalid(texture);
     }
 }

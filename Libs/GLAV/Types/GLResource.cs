@@ -25,7 +25,7 @@ public abstract class GLResource : IDisposableExt
         }
         set => Util.LabelResource(Handle, value);
     }
-    public override string ToString() => $"\"{Label}\" (id={Handle.id})";
+    public override string ToString() => $"\"{Label}\" (resource={Handle.resourceType}; id={Handle.id})";
     void IDisposableExt.Free() => Free(GLRegistry.Instance.GLFWGraphicsContext.IsCurrent);
     protected abstract void Free(bool hasContext);
     ~GLResource() => this.Dispose();
@@ -41,6 +41,6 @@ public enum GLResourceType
     VertexArray,
     ShaderPart,
     ShaderProgram,
-    Texture2D,
+    Texture,
     Framebuffer,
 }

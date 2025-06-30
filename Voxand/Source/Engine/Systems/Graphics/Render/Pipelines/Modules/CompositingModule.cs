@@ -14,9 +14,9 @@ namespace Voxand.Engine.Systems.Graphics.Pipelines.Modules;
 public sealed class CompositingModule : RenderingPipeline
 {
     ShaderController compositingShaderController;
-    Texture2D directIllum_depthInput, indirectIllumInput, normalCompound_motionInput;
+    MutableTexture2D directIllum_depthInput, indirectIllumInput, normalCompound_motionInput;
     RenderTarget renderTarget;
-    public Texture2D DirectIllum_depthInput
+    public MutableTexture2D DirectIllum_depthInput
     {
         get => directIllum_depthInput;
         set
@@ -26,7 +26,7 @@ public sealed class CompositingModule : RenderingPipeline
             ExceptionConstructor.ThrowIfTextureSizeNotEqual(directIllum_depthInput, indirectIllumInput, normalCompound_motionInput);
         }
     }
-    public Texture2D IndirectIllumInput
+    public MutableTexture2D IndirectIllumInput
     {
         get => indirectIllumInput;
         set
@@ -36,7 +36,7 @@ public sealed class CompositingModule : RenderingPipeline
             ExceptionConstructor.ThrowIfTextureSizeNotEqual(directIllum_depthInput, indirectIllumInput, normalCompound_motionInput);
         }
     }
-    public Texture2D NormalCompound_motionInput
+    public MutableTexture2D NormalCompound_motionInput
     {
         get => normalCompound_motionInput;
         set
@@ -51,8 +51,8 @@ public sealed class CompositingModule : RenderingPipeline
         get => renderTarget;
         set => renderTarget = value;
     }
-    public CompositingModule(ShaderController shaderController, Texture2D directIllum_depthInput, Texture2D indirectIllumInput,
-        Texture2D normalCompound_motionInput, RenderTarget output)
+    public CompositingModule(ShaderController shaderController, MutableTexture2D directIllum_depthInput, MutableTexture2D indirectIllumInput,
+        MutableTexture2D normalCompound_motionInput, RenderTarget output)
     {
         compositingShaderController = shaderController;
         compositingShaderController.SetUniform("directIllum_depthTex", 0);
@@ -73,10 +73,9 @@ public sealed class CompositingModule : RenderingPipeline
         indirectIllumInput.BindTex(2);
         normalCompound_motionInput.BindTex(1);
 
-        Primitives.ScreenQuadVertexAttribs.Use();
-        GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
+        Primitives.ScreenQuadVertexAttribs.DrawVertices(PrimitiveType.Triangles, 6);
     }
-    public void SetInput(Texture2D directIllum_depthInput, Texture2D indirectIllumInput, Texture2D normalCompound_motionInput)
+    public void SetInput(MutableTexture2D directIllum_depthInput, MutableTexture2D indirectIllumInput, MutableTexture2D normalCompound_motionInput)
     {
         VoxelPTRPHelper.ThrowIfAnyTextureInvalid(directIllum_depthInput, indirectIllumInput, normalCompound_motionInput);
         this.directIllum_depthInput = directIllum_depthInput;

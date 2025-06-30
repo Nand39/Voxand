@@ -6,6 +6,8 @@ using GLAV.Types;
 using OpenTK.Windowing.Desktop;
 using System.Collections.Concurrent;
 using Buffer = GLAV.Types.Buffer;
+using GLAV.Helpers.Internal;
+using System.Reflection.Metadata;
 
 namespace GLAV;
 public sealed class GLRegistry
@@ -13,12 +15,12 @@ public sealed class GLRegistry
     static GLRegistry instance;
     public static GLRegistry Instance => instance;
 
-    Texture2D[] textureUnits = new Texture2D[GL.GetInteger(GetPName.MaxCombinedTextureImageUnits)];
+    Texture[] textureUnits = new Texture[GL.GetInteger(GetPName.MaxCombinedTextureImageUnits)];
     int activeTextureUnit;
 
-    Texture2D[] imageUnits = new Texture2D[GL.GetInteger(GetPName.MaxCombinedImageUniforms)];
+    Texture[] imageUnits = new Texture[GL.GetInteger(GetPName.MaxCombinedImageUniforms)];
 
-    int[] bufferTargets;
+    Buffer?[] bufferTargets;
     Dictionary<BufferTarget, int> bufferTargetMapping;
 
     Buffer[] UniformBufferBindings = new Buffer[GL.GetInteger((GetPName)All.MaxUniformBufferBindings)];
@@ -28,6 +30,7 @@ public sealed class GLRegistry
 
     int activeShaderProgram = -1;
     int activeFramebuffer = 0;
+    VertexArray? activeVertexArray;
 
     ConcurrentQueue<Action> pendingGLActions = new();
 
@@ -39,11 +42,10 @@ public sealed class GLRegistry
         instance = new();
         instance.GLFWGraphicsContext = context;
         BufferTarget[] bufferTargetEnums = (BufferTarget[])Enum.GetValues(typeof(BufferTarget));
-        instance.bufferTargets = new int[bufferTargetEnums.Length];
+        instance.bufferTargets = new Buffer[bufferTargetEnums.Length];
         instance.bufferTargetMapping = [];
         for (int i = 0; i < bufferTargetEnums.Length; i++)
         {
-            instance.bufferTargets[i] = -1;
             instance.bufferTargetMapping[bufferTargetEnums[i]] = i;
         }
     }
@@ -67,41 +69,24 @@ public sealed class GLRegistry
         GL.ActiveTexture(TextureUnit.Texture0 + unit);
     }
 
-    public void BindTexture(Texture2D tex, TextureTarget target)
+    public void BindTexture(Texture tex, TextureTarget target)
     {
-        Texture2D currentlyBound = textureUnits[activeTextureUnit];
+        Texture currentlyBound = textureUnits[activeTextureUnit];
         if (currentlyBound == tex)
             return;
         textureUnits[activeTextureUnit] = tex;
         GL.BindTexture(target, tex.Handle.id);
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void BindTexture(Texture2D tex, int unit, TextureTarget target)
+    public void BindTexture(Texture tex, int unit, TextureTarget target)
     {
         SelectTextureUnit(unit);
         BindTexture(tex, target);
     }
-
-    public void BindTextureRaw(int handle, int unit, TextureTarget target)
-    {
-        SelectTextureUnit(unit);
-        BindTextureRaw(handle, target);
-    }
-
-    public void BindTextureRaw(int handle, TextureTarget target)
-    {
-        Texture2D currentlyBound = textureUnits[activeTextureUnit];
-        if (currentlyBound is not null && currentlyBound.Handle.id == handle)
-            return;
-
-        textureUnits[activeTextureUnit] = null;
-        GL.BindTexture(target, handle);
-    }
     #endregion
     
     #region IMG BINDING
-    public void BindImage(Texture2D tex, int binding, TextureAccess access, SizedInternalFormat format)
+    public void BindImage(Texture tex, int binding, TextureAccess access, SizedInternalFormat format)
     {
         imageUnits[binding] = tex;
         GL.BindImageTexture(binding, tex.Handle.id, 0, false, 0, access, format);
@@ -111,13 +96,24 @@ public sealed class GLRegistry
     #endregion
 
     #region BUFFERS
-    public void BindBuffer(BufferTarget target, int handle)
+    public void BindBuffer(BufferTarget target, Buffer? buffer)
     {
         int targetIndex = bufferTargetMapping[target];
-        if (bufferTargets[targetIndex] == handle) 
+        
+        if (target == BufferTarget.ElementArrayBuffer && activeVertexArray is not null)
+            activeVertexArray.ReferencedElementBuffer = buffer;
+
+        Buffer? oldBuffer = bufferTargets[targetIndex];
+
+        if (oldBuffer == buffer)
             return;
-        bufferTargets[targetIndex] = handle;
-        GL.BindBuffer(target, handle);
+
+        if (oldBuffer is not null)
+            oldBuffer.PointingBufferTargetFlags &= ~Util.TargetToFlag(target);
+
+        bufferTargets[targetIndex] = buffer;
+
+        GL.BindBuffer(target, buffer is null ? 0 : buffer.Handle.id);
     }
 
     public void BindBufferAsShaderStorage(BufferRangeTarget target, Buffer buffer, BufferBindingInfo binding)
@@ -156,6 +152,33 @@ public sealed class GLRegistry
         }
     }
 
+    public void DeleteBuffer(Buffer buffer)
+    {
+        int pointingBufferTargets = (int)buffer.PointingBufferTargetFlags;
+        for (int i = 0; i < bufferTargets.Length; i++)
+            if ((pointingBufferTargets | (1 << i)) != 0)
+                bufferTargets[i] = null;
+
+        GL.DeleteBuffer(buffer.Handle.id);
+    }
+
+    #endregion
+
+    #region VERTEX ARRAYS
+    public void BindVertexArray(VertexArray vertexArray)
+    {
+        activeVertexArray = vertexArray;
+        BindBuffer(BufferTarget.ElementArrayBuffer, vertexArray.ReferencedElementBuffer);
+        GL.GetInteger(GetPName.ElementArrayBufferBinding, out int binding);
+        GL.BindVertexArray(vertexArray.Handle.id);
+        GL.GetInteger(GetPName.ElementArrayBufferBinding, out binding);
+    }
+    public void UnbindVertexArray()
+    {
+        activeVertexArray = null;
+        GL.BindVertexArray(0);
+        BindBuffer(BufferTarget.ElementArrayBuffer, null);
+    }
     #endregion
 
     #region FRAMEBUFFERS

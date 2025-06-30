@@ -42,6 +42,12 @@
     <None Update="Resources\Graphics\Shaders\copy_tex8_shader.comp">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="Resources\Graphics\Shaders\ImGui\imgui_fragment_shader.frag">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Resources\Graphics\Shaders\ImGui\imgui_vertex_shader.vert">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="Resources\Graphics\Shaders\taa_shader.comp">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
@@ -54,9 +60,6 @@
     <None Update="Resources\Graphics\Shaders\voxel_path_tracing_shader.comp">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="Resources\Graphics\Textures\env.hdr">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
     <None Update="Content\Graphics\Textures\map.jpg">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
@@ -66,6 +69,13 @@
     <None Update="Resources\Graphics\UI\ImGuiStyles\style.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="Resources\Graphics\UI\ImGuiStyles\style2.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Resources\Graphics\Textures\" />
   </ItemGroup>
 
   <ProjectExtensions><VisualStudio><UserProperties /></VisualStudio></ProjectExtensions>

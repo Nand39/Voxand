@@ -1,6 +1,6 @@
 ﻿using System.Runtime.CompilerServices;
 using System.Text;
-
+using GLAV.Helpers.Internal;
 using OpenTK.Graphics.OpenGL4;
 
 namespace GLAV.Types;
@@ -25,7 +25,8 @@ public readonly struct BufferBindingInfo
 public class Buffer : GLResource
 {
     public int Size { get; protected set; } = 0;
-    public BufferTarget bufferTarget { get; protected set; }
+    public BufferTarget LastBufferTarget { get; protected set; }
+    public BufferTargetFlags PointingBufferTargetFlags { get; internal set; }
 
     internal Dictionary<int, (int offset, int size)> uniformBufferBindings = [];
     internal Dictionary<int, (int offset, int size)> transformFeedbackBufferBindings = [];
@@ -70,12 +71,13 @@ public class Buffer : GLResource
 
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void Bind() => GLRegistry.Instance.BindBuffer(bufferTarget, Handle.id);
+    public void Bind() => GLRegistry.Instance.BindBuffer(LastBufferTarget, this);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Bind(BufferTarget target) 
     {
-        bufferTarget = target;
+        LastBufferTarget = target;
+        PointingBufferTargetFlags |= Util.TargetToFlag(target);
         Bind();
     }
 
@@ -83,27 +85,27 @@ public class Buffer : GLResource
     public unsafe void Store(int offsetInBytes, nint dataPtr, int size)
     {
         Bind();
-        GL.BufferSubData(bufferTarget, offsetInBytes, size, dataPtr);
+        GL.BufferSubData(LastBufferTarget, offsetInBytes, size, dataPtr);
     }
     public unsafe void Store<T>(ref T data, int offsetInBytes)
         where T : struct
     {
         Bind();
-        GL.BufferSubData(bufferTarget, offsetInBytes, sizeof(T), ref data);
+        GL.BufferSubData(LastBufferTarget, offsetInBytes, sizeof(T), ref data);
     }
     public unsafe void Store<T>(T[] data, int readingOffsetInBytes, int sizeInBytes, int writingOffsetInBytes)
         where T : struct
     {
         Bind();
         fixed (T* startPtr = data)
-            GL.BufferSubData(bufferTarget, writingOffsetInBytes, sizeInBytes, (nint)startPtr + readingOffsetInBytes);
+            GL.BufferSubData(LastBufferTarget, writingOffsetInBytes, sizeInBytes, (nint)startPtr + readingOffsetInBytes);
     }
     public unsafe void Store<T>(Span<T> data, int writingOffsetInBytes)
         where T : struct
     {
         Bind();
         fixed (T* startPtr = data)
-            GL.BufferSubData(bufferTarget, writingOffsetInBytes, data.Length * sizeof(T), (nint)startPtr);
+            GL.BufferSubData(LastBufferTarget, writingOffsetInBytes, data.Length * sizeof(T), (nint)startPtr);
     }
     #endregion
 
@@ -134,8 +136,8 @@ public class Buffer : GLResource
     }
     public void CopyTo(Buffer destinationBuffer, int readingOffsetInBytes, int writingOffsetInBytes, int size)
     {
-        BufferTarget sourceOriginalTarget = bufferTarget;
-        BufferTarget destinationOriginalTarget = destinationBuffer.bufferTarget;
+        BufferTarget sourceOriginalTarget = LastBufferTarget;
+        BufferTarget destinationOriginalTarget = destinationBuffer.LastBufferTarget;
 
         Bind(BufferTarget.CopyReadBuffer);
         destinationBuffer.Bind(BufferTarget.CopyWriteBuffer);
@@ -153,7 +155,7 @@ public class Buffer : GLResource
         T[] output = new T[count];
         fixed (T* outputPtr = output)
         {
-            GL.GetBufferSubData(bufferTarget, readingOffsetInBytes, size, (nint)outputPtr);
+            GL.GetBufferSubData(LastBufferTarget, readingOffsetInBytes, size, (nint)outputPtr);
         }
         return output;
     }
@@ -169,7 +171,7 @@ public class Buffer : GLResource
 
         T output = new T();
         Bind();
-        GL.GetBufferSubData(bufferTarget, readingOffsetInBytes, size, (nint)(&output));
+        GL.GetBufferSubData(LastBufferTarget, readingOffsetInBytes, size, (nint)(&output));
         return output;
     }
     public unsafe T Retrieve<T>(int y, int z, int x, int dimX, int dimZ) where T : struct
@@ -210,9 +212,9 @@ public class Buffer : GLResource
     {
         if (hasContext)
         {
-            GL.DeleteBuffer(Handle.id);
+            GLRegistry.Instance.DeleteBuffer(this);
             return;
         }
-        GLRegistry.Instance.ScheduleAction(() => GL.DeleteBuffer(Handle.id));
+        GLRegistry.Instance.ScheduleAction(() => GLRegistry.Instance.DeleteBuffer(this));
     }
 }

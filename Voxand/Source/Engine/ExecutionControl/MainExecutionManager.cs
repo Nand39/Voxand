@@ -29,6 +29,9 @@ using Voxand.Engine.Systems.Services.Graphics;
 using Voxand.Engine.Systems.Services.UI.Windows;
 using Voxand.App.Voxels.Materials;
 using Voxand.Engine.Systems.Common;
+using Voxand.UI.ImGuiIntegration;
+using Voxand.Engine.Systems.Services.UI.ImGuiIntegration;
+using Voxand.Content;
 
 namespace Voxand.Engine.ExecutionControl;
 public sealed class MainExecutionManager : ExecutionManager
@@ -36,9 +39,11 @@ public sealed class MainExecutionManager : ExecutionManager
     Vector3i numberOfChunks = new(128, 48, 128);
     Framewatch fps;
     Action<double> frameTimeSetter;
-    
-    public WindowService WindowService { get; private set; }
-    public ScriptManager ScriptManager { get; private set; }
+
+    WindowService windowService;
+    ScriptManager scriptManager;
+    ServiceRegistry services;
+    ContentManager content;
 
     VoxelPTRP renderer;
     IRendererPathTracing pathTracing;
@@ -103,13 +108,12 @@ public sealed class MainExecutionManager : ExecutionManager
         }
     }
 
-    ServiceRegistry services;
-
     public MainExecutionManager(Window win)
     {
-        WindowService = new WindowService(win);
-        ScriptManager = new ScriptManager();
+        windowService = new WindowService(win);
+        scriptManager = new ScriptManager();
         services = new ServiceRegistry();
+        content = win.Content;
         EngineServices.Initialize(services);
     }
 
@@ -122,11 +126,11 @@ public sealed class MainExecutionManager : ExecutionManager
 
         GL.ClearColor(0.2f, 0.3f, 0.3f, 1);
 
-        WindowService.Window.VSync = VSyncMode.On;
+        windowService.Window.VSync = VSyncMode.On;
 
         IServiceRegistrator serviceRegistrator = services;
 
-        serviceRegistrator.AddOrReplaceService<IWindowService>(WindowService);
+        serviceRegistrator.AddOrReplaceService<IWindowService>(windowService);
 
         Camera camera = new Camera();
         camera.Pose.position = new Vector3(0.5f, numberOfChunks.Y * 3.7f, 0.5f);
@@ -139,10 +143,10 @@ public sealed class MainExecutionManager : ExecutionManager
         materials[0] = new(Util.Hex2Vec("#92959c"), 0.5f, new(0, 0, 0), 0);
         materials[1] = new(Util.Hex2Vec("#614c31"), 0.23f, new(0, 0, 0), 0);
         materials[2] = new(Util.Hex2Vec("#375933"), 0.23f, new(0, 0, 0), 0);
-        materials[3] = new(new(0.8f, 0.8f, 0.8f), 0, new(1, 0.93f, 0.5f), 2);
-        materials[4] = new(new(0.8f, 0.8f, 0.8f), 0, new(1, 0, 0), 1);
-        materials[5] = new(new(0.8f, 0.8f, 0.8f), 0, new(0, 1, 0), 1);
-        materials[6] = new(new(0.8f, 0.8f, 0.8f), 0, new(0, 0, 1), 1);
+        materials[3] = new(new(0.8f, 0.8f, 0.8f), 0, new(1, 0.93f, 0.5f), 50);
+        materials[4] = new(new(0.8f, 0.8f, 0.8f), 0, new(1, 0, 0), 50);
+        materials[5] = new(new(0.8f, 0.8f, 0.8f), 0, new(0, 1, 0), 50);
+        materials[6] = new(new(0.8f, 0.8f, 0.8f), 0, new(0, 0, 1), 50);
 
         VoxelPalette palette = new VoxelPalette(materials, 3);
         serviceRegistrator.AddOrReplaceService<IVoxelPalette>(palette);
@@ -156,9 +160,9 @@ public sealed class MainExecutionManager : ExecutionManager
 
 
 
-        ComputeUtility.Initialize(WindowService.Window.Content, "Graphics/Shaders/copy_tex8_shader.comp");
+        ComputeUtility.Initialize(windowService.Window.Content, "Graphics/Shaders/copy_tex8_shader.comp");
 
-        UI_Manager.Initialize(WindowService.Window.Content);
+        UI_Manager.Initialize(windowService.Window.Content);
 
         
         
@@ -189,7 +193,7 @@ public sealed class MainExecutionManager : ExecutionManager
             VoxelToolHotbar = hotbar,
             Camera = camera
         };
-        ScriptManager.AddScripts(viewer, voxelTool, toolController, MaterialEditorController);
+        scriptManager.AddScripts(viewer, voxelTool, toolController, MaterialEditorController);
 
         voxelTool.OnMaterialChanged += (index) => MaterialEditorController.EditedMaterialIndex = index;
         voxelTool.OnMaterialChanged += paletteWindow.ActiveMaterialChanged; 
@@ -205,17 +209,18 @@ public sealed class MainExecutionManager : ExecutionManager
         fps = new Framewatch(Util.FrameTimeAnalytics, 1);
 
         renderer = new(
-            content: WindowService.Window.Content,
+            content: windowService.Window.Content,
             camera: camera,
             map: chunkMap,
             output: RenderTarget.Default,
-            renderingResolution: new((WindowService.Window.ClientSize.X / 2) & ~7, (WindowService.Window.ClientSize.Y / 2) & ~7),
+            renderingResolution: new((windowService.Window.ClientSize.X / 2) & ~7, (windowService.Window.ClientSize.Y / 2) & ~7),
             antiAliasing: out antiAliasing,
             pathTracing: out pathTracing);
 
         serviceRegistrator.AddOrReplaceService<IRendererAntiAliasingUsage>(renderer);
         serviceRegistrator.AddOrReplaceService(pathTracing);
         serviceRegistrator.AddOrReplaceService(antiAliasing);
+        serviceRegistrator.AddOrReplaceService<IRenderSettings>(renderer);
 
         EngineServices.AddReplacementCallback<IRendererPathTracing>((newPathTracing) => pathTracing = newPathTracing);
         EngineServices.AddReplacementCallback<IRendererAntiAliasing>((newAntiAliasing) => antiAliasing = newAntiAliasing);
@@ -240,15 +245,31 @@ public sealed class MainExecutionManager : ExecutionManager
         viewer.setSunDirectionRequest += (args) => sunDirection = args;
         antiAliasing.Intensity = 0.95f;
 
+        ImGuiStyleLoader imGuiStyleLoader = new();
+        serviceRegistrator.AddOrReplaceService<IImGuiStyleLoader>(imGuiStyleLoader);
+
+        try
+        {
+            string styleJSON = content.ReadFile("Graphics/UI/ImGuiStyles/style2.json");
+            imGuiStyleLoader.SetJSON(styleJSON);
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine("Failed to load ImGui style. Error:\n" + e.Message);
+        }
+
+
+        windowService.Window.WindowState = WindowState.Maximized;
+
         Console.WriteLine("Loaded");
     }
 
-    Vector3 sunDirection = Vector3.UnitX;
+    Vector3 sunDirection = Vector3.One.Normalized();
     public override void Update(FrameEventArgs args)
     {
         frameTimeSetter(args.Time);
 
-        ScriptManager.Update();
+        scriptManager.Update();
 
         sunDirection.Xz = sunDirection.Xz.Rotated(0.014f * (float)args.Time);
         pathTracing.SunDirection.Set(sunDirection);
@@ -257,11 +278,12 @@ public sealed class MainExecutionManager : ExecutionManager
     }
     public override void Render(FrameEventArgs args)
     {
-        if (!WindowService.Window.IsMinimized)
+        if (!windowService.Window.IsMinimized && windowService.Window.IsFocused)
             renderer.Execute();
 
         UI_Manager.Display();
     }
+
     public override void Unload()
     {
         renderer.Dispose();
@@ -269,13 +291,9 @@ public sealed class MainExecutionManager : ExecutionManager
         EngineServices.TryGetService<IVoxelPalette>(out var palette);
         map.Dispose();
         palette.Dispose();
-        ScriptManager.Dispose();
+        scriptManager.Dispose();
 
         Console.WriteLine("Unloaded");
-    }
-    public override void OnResize(ResizeEventArgs args)
-    {
-        renderer.SetRenderingResolution(new((args.Size.X / 2) & ~7, (args.Size.Y / 2) & ~7));
     }
     void GLDebugCallback(DebugSource source, DebugType type, int id, DebugSeverity severity, int messageLength, nint messagePtr, nint userParamPtr)
     {

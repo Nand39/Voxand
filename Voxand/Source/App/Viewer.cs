@@ -23,9 +23,9 @@ public class Viewer : Script
     public bool cameraFollow;
     public bool hideCursorWhenRotatingCamera;
     public float sensitivity = 0.0038f;
-    float speed = 32;
+    float speed = 15;
     Vector2i screenCenter;
-    int chunkLoadingDistance = 8;
+    int chunkLoadingDistance = 16;
 
     Window win;
     IWindowService windowService;

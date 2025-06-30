@@ -1,10 +1,10 @@
 ﻿using OpenTK.Graphics.OpenGL4;
-using System.Net.Mail;
 
 namespace GLAV.Types;
-public struct FramebufferAttachmentInfo(Texture2D texture, FramebufferAttachment attahcmentType, TextureTarget textureTarget)
+public struct FramebufferAttachmentInfo(Texture texture, int targetLevel, FramebufferAttachment attahcmentType, TextureTarget textureTarget)
 {
-    public Texture2D texture = texture;
+    public Texture texture = texture;
+    public int targetLevel = targetLevel;
     public FramebufferAttachment attachmentType = attahcmentType;
     public TextureTarget textureTarget = textureTarget;
 }
@@ -17,7 +17,7 @@ public class Framebuffer : GLResource
         Handle.id = GL.GenFramebuffer();
         Bind(FramebufferTarget.Framebuffer);
     }
-    public void Create(ref FramebufferAttachmentInfo[] attachments)
+    public void Create(FramebufferAttachmentInfo[] attachments)
     {
         GL.BindFramebuffer(FramebufferTarget.Framebuffer, Handle.id);
 
@@ -35,7 +35,7 @@ public class Framebuffer : GLResource
     public void Attach(FramebufferAttachmentInfo attachment)
     {
         Bind(FramebufferTarget.Framebuffer);
-        GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, attachment.attachmentType, attachment.textureTarget, attachment.texture.Handle.id, 0);
+        GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, attachment.attachmentType, attachment.textureTarget, attachment.texture.Handle.id, attachment.targetLevel);
     }
     public void Detach(FramebufferAttachment attachmentType)
     {

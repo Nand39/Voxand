@@ -51,7 +51,7 @@ public class TexturedRenderTarget : RenderTarget, IDisposableExt
         ArgumentNullException.ThrowIfNull(attachments);
         Resolution = resolution;
         framebuffer = new();
-        framebuffer.Create(ref attachments);
+        framebuffer.Create(attachments);
         DisposeHelper = new(this);
     }
     public override void Use()

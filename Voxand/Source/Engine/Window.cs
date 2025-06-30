@@ -13,26 +13,19 @@ using Voxand.Engine.ExecutionControl;
 using Voxand.Helpers;
 using Voxand.UI.ImGuiIntegration;
 using Voxand.Helpers.Interop;
+using DisposableExt;
 
 namespace Voxand;
 public sealed class Window : GameWindow
 {
-    static Window windowInstance;
-    public static Window Instance => windowInstance;
-
     public ExecutionManager ExecutionManager { get; private set; }
     public ContentManager Content { get; private set; }
-    public ImGuiController ImGuiController { get; private set; }
-
+    public ImGuiBackend ImGuiBackend { get; private set; }
     public bool IsMinimized { get; private set; }
-    Window(GameWindowSettings windowSettings, NativeWindowSettings nativeWindowSettings)
+
+    public Window(GameWindowSettings windowSettings, NativeWindowSettings nativeWindowSettings)
         : base(windowSettings, nativeWindowSettings)
     {
-    }
-
-    public static void Initialize(GameWindowSettings windowSettings, NativeWindowSettings nativeWindowSettings)
-    {
-        windowInstance = new Window(windowSettings, nativeWindowSettings);
     }
 
     protected override void OnLoad()
@@ -50,27 +43,23 @@ public sealed class Window : GameWindow
 
         Content = new ContentManager("Resources");
 
-        ImGuiController = new ImGuiController(ClientSize.X, ClientSize.Y);
+        ImGuiBackend = new ImGuiBackend(this, Content);
 
         ExecutionManager = new MainExecutionManager(this);
         ExecutionManager.Load();
-
-        MouseWheel += (args) =>
-        {
-            ImGuiController.MouseScroll(args.Offset);
-        };
     }
 
     protected override void OnUnload()
     {
         ExecutionManager.Unload();
+        ImGuiBackend.Dispose();
         base.OnUnload();
     }
 
     protected override void OnUpdateFrame(FrameEventArgs args)
     {
         ExecutionManager.Update(args);
-        ImGuiController.Update(this, (float)args.Time);
+        ImGuiBackend.Update();
         base.OnUpdateFrame(args);
     }
 
@@ -78,7 +67,7 @@ public sealed class Window : GameWindow
     {
         GLRegistry.Instance.ProcessOpenGLActions();
         ExecutionManager.Render(args);
-        ImGuiController.Render();
+        ImGuiBackend.Render();
         Context.SwapBuffers();
         base.OnRenderFrame(args);
     }
@@ -94,15 +83,20 @@ public sealed class Window : GameWindow
     {
         base.OnResize(args);
         Util.ClientSize = ClientSize;
-        ImGuiController.WindowResized(ClientSize.X, ClientSize.Y);
         GL.Viewport(0, 0, args.Width, args.Height);
         ExecutionManager.OnResize(args);
     }
 
     protected override void OnTextInput(TextInputEventArgs e)
     {
-        ImGuiController.PressChar((uint)e.Unicode);
+        ImGuiBackend.PressChar((uint)e.Unicode);
         base.OnTextInput(e);
+    }
+
+    protected override void OnMouseWheel(MouseWheelEventArgs e)
+    {
+        ImGuiBackend.MouseScroll(e.Offset);
+        base.OnMouseWheel(e);
     }
 
     protected override void OnMinimized(MinimizedEventArgs e)

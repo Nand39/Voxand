@@ -10,14 +10,14 @@ public class DragDropTarget
 {
     public Vector2 Position { get; set; }
     public Vector2 Size { get; set; }
-    public Rect Rect => new Rect(Position.AsTK(), Size.AsTK());
+    public RectF Rect => new RectF(Position.AsTK(), Size.AsTK());
     public event Action<Payload>? OnPayloadDropped;
 
     public DragDropTarget(Vector2 position, Vector2 size)
     {
         Position = position;
         Size = size;
-        ImGuiController.RegisterDragDropTarget(this);
+        ImGuiBackend.RegisterDragDropTarget(this);
     }
 
     public void HandlePayloadDropped(Payload payload)

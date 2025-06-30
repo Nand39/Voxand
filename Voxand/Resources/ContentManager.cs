@@ -44,7 +44,7 @@ public class ContentManager
     #region Asset loading
 
     #region Texture2D
-    public Texture2D LoadTexture(string path, PixelInternalFormat storageFormat)
+    public MutableTexture2D LoadTexture(string path, PixelInternalFormat storageFormat)
     {
         Stream stream;
         stream = OpenStream(path, FileMode.Open, FileAccess.Read);
@@ -53,7 +53,7 @@ public class ContentManager
         if (extension is null or "")
             throw new ArgumentException($"Cannot load texture at {path}; no file extension found.");
 
-        Texture2D texture;
+        MutableTexture2D texture;
         switch (extension)
         {
             default: throw new ArgumentException
@@ -73,22 +73,22 @@ public class ContentManager
         return texture;
     }
 
-    Texture2D LoadSimpleTexture(Stream imageFileStream, PixelInternalFormat storageFormat)
+    MutableTexture2D LoadSimpleTexture(Stream imageFileStream, PixelInternalFormat storageFormat)
     {
         ImageResult image = ImageResult.FromStream(imageFileStream, ColorComponents.RedGreenBlueAlpha);
         return CreateTexture(new Vector2i(image.Width, image.Height), storageFormat, new(PixelFormat.Rgba, PixelType.UnsignedByte), image.Data);
     }
 
-    Texture2D LoadHDRTexture(Stream imageFileStream, PixelInternalFormat storageFormat)
+    MutableTexture2D LoadHDRTexture(Stream imageFileStream, PixelInternalFormat storageFormat)
     {
         ImageResultFloat image = ImageResultFloat.FromStream(imageFileStream, ColorComponents.RedGreenBlueAlpha);
         return CreateTexture(new Vector2i(image.Width, image.Height), storageFormat, new(PixelFormat.Rgba, PixelType.Float), image.Data);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    Texture2D CreateTexture<T>(Vector2i textureSize, PixelInternalFormat storageFormat, TexLoadFormat texLoadFormat, T[] data) where T : struct
+    MutableTexture2D CreateTexture<T>(Vector2i textureSize, PixelInternalFormat storageFormat, TexLoadFormat texLoadFormat, T[] data) where T : struct
     {
-        Texture2D texture = new Texture2D();
+        MutableTexture2D texture = new MutableTexture2D();
         texture.Alloc(textureSize, storageFormat, texLoadFormat, data);
         return texture;
     }

@@ -17,6 +17,12 @@ using Voxand.Engine.Systems.Common;
 using Voxand.Engine.Systems.UI.Windows;
 using Voxand.Engine.Systems.Services.UI.Windows;
 using Voxand.Engine.Systems.Services.Graphics;
+using Voxand.Engine.Systems.Services.General;
+using OpenTK.Mathematics;
+
+using NVec2 = System.Numerics.Vector2;
+using NVec4 = System.Numerics.Vector4;
+using Vector2 = OpenTK.Mathematics.Vector2;
 
 namespace Voxand.UI;
 public static class UI_Manager
@@ -26,13 +32,6 @@ public static class UI_Manager
     public static void Initialize(ContentManager content)
     {
         windows = new List<UI_Window>();
-
-        try
-        {
-            string styleJSON = content.ReadFile("Graphics/UI/ImGuiStyles/style.json");
-            ImGuiController.SetStyle(styleJSON);
-        }
-        catch { }
     }
     
     public static void Display()
@@ -43,7 +42,7 @@ public static class UI_Manager
         ImGui.SetNextWindowViewport(mainViewport.ID);
 
         ImGui.Begin("MainDockSpace", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoBringToFrontOnFocus | ImGuiWindowFlags.NoNavFocus | ImGuiWindowFlags.NoBackground);
-        ImGui.DockSpace(ImGui.GetID("MainDockSpaceID"), Vector2.Zero, ImGuiDockNodeFlags.PassthruCentralNode);
+        ImGui.DockSpace(ImGui.GetID("MainDockSpaceID"), NVec2.Zero, ImGuiDockNodeFlags.PassthruCentralNode);
         ImGui.End();
 
         foreach (UI_Window window in windows)
@@ -70,7 +69,7 @@ public sealed class UI_PaletteWindow : UI_Window, IVoxelMaterialSelector
     uint[] materialDisplayColors;
     public int SelectedMaterial { get; private set; } = 0;
 
-    readonly Vector2 CellSize = new(26, 26);
+    readonly NVec2 CellSize = new(26, 26);
     readonly float slotBorderThickness = 2f;
 
     public event Action<int>? OnMaterialSelected;
@@ -85,13 +84,12 @@ public sealed class UI_PaletteWindow : UI_Window, IVoxelMaterialSelector
     {
         materialDisplayColors = new uint[palette.MaterialCount];
         for (int i = 0; i < palette.MaterialCount; i++)
-            materialDisplayColors[i] = new Vector4(Util.GetMaterialDisplayColor(palette.GetMaterial(i)).AsNum(), 1).AsImGuiU32();
+            materialDisplayColors[i] = new NVec4(Util.GetMaterialDisplayColor(palette.GetMaterial(i)).AsNum(), 1).AsImGuiU32();
 
         paletteGrid = new(
             label: "mygrid",
             flags: ImGuiTableFlags.None,
             itemCount: palette.MaterialCount,
-            sizeMode: UI_Grid.GridSizeMode.FixedColumnWidth,
             columnWidth: CellSize.X,
             gridSize: new(100, 100),
             numColumns: 0,
@@ -105,17 +103,17 @@ public sealed class UI_PaletteWindow : UI_Window, IVoxelMaterialSelector
                 ImGui.PopID();
 
                 ImGui.GetWindowDrawList().AddRectFilled(
-                    p_min: ImGui.GetItemRectMin() + new Vector2(slotBorderThickness),
-                    p_max: ImGui.GetItemRectMax() - new Vector2(slotBorderThickness),
+                    p_min: ImGui.GetItemRectMin() + new NVec2(slotBorderThickness),
+                    p_max: ImGui.GetItemRectMax() - new NVec2(slotBorderThickness),
                     col: materialDisplayColors[i],
                     rounding: 0,
                     flags: ImDrawFlags.None);
             },
             onBegin: () =>
             {
-                ImGui.PushStyleColor(ImGuiCol.Header, new Vector4(1, 1, 1, 1));
-                ImGui.PushStyleColor(ImGuiCol.HeaderHovered, new Vector4(1, 1, 1, 1));
-                ImGui.PushStyleColor(ImGuiCol.HeaderActive, new Vector4(1, 1, 0, 1));
+                ImGui.PushStyleColor(ImGuiCol.Header, new NVec4(1, 1, 1, 1));
+                ImGui.PushStyleColor(ImGuiCol.HeaderHovered, new NVec4(1, 1, 1, 1));
+                ImGui.PushStyleColor(ImGuiCol.HeaderActive, new NVec4(1, 1, 0, 1));
             },
             onEnd: () =>
             {
@@ -133,7 +131,7 @@ public sealed class UI_PaletteWindow : UI_Window, IVoxelMaterialSelector
 
     public void UpdatePaletteButton(int index, VoxelMaterial material)
     {
-        materialDisplayColors[index] = new Vector4(Util.GetMaterialDisplayColor(material).AsNum(), 1).AsImGuiU32();
+        materialDisplayColors[index] = new NVec4(Util.GetMaterialDisplayColor(material).AsNum(), 1).AsImGuiU32();
     }
 
     public void Select(int newActiveMaterialIndex) => OnMaterialSelected?.Invoke(newActiveMaterialIndex);
@@ -206,9 +204,12 @@ public sealed class UI_MaterialEditorWindow : UI_Window, IVoxelMaterialEditor
 public sealed class UI_SettingsWindow : UI_Window
 {
     bool UseTAA = true;
+    float renderResolutionFactor = 50;
+    Window win;
 
     IRendererAntiAliasingUsage antiAliasingUsage;
     IRendererAntiAliasing antiAliasingSettings;
+    IRenderSettings renderSettings;
 
     public UI_SettingsWindow()
     {
@@ -219,8 +220,12 @@ public sealed class UI_SettingsWindow : UI_Window
             UseTAA = antiAliasingUsage.UseAntiAliasing;
         });
 
-        antiAliasingSettings = EngineServices.GetService<IRendererAntiAliasing>();
+         antiAliasingSettings = EngineServices.GetService<IRendererAntiAliasing>();
         EngineServices.AddReplacementCallback<IRendererAntiAliasing>((newSettings) => antiAliasingSettings = newSettings);
+
+        renderSettings = EngineServices.GetService<IRenderSettings>();
+
+        win = EngineServices.GetService<IWindowService>().Window;
     }
     protected override void Display()
     {
@@ -232,6 +237,19 @@ public sealed class UI_SettingsWindow : UI_Window
             UseTAA = !UseTAA;
             antiAliasingUsage.UseAntiAliasing = UseTAA;
             antiAliasingSettings.ResetAccumulated();
+        }
+
+        ImGui.Text("Rendering resolution");
+        ImGui.SetNextItemWidth(-1);
+        if (ImGui.SliderFloat("##resSlider", ref renderResolutionFactor, 10f, 100f, "%.0f %%"))
+        {
+            Vector2i newResolution = (Vector2i)((Vector2)win.ClientSize * (renderResolutionFactor / 100));
+            if (newResolution.BitwiseAnd(new Vector2i(7, 7)) != Vector2i.Zero)
+            {
+                newResolution = newResolution.BitwiseAnd(new Vector2i(~7, ~7));
+            } 
+            
+            renderSettings.SetRenderingResolution(newResolution);
         }
 
         ImGui.End();
@@ -257,8 +275,8 @@ public sealed class UI_DebugWindow : UI_Window
         ImGui.Text($"Min: {Util.FrameTimeAnalytics.MinTime.TotalMilliseconds} ms");
 
         ImGui.SeparatorText("Memory usage");
-        ImGui.Text($"RAM usage: {Math.Round(Util.BytesConverter(voxelStructure.GetMemoryUsage(), 2), 3)} mb");
-        ImGui.Text($"VRAM usage: {Math.Round(Util.BytesConverter(voxelStructure.GetGraphicsMemoryUsage(), 2), 3)} mb");
+        ImGui.Text($"Voxel map RAM usage: {Math.Round(Util.BytesConverter(voxelStructure.GetMemoryUsage(), 2), 3)} mb");
+        ImGui.Text($"Voxel map VRAM usage: {Math.Round(Util.BytesConverter(voxelStructure.GetGraphicsMemoryUsage(), 2), 3)} mb");
 
         ImGui.End();
     }
@@ -278,8 +296,8 @@ public sealed class UI_VoxelToolHotbar : UI_Window
         for (int i = 0; i < VoxelToolHotbar.MAX_SLOTS; i++)
         {
             hotbarDropTargets[i] = new DragDropTarget(
-                position: Vector2.Zero,
-                size: Vector2.Zero);
+                position: NVec2.Zero,
+                size: NVec2.Zero);
 
             int slotIndex = i;
             hotbarDropTargets[i].OnPayloadDropped += (payload) =>
@@ -317,8 +335,8 @@ public sealed class UI_VoxelToolHotbar : UI_Window
                 
                 int index = hotbar[row];
 
-                Vector2 position = ImGui.GetCursorScreenPos();
-                Vector2 slotSize = new(ImGui.GetContentRegionAvail().X, ImGui.GetFrameHeight());
+                NVec2 position = ImGui.GetCursorScreenPos();
+                NVec2 slotSize = new(ImGui.GetContentRegionAvail().X, ImGui.GetFrameHeight());
                 bool isHovering = ImGuiInput.IsHovering(new(position.AsTK(), slotSize.AsTK()));
 
                 ImGui.PushID(row);
@@ -434,7 +452,7 @@ public sealed class UI_VoxelToolSettingsWindow : UI_Window
 
         if (tool.ActivePlacementTechnique is ComplexPlacementTechnique)
         {
-            ImGui.TextColored(new Vector4(1, 0.8078f, 0.2784f, 1), "Enter - apply\nBackspace - cancel");
+            ImGui.TextColored(new NVec4(1, 0.8078f, 0.2784f, 1), "Enter - apply\nBackspace - cancel");
         }
 
         ImGui.SeparatorText("Settings");

@@ -9,16 +9,16 @@ namespace Voxand.UI.ImGuiIntegration;
 
 public static class ImGuiInput
 {
-    static ImGuiController.ImGuiInputCache inputCache = null!;
+    static ImGuiBackend.ImGuiInputCache inputCache = null!;
 
-    public static void Initialize(ImGuiController.ImGuiInputCache inputCache) => ImGuiInput.inputCache ??= inputCache;
+    public static void Initialize(ImGuiBackend.ImGuiInputCache inputCache) => ImGuiInput.inputCache ??= inputCache;
 
     public static Vector2 GetMousePosition() => inputCache.State.MousePosition;
     public static Vector2 GetPastMousePosition() => inputCache.Past.MousePosition;
-    public static bool IsHovering(Rect rect) => rect.Contains(inputCache.State.MousePosition.AsTK());
-    public static bool WasHovering(Rect rect) => rect.Contains(inputCache.Past.MousePosition.AsTK());
-    public static bool WasHoveringOnLastClick(Rect rect, ImGuiMouseButton button) => rect.Contains(GetLastClickPosition(button).AsTK());
-    public static bool WasHoveringOnLastClick(Rect rect, MouseButtonsMask buttons)
+    public static bool IsHovering(RectF rect) => rect.Contains(inputCache.State.MousePosition.AsTK());
+    public static bool WasHovering(RectF rect) => rect.Contains(inputCache.Past.MousePosition.AsTK());
+    public static bool WasHoveringOnLastClick(RectF rect, ImGuiMouseButton button) => rect.Contains(GetLastClickPosition(button).AsTK());
+    public static bool WasHoveringOnLastClick(RectF rect, MouseButtonsMask buttons)
     {
         bool result = false;
 

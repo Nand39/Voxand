@@ -1,13 +1,12 @@
-﻿using System.Runtime.InteropServices;
-
-using OpenTK.Graphics.OpenGL4;
+﻿using OpenTK.Graphics.OpenGL4;
 
 using GLAV.Data;
-using GLAV.Helpers.Internal;
 
 namespace GLAV.Types;
 public class VertexArray : GLResource
 {
+    public Buffer? ReferencedElementBuffer { get; internal set; } = null;
+
     public VertexArray()
     {
         Handle.resourceType = GLResourceType.VertexArray;
@@ -17,12 +16,15 @@ public class VertexArray : GLResource
 
     public void Bind()
     {
-        GL.BindVertexArray(Handle.id);
+        GLRegistry.Instance.BindVertexArray(this);
     }
+
+    public static void Unbind() => GLRegistry.Instance.UnbindVertexArray();
 
     public void SetVertexAttributePointer(VertexAttributeInfo attribInfo, Buffer source)
     {
         source.Bind(BufferTarget.ArrayBuffer);
+        Bind();
         GL.VertexAttribPointer(
             index: attribInfo.location,
             size: attribInfo.componentCount,

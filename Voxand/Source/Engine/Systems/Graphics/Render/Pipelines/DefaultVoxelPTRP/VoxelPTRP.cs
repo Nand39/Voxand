@@ -14,11 +14,11 @@ using Voxand.Engine.Systems.Services.Graphics;
 
 namespace Voxand.Engine.Systems.Graphics.Pipelines.DefaultVoxelPTRP;
 
-public sealed class VoxelPTRP : RenderingPipeline, IRendererAntiAliasingUsage
+public sealed class VoxelPTRP : RenderingPipeline, IRendererAntiAliasingUsage, IRenderSettings
 {
     Camera Camera;
-    Texture2D directIllumination_depthPT, indirectIlluminationPT, normalCompound_motionPT;
-    Texture2D skyTex;
+    MutableTexture2D directIllumination_depthPT, indirectIlluminationPT, normalCompound_motionPT;
+    MutableTexture2D skyTex;
     RenderTarget renderTarget;
     ShaderController pathTracingShaderController, TAAShaderController, compositingShaderController;
 
@@ -53,8 +53,8 @@ public sealed class VoxelPTRP : RenderingPipeline, IRendererAntiAliasingUsage
 
         varyingRenderDataStorage.Add(directIllumination_depthPT, indirectIlluminationPT, normalCompound_motionPT);
 
-        skyTex = content.LoadTexture("Graphics/Textures/env.hdr", PixelInternalFormat.Rgba32f);
-        skyTex.Label = "Sky texture";
+        //skyTex = content.LoadTexture("Graphics/Textures/env.hdr", PixelInternalFormat.Rgba32f);
+        //skyTex.Label = "Sky texture";
 
         pathTracingShaderController = new(content, "Graphics/Shaders/voxel_path_tracing_shader.comp");
         pathTracingShaderController.Shader.Label = "* voxel PT shader";
@@ -123,15 +123,15 @@ public sealed class VoxelPTRP : RenderingPipeline, IRendererAntiAliasingUsage
     {
         Console.WriteLine($"Rendering resolution set to {resolution}");
 
-        directIllumination_depthPT = new Texture2D();
+        directIllumination_depthPT = new MutableTexture2D();
         directIllumination_depthPT.Alloc(resolution, PixelInternalFormat.Rgba32f);
         directIllumination_depthPT.Label = "directIllum_depthPT";
 
-        indirectIlluminationPT = new Texture2D();
+        indirectIlluminationPT = new MutableTexture2D();
         indirectIlluminationPT.Alloc(resolution, PixelInternalFormat.Rgba32f);
         indirectIlluminationPT.Label = "indirectIllumPT";
 
-        normalCompound_motionPT = new Texture2D();
+        normalCompound_motionPT = new MutableTexture2D();
         normalCompound_motionPT.Alloc(resolution, PixelInternalFormat.Rgba32f);
         normalCompound_motionPT.Label = "normal_motionPT";
     }
@@ -145,7 +145,7 @@ public sealed class VoxelPTRP : RenderingPipeline, IRendererAntiAliasingUsage
     {
         lifetimeResources.Dispose();
         varyingRenderDataStorage.Dispose();
-        skyTex.Dispose();
+        //skyTex.Dispose();
         GC.SuppressFinalize(this);
     }
 }

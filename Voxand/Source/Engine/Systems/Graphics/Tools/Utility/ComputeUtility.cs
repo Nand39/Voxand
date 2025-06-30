@@ -21,7 +21,7 @@ public class ComputeUtility
         };
     }
 
-    public void CopyTex8(Texture2D source, Texture2D destination, SizedInternalFormat sizedInternalFormat, bool imageBarrier)
+    public void CopyTex8(MutableTexture2D source, MutableTexture2D destination, SizedInternalFormat sizedInternalFormat, bool imageBarrier)
     {
         ExceptionConstructor.ThrowIfTextureSizeNotDivisible(source, 8);
         ExceptionConstructor.ThrowIfTextureSizeNotEqual(source, destination);
@@ -31,7 +31,7 @@ public class ComputeUtility
         copyTex8Shader.SetUniform("destination", 0);
 
         source.BindTex(0);
-        destination.BindAsImage(0, TextureAccess.WriteOnly, sizedInternalFormat);
+        destination.BindAsImage(0, TextureAccess.WriteOnly);
         
         GL.DispatchCompute(source.Size.X / 8, source.Size.Y / 8, 1);
         if (imageBarrier)

@@ -18,31 +18,76 @@ public class VertexSpecification : IDisposableExt
     {
         DisposeHelper = new(this);
         vao = new();
+        VertexArray.Unbind(); // Important to not implicitly capture the next bound EBO
     }
 
-    public void Use() => vao.Bind();
+    public string Label
+    {
+        get => vao.Label;
+        set => vao.Label = value;
+    }
 
     public unsafe void AddAttributeSource<VertexType>(Buffer source) where VertexType : struct
     {
-        vao.Bind();
         foreach (VertexAttributeInfo attribInfo in GenerateVertexInfo<VertexType>())
             vao.SetVertexAttributePointer(attribInfo, source);
+        VertexArray.Unbind(); // Important to not implicitly capture the next bound EBO
     }
 
     public unsafe void AddAttributeSource<VertexType>(TypedArray<VertexType> source) where VertexType : struct
     {
-        vao.Bind();
         foreach (VertexAttributeInfo attribInfo in GenerateVertexInfo<VertexType>())
             vao.SetVertexAttributePointer(attribInfo, source.Buffer);
+        VertexArray.Unbind(); // Important to not implicitly capture the next bound EBO
     }
 
-    public void EnableAttribute(int location) => vao.EnableVertexAttribute(location);
-    public void DisableAttribute(int location) => vao.DisableVertexAttribute(location);
+    public void SetElementBuffer(Buffer? elementBuffer)
+    {
+        vao.Bind();
+
+        if (elementBuffer is not null)
+            elementBuffer.Bind(BufferTarget.ElementArrayBuffer);
+        else
+            GLRegistry.Instance.BindBuffer(BufferTarget.ElementArrayBuffer, null);
+
+        VertexArray.Unbind(); // Important to not implicitly capture the next bound EBO
+    }
+
+    public void SetElementBuffer<T>(TypedArray<T> elementArray) where T : struct => SetElementBuffer(elementArray.Buffer);
+
+    public void EnableAttribute(int location)
+    {
+        vao.EnableVertexAttribute(location);
+        VertexArray.Unbind(); // Important to not implicitly capture the next bound EBO
+    }
+    public void DisableAttribute(int location)
+    {
+        vao.DisableVertexAttribute(location);
+        VertexArray.Unbind(); // Important to not implicitly capture the next bound EBO
+    }
+
+    public void DrawVertices(PrimitiveType primitiveType, int count, int offset = 0)
+    {
+        vao.Bind();
+        GL.DrawArrays(primitiveType, offset, count);
+        VertexArray.Unbind(); // Important to not implicitly capture the next bound EBO
+    }
+
+    public void DrawElements(PrimitiveType primitiveType, int count, DrawElementsType elementType, int elementOffset = 0, int vertexOffset = 0)
+    {
+        vao.Bind();
+        if (vertexOffset == 0)
+            GL.DrawElements(primitiveType, count, elementType, elementOffset);
+        else
+            GL.DrawElementsBaseVertex(primitiveType, count, elementType, elementOffset, vertexOffset);
+        VertexArray.Unbind(); // Important to not implicitly capture the next bound EBO
+    }
 
     public void Clear()
     {
         vao.Dispose();
         vao = new();
+        VertexArray.Unbind(); // Important to not implicitly capture the next bound EBO
     }
 
     IEnumerable<VertexAttributeInfo> GenerateVertexInfo<T>() where T : struct
@@ -52,22 +97,24 @@ public class VertexSpecification : IDisposableExt
             throw new ArgumentException($"Type must have {nameof(StructLayoutAttribute)} with {nameof(LayoutKind)} set to {LayoutKind.Sequential}.");
 
         var vertexAttribFields = Util.ReflectionHelper.GetFieldsWithAttribute<T, VertexAttribAttribute>();
-        foreach ((FieldInfo fieldInfo, VertexAttribAttribute attrib) attribField in vertexAttribFields)
+        foreach ((FieldInfo fieldInfo, VertexAttribAttribute attrib) in vertexAttribFields)
         {
-            Util.GetVertexAttribType(attribField.fieldInfo.FieldType, out VertexAttribPointerType attribType, out int componentCount);
-            if (attribField.attrib.Normalized && !Util.IsIntegerVertexAttribType(attribType))
+            Util.GetVertexAttribType(fieldInfo.FieldType, out VertexAttribPointerType attribType, out int componentCount);
+            if (attrib.Normalized && !Util.IsIntegerVertexAttribType(attribType))
                 throw new ArgumentException("Normalized can only be set to true for integer vertex attribute types.");
 
-            int offset = (int)Marshal.OffsetOf<T>(attribField.fieldInfo.Name);
+            int offset = (int)Marshal.OffsetOf<T>(fieldInfo.Name);
 
             yield return new VertexAttributeInfo(
-                attribField.attrib.Location,
+                attrib.Location,
                 componentCount,
                 offset,
                 attribType,
-                attribField.attrib.Normalized,
+                attrib.Normalized,
                 Marshal.SizeOf<T>());
         }
     }
-    public void Free() => vao.Dispose();
+    void IDisposableExt.Free() => vao.Dispose();
+
+    ~VertexSpecification() => this.Dispose();
 }

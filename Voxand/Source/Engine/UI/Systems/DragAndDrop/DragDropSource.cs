@@ -12,7 +12,7 @@ public class DragDropSource
 {
     public Vector2 Position { get; set; }
     public Vector2 Size { get; set; }
-    public Rect Rect => new Rect(Position.AsTK(), Size.AsTK());
+    public RectF Rect => new RectF(Position.AsTK(), Size.AsTK());
     public Payload Payload { get; set; }
     public ImGuiDragDropFlags Flags { get; set; }
     public bool Enabled { get; set; } = true;
@@ -25,7 +25,7 @@ public class DragDropSource
         Flags = flags;
         DragDropTooltipBuilder = dragDropTooltipBuilder;
         TrackedMouseButtons = mouseButtonsToTrack;
-        ImGuiController.RegisterDragDropSource(this);
+        ImGuiBackend.RegisterDragDropSource(this);
     }
 
     public void CoverLastImGuiItem()

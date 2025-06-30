@@ -1,19 +1,19 @@
 ﻿using OpenTK.Mathematics;
 
 namespace Voxand.Engine.Systems.Structures.PrimitiveStructs;
-public struct Rect
+public struct RectF
 {
-    public Vector2i position;
-    public Vector2i size;
+    public Vector2 position;
+    public Vector2 size;
 
-    public int Left => position.X;
-    public int Right => position.X + size.X;
-    public int Bottom => position.Y;
-    public int Top => position.Y + size.Y;
+    public float Left => position.X;
+    public float Right => position.X + size.X;
+    public float Bottom => position.Y;
+    public float Top => position.Y + size.Y;
     public float Width => size.X;
     public float Height => size.Y;
 
-    public Rect(int x, int y, int width, int height)
+    public RectF(float x, float y, float width, float height)
     {
         position.X = x;
         position.Y = y;
@@ -21,7 +21,7 @@ public struct Rect
         size.Y = height;
     }
 
-    public Rect(Vector2i position, Vector2i size)
+    public RectF(Vector2 position, Vector2 size)
     {
         this.position = position;
         this.size = size;

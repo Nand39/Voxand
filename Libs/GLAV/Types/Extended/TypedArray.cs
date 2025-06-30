@@ -54,5 +54,7 @@ public class TypedArray<T> : IDisposableExt where T : struct
         Buffer.BindAsShaderStorage(target, new(binding, start * itemSize, count * itemSize));
     }
 
-    public void Free() => Buffer.Dispose();
+    void IDisposableExt.Free() => Buffer.Dispose();
+
+    ~TypedArray() => this.Dispose();
 }

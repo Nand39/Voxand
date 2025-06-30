@@ -20,13 +20,13 @@ namespace Voxand.Engine.Systems.Graphics.Pipelines.Modules;
 public sealed class VoxelPathTracingModule : RenderingPipeline, IRendererPathTracing
 {
     ShaderController pathTracingShaderController;
-    Texture2D directIllum_depthOutput, indirectIllumOutput, normalCompound_motionOutput;
+    MutableTexture2D directIllum_depthOutput, indirectIllumOutput, normalCompound_motionOutput;
     Buffer shaderInputSSBO;
     ShaderInputStreaming shaderInputStreaming = new();
     int cycle = 0;
     public Camera Camera { get; set; }
-    public Texture2D SkyTex { get; set; }
-    public Texture2D DirectIllumination_depthOutput
+    public MutableTexture2D SkyTex { get; set; }
+    public MutableTexture2D DirectIllumination_depthOutput
     {
         get => directIllum_depthOutput;
         set
@@ -36,7 +36,7 @@ public sealed class VoxelPathTracingModule : RenderingPipeline, IRendererPathTra
             directIllum_depthOutput = value;
         }
     }
-    public Texture2D IndirectIlluminationOutput
+    public MutableTexture2D IndirectIlluminationOutput
     {
         get => indirectIllumOutput;
         set
@@ -46,7 +46,7 @@ public sealed class VoxelPathTracingModule : RenderingPipeline, IRendererPathTra
             indirectIllumOutput = value;
         }
     }
-    public Texture2D NormalCompound_motionOutput
+    public MutableTexture2D NormalCompound_motionOutput
     {
         get => normalCompound_motionOutput;
         set
@@ -72,7 +72,7 @@ public sealed class VoxelPathTracingModule : RenderingPipeline, IRendererPathTra
     public UniformAccessor<int> Samples { get; private set; }
     public UniformAccessor<Vector3> SunDirection { get; private set; }
 
-    public VoxelPathTracingModule(ShaderController shaderControllerPT, Camera camera, Vector3i mapSize, Texture2D skyTexture, Texture2D directIllumination_depthOutput, Texture2D indirectIlluminationOutput, Texture2D normalCompound_motionOutput)
+    public VoxelPathTracingModule(ShaderController shaderControllerPT, Camera camera, Vector3i mapSize, MutableTexture2D skyTexture, MutableTexture2D directIllumination_depthOutput, MutableTexture2D indirectIlluminationOutput, MutableTexture2D normalCompound_motionOutput)
     {
         pathTracingShaderController = shaderControllerPT;
         pathTracingShaderController.SetUniform("directIllum_depthImg", 0);
@@ -104,10 +104,10 @@ public sealed class VoxelPathTracingModule : RenderingPipeline, IRendererPathTra
 
         pathTracingShaderController.Shader.Use();
 
-        SkyTex.BindTex(2);
-        DirectIllumination_depthOutput.BindAsImage(0, TextureAccess.ReadWrite, SizedInternalFormat.Rgba32f);
-        IndirectIlluminationOutput.BindAsImage(2, TextureAccess.ReadWrite, SizedInternalFormat.Rgba32f);
-        NormalCompound_motionOutput.BindAsImage(1, TextureAccess.ReadWrite, SizedInternalFormat.Rgba32f);
+        //SkyTex.BindTex(2);
+        DirectIllumination_depthOutput.BindAsImage(0, TextureAccess.ReadWrite);
+        IndirectIlluminationOutput.BindAsImage(2, TextureAccess.ReadWrite);
+        NormalCompound_motionOutput.BindAsImage(1, TextureAccess.ReadWrite);
 
         GL.DispatchCompute(DirectIllumination_depthOutput.Size.X / 8, DirectIllumination_depthOutput.Size.Y / 8, 1);
 
@@ -117,7 +117,7 @@ public sealed class VoxelPathTracingModule : RenderingPipeline, IRendererPathTra
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void SetOutput(Texture2D directIllumination_depthOutput, Texture2D indirectIlluminationOutput, Texture2D normalCompound_motionOutput)
+    public void SetOutput(MutableTexture2D directIllumination_depthOutput, MutableTexture2D indirectIlluminationOutput, MutableTexture2D normalCompound_motionOutput)
     {
         ExceptionConstructor.ThrowIfTextureSizeNotEqual(directIllumination_depthOutput, indirectIlluminationOutput, normalCompound_motionOutput);
         VoxelPTRPHelper.ThrowIfAnyTextureInvalid(directIllumination_depthOutput, indirectIlluminationOutput, normalCompound_motionOutput);
