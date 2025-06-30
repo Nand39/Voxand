@@ -31,7 +31,7 @@ public static class UI_Manager
     {
         windows = new List<UI_Window>();
     }
-    
+
     public static void Display()
     {
         ImGuiViewportPtr mainViewport = ImGui.GetMainViewport();
@@ -218,7 +218,7 @@ public sealed class UI_SettingsWindow : UI_Window
             UseTAA = antiAliasingUsage.UseAntiAliasing;
         });
 
-         antiAliasingSettings = EngineServices.GetService<IRendererAntiAliasing>();
+        antiAliasingSettings = EngineServices.GetService<IRendererAntiAliasing>();
         EngineServices.AddReplacementCallback<IRendererAntiAliasing>((newSettings) => antiAliasingSettings = newSettings);
 
         renderSettings = EngineServices.GetService<IRenderSettings>();
@@ -251,7 +251,7 @@ public sealed class UI_SettingsWindow : UI_Window
     void SetRenderingResolution(Vector2i baseResolution, float factor)
     {
         Vector2i newResolution = (Vector2i)((Vector2)baseResolution * factor);
-        
+
         if (newResolution.BitwiseAnd(new Vector2i(7, 7)) != Vector2i.Zero)
             newResolution = newResolution.BitwiseAnd(new Vector2i(~7, ~7));
 
@@ -333,13 +333,14 @@ public sealed class UI_VoxelToolHotbar : UI_Window
 
         hotbarTable = new UI_Table(
             label: "hotbar",
-            flags: ImGuiTableFlags.None, 
+            flags: ImGuiTableFlags.None,
             columnInfos: [new UI_TableColumnInfo("techniques", ImGuiTableColumnFlags.None, 100, 1, (row) => {
-                
+
                 int index = hotbar[row];
 
                 NVec2 position = ImGui.GetCursorScreenPos();
                 NVec2 slotSize = new(ImGui.GetContentRegionAvail().X, ImGui.GetFrameHeight());
+                bool isHovering = ImGuiInput.IsHovering(new(position.AsTK(), slotSize.AsTK()));
 
                 ImGui.PushID(row);
                 if (index < 0)
@@ -347,34 +348,25 @@ public sealed class UI_VoxelToolHotbar : UI_Window
                     ImGui.Selectable(
                         label: $"{(row < 9 ? row + 1 : 0)}. Empty slot",
                         selected: false,
-                        flags: ImGuiSelectableFlags.None,
+                        flags: ImGuiSelectableFlags.Disabled | (isHovering  ? ImGuiSelectableFlags.Highlight : ImGuiSelectableFlags.None),
                         size: slotSize);
                 }
                 else if (ImGui.Selectable(
                     label: $"{(row < 9 ? row + 1 : 0)}. {tool[index].Name}",
-                    selected: index == tool.ActivePlacementTechniqueIndex, 
-                    flags: ImGuiSelectableFlags.None,
+                    selected: index == tool.ActivePlacementTechniqueIndex,
+                    flags: isHovering ? ImGuiSelectableFlags.Highlight : ImGuiSelectableFlags.None,
                     size: slotSize))
                 {
                     tool.ActivePlacementTechniqueIndex = index;
                 }
-                if (ImGui.IsItemHovered())
-                {
-                    hotbarDropTargets[row].Enabled = true;
-                    hotbarDropTargets[row].Position = position;
-                    hotbarDropTargets[row].Size = slotSize;
-
-                    hotbarDragSources[row].Enabled = true;
-                    hotbarDragSources[row].Position = position;
-                    hotbarDragSources[row].Size = slotSize;
-                }
-                else 
-                {
-                    hotbarDropTargets[row].Enabled = false;
-                    hotbarDragSources[row].Enabled = false;
-                }
                 ImGui.PopID();
-            })], 
+
+                hotbarDropTargets[row].Position = position;
+                hotbarDropTargets[row].Size = slotSize;
+
+                hotbarDragSources[row].Position = position;
+                hotbarDragSources[row].Size = slotSize;
+            })],
             numRows: 10,
             displayHeadersRow: false);
     }
