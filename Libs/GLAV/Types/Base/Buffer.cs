@@ -25,8 +25,8 @@ public readonly struct BufferBindingInfo
 public class Buffer : GLResource
 {
     public int Size { get; protected set; } = 0;
-    public BufferTarget LastBufferTarget { get; protected set; }
-    public BufferTargetFlags PointingBufferTargetFlags { get; internal set; }
+    internal BufferTarget LastBufferTarget { get; private protected set; }
+    internal BufferTargetFlags PointingBufferTargetFlags { get; set; }
 
     internal Dictionary<int, (int offset, int size)> uniformBufferBindings = [];
     internal Dictionary<int, (int offset, int size)> transformFeedbackBufferBindings = [];

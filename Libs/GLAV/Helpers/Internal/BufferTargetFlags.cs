@@ -1,5 +1,5 @@
 ﻿[Flags]
-public enum BufferTargetFlags
+internal enum BufferTargetFlags
 {
     None = 0,
     ParameterBuffer = 1 << 0,

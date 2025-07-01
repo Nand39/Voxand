@@ -25,7 +25,6 @@ public sealed class VoxelPathTracingModule : RenderingPipeline, IRendererPathTra
     ShaderInputStreaming shaderInputStreaming = new();
     int cycle = 0;
     public Camera Camera { get; set; }
-    public MutableTexture2D SkyTex { get; set; }
     public MutableTexture2D DirectIllumination_depthOutput
     {
         get => directIllum_depthOutput;
@@ -65,6 +64,7 @@ public sealed class VoxelPathTracingModule : RenderingPipeline, IRendererPathTra
         public Matrix4 cameraMatrix = Matrix4.Identity;
         public Matrix4 invCameraMatrix = Matrix4.Identity;
         public Matrix4 prevCameraMatrix = Matrix4.Identity;
+        public Matrix4 invPrevCameraMatrix = Matrix4.Identity;
         public Vector3 cameraPosition = default;
         public float randSalt = 1;
         public Vector3 prevCameraPosition = default;
@@ -72,7 +72,7 @@ public sealed class VoxelPathTracingModule : RenderingPipeline, IRendererPathTra
     public UniformAccessor<int> Samples { get; private set; }
     public UniformAccessor<Vector3> SunDirection { get; private set; }
 
-    public VoxelPathTracingModule(ShaderController shaderControllerPT, Camera camera, Vector3i mapSize, MutableTexture2D skyTexture, MutableTexture2D directIllumination_depthOutput, MutableTexture2D indirectIlluminationOutput, MutableTexture2D normalCompound_motionOutput)
+    public VoxelPathTracingModule(ShaderController shaderControllerPT, Camera camera, Vector3i mapSize, MutableTexture2D directIllumination_depthOutput, MutableTexture2D indirectIlluminationOutput, MutableTexture2D normalCompound_motionOutput)
     {
         pathTracingShaderController = shaderControllerPT;
         pathTracingShaderController.SetUniform("directIllum_depthImg", 0);
@@ -87,7 +87,6 @@ public sealed class VoxelPathTracingModule : RenderingPipeline, IRendererPathTra
         SunDirection.Set(new(0.904f, 0.361f, 0.226f));
 
         Camera = camera;
-        SkyTex = skyTexture;
         shaderInputSSBO = new();
         unsafe
         {
@@ -104,7 +103,6 @@ public sealed class VoxelPathTracingModule : RenderingPipeline, IRendererPathTra
 
         pathTracingShaderController.Shader.Use();
 
-        //SkyTex.BindTex(2);
         DirectIllumination_depthOutput.BindAsImage(0, TextureAccess.ReadWrite);
         IndirectIlluminationOutput.BindAsImage(2, TextureAccess.ReadWrite);
         NormalCompound_motionOutput.BindAsImage(1, TextureAccess.ReadWrite);
@@ -137,6 +135,7 @@ public sealed class VoxelPathTracingModule : RenderingPipeline, IRendererPathTra
         shaderInputStreaming.prevCameraMatrix = shaderInputStreaming.cameraMatrix;
         shaderInputStreaming.cameraMatrix = cameraMat;
         shaderInputStreaming.invCameraMatrix = Matrix4.Invert(cameraMat);
+        shaderInputStreaming.invPrevCameraMatrix = Matrix4.Invert(shaderInputStreaming.prevCameraMatrix);
 
         shaderInputStreaming.prevCameraPosition = shaderInputStreaming.cameraPosition;
         shaderInputStreaming.cameraPosition = Camera.Pose.position;

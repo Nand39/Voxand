@@ -1,7 +1,7 @@
 ﻿namespace Voxand.Helpers.UtilityTypes;
 public class IntervalCounter
 {
-    public float ElapsedTime { get; private set; } = 0;
+    public float ElapsedTime { get; set; } = 0;
     public required float Interval { get; set; }
 
     public int Tick(float deltaTime)

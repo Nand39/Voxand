@@ -1,31 +1,12 @@
 ﻿using ImGuiNET;
 
-using Voxand.Content;
-using Voxand.Engine.Systems.Voxels;
-using Voxand.Helpers;
-using Voxand.UI.Components;
-using Voxand.Helpers.ExtensionMethods;
-using Voxand.Engine.Systems.Graphics.Tools.UI;
-using Voxand.Engine.Systems.Voxels.VoxelMaterialServices;
-using Voxand.Engine.Systems.Services.Voxels;
-using Voxand.Engine.Systems.UI.Windows;
-using Voxand.Engine.Systems.Services.UI.Windows;
-using Voxand.Engine.Systems.Services.Graphics;
-using Voxand.Engine.Systems.Services.General;
-using OpenTK.Mathematics;
-
 using NVec2 = System.Numerics.Vector2;
-using NVec4 = System.Numerics.Vector4;
-using Vector2 = OpenTK.Mathematics.Vector2;
-using Voxand.Engine.Systems.General.ImGuiIntegration.Systems.DragAndDrop;
-using Voxand.Engine.Systems.General.ImGuiIntegration;
-
 namespace Voxand.UI;
 public static class UI_Manager
 {
     static List<UI_Window> windows;
 
-    public static void Initialize(ContentManager content)
+    public static void Initialize()
     {
         windows = new List<UI_Window>();
     }

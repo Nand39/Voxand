@@ -10,6 +10,7 @@ using Voxand.Engine.Systems.Common;
 using Voxand.Engine.Systems.Services.General;
 using Voxand.Engine.Systems.Services.Voxels;
 using ImGuiNET;
+using Voxand.Helpers.UtilityTypes;
 
 namespace Voxand.App;
 public class Viewer : Script
@@ -27,10 +28,14 @@ public class Viewer : Script
     Vector2i screenCenter;
     int chunkLoadingDistance = 16;
 
+    IntervalCounter accumulatedScroll;
+    int scrollSign = 0;
+
     Window win;
     IWindowService windowService;
     IVoxelMap voxelMap;
     IVoxelMapVerticalChunks voxelMapChunks;
+    IVoxelPalette palette;
 
     public event Action? recreateMapRequest;
     public event Action<Vector3>? setSunDirectionRequest;
@@ -39,6 +44,7 @@ public class Viewer : Script
         windowService = EngineServices.GetService<IWindowService>();
         voxelMap = EngineServices.GetService<IVoxelMap>();
         voxelMapChunks = EngineServices.GetService<IVoxelMapVerticalChunks>();
+        palette = EngineServices.GetService<IVoxelPalette>();
         win = windowService.Window;
 
         win.Resize += (args) => screenCenter = args.Size / 2;
@@ -46,6 +52,30 @@ public class Viewer : Script
 
         EngineServices.AddReplacementCallback<ICamera>((camera) => Camera = camera);
         EngineServices.AddReplacementCallback<IVoxelMap>((map) => voxelMap = map);
+        EngineServices.AddReplacementCallback<IVoxelMapVerticalChunks>((chunkMap) => voxelMapChunks = chunkMap);
+        EngineServices.AddReplacementCallback<IVoxelPalette>((palette) => this.palette = palette);
+
+        accumulatedScroll = new() { Interval = 0.999f }; // Account for imprecision
+
+        win.MouseWheel += (args) =>
+        {
+            if (ImGui.IsAnyItemActive() || ImGui.IsAnyItemHovered() || ImGui.IsWindowHovered(ImGuiHoveredFlags.AnyWindow))
+                return;
+
+
+            int newScrollSign = Math.Sign(args.OffsetY);
+            if (newScrollSign != scrollSign)
+            {
+                accumulatedScroll.ElapsedTime = -accumulatedScroll.ElapsedTime;
+                scrollSign = newScrollSign;
+            }
+            int scrolled = accumulatedScroll.Tick(Math.Abs(args.Offset.Y));
+            if (accumulatedScroll.ElapsedTime < 0.01) // Account for accountment for imprecision
+                accumulatedScroll.Reset();
+
+            int materialIndex = (VoxelTool.ActiveMaterialIndex + (newScrollSign > 0 ? scrolled : -scrolled));
+            VoxelTool.ActiveMaterialIndex = (materialIndex % palette.MaterialCount + palette.MaterialCount) % palette.MaterialCount;
+        };
     }
     public override void Update()
     {

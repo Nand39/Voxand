@@ -38,7 +38,7 @@ public class BrickmapGenerator : MapGenerator
         Vector2i gridSize = (Vector2i)((Vector2)map.Dimensions.Xz / cellSize) + Vector2i.One * 2;
         noiseLarge = new(gridSize, cellSize);
         noiseSmall = new(gridSize * 3, cellSize / 3);
-        mudNoise = new(gridSize * 4, cellSize / 4);
+        mudNoise = new(gridSize * 4, cellSize / 6);
     }
     public override void GenerateAll()
     {
@@ -64,8 +64,8 @@ public class BrickmapGenerator : MapGenerator
         {
             for (voxPos.X = position.X << 2; voxPos.X < (position.X << 2) + 4; voxPos.X++)
             {
-                float noiseVal = noiseLarge.Sample(new(voxPos.X + 0.5f, voxPos.Z + 0.5f)) * 0.5f + 0.5f;
-                noiseVal += noiseSmall.Sample(new(voxPos.X + 0.5f, voxPos.Z + 0.5f)) * 0.25f + 0.25f;
+                float noiseVal = noiseLarge.Sample(new(voxPos.X + 0.5f, voxPos.Z + 0.5f)) * 0.5f + 0.2f;
+                noiseVal += noiseSmall.Sample(new(voxPos.X + 0.5f, voxPos.Z + 0.5f)) * 0.3f + 0.2f;
 
                 int localHeight = (int)(noiseVal * height);
                 localHeight = localHeight > map.Dimensions.Y ? map.Dimensions.Y : localHeight;

@@ -18,7 +18,6 @@ public sealed class VoxelPTRP : RenderingPipeline, IRendererAntiAliasingUsage, I
 {
     Camera Camera;
     MutableTexture2D directIllumination_depthPT, indirectIlluminationPT, normalCompound_motionPT;
-    MutableTexture2D skyTex;
     RenderTarget renderTarget;
     ShaderController pathTracingShaderController, TAAShaderController, compositingShaderController;
 
@@ -53,9 +52,6 @@ public sealed class VoxelPTRP : RenderingPipeline, IRendererAntiAliasingUsage, I
 
         varyingRenderDataStorage.Add(directIllumination_depthPT, indirectIlluminationPT, normalCompound_motionPT);
 
-        //skyTex = content.LoadTexture("Graphics/Textures/env.hdr", PixelInternalFormat.Rgba32f);
-        //skyTex.Label = "Sky texture";
-
         pathTracingShaderController = new(content, "Graphics/Shaders/voxel_path_tracing_shader.comp");
         pathTracingShaderController.Shader.Label = "* voxel PT shader";
 
@@ -71,7 +67,6 @@ public sealed class VoxelPTRP : RenderingPipeline, IRendererAntiAliasingUsage, I
             shaderControllerPT: pathTracingShaderController,
             camera: Camera,
             mapSize: map.Dimensions,
-            skyTexture: skyTex,
             directIllumination_depthOutput: directIllumination_depthPT,
             indirectIlluminationOutput: indirectIlluminationPT,
             normalCompound_motionOutput: normalCompound_motionPT);
@@ -145,7 +140,6 @@ public sealed class VoxelPTRP : RenderingPipeline, IRendererAntiAliasingUsage, I
     {
         lifetimeResources.Dispose();
         varyingRenderDataStorage.Dispose();
-        //skyTex.Dispose();
         GC.SuppressFinalize(this);
     }
 }

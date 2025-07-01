@@ -8,36 +8,35 @@ using OpenTK.Mathematics;
 
 using DisposableExt;
 
-using Voxand.Helpers;
-using Voxand.Helpers.UtilityTypes;
-using Voxand.Helpers.ExtensionMethods;
 using Voxand.Engine.Systems.Graphics;
 using Voxand.Engine.Systems.Graphics.Tools;
 using Voxand.Engine.Systems.Graphics.Pipelines.DefaultVoxelPTRP;
 using Voxand.Engine.Systems.Graphics.Tools.Utility;
 using Voxand.Engine.Systems.Voxels;
 using Voxand.Engine.Systems.Scripts;
-using Voxand.UI;
-using Voxand.App;
-using Voxand.App.Voxels.Editing;
-using Voxand.App.Voxels.Map.Generation;
-using Voxand.App.Voxels.Map;
 using Voxand.Engine.Systems.Voxels.VoxelMaterialServices;
 using Voxand.Engine.Systems.Services.General;
 using Voxand.Engine.Systems.Services.Voxels;
 using Voxand.Engine.Systems.Services.Graphics;
 using Voxand.Engine.Systems.Services.UI.Windows;
-using Voxand.App.Voxels.Materials;
 using Voxand.Engine.Systems.Common;
-using Voxand.UI.ImGuiIntegration;
+using Voxand.Engine.ExecutionControl;
 using Voxand.Engine.Systems.Services.UI.ImGuiIntegration;
 using Voxand.Content;
-using Voxand.Engine.ExecutionControl;
+using Voxand.Helpers;
+using Voxand.Helpers.UtilityTypes;
+using Voxand.Helpers.ExtensionMethods;
+using Voxand.UI;
+using Voxand.UI.ImGuiIntegration;
+using Voxand.App.Voxels.Editing;
+using Voxand.App.Voxels.Map.Generation;
+using Voxand.App.Voxels.Map;
+using Voxand.App.Voxels.Materials;
 
 namespace Voxand.App;
 public sealed class MainExecutionManager : ExecutionManager
 {
-    Vector3i numberOfChunks = new(128, 48, 128);
+    Vector3i numberOfChunks = new(256, 70, 256);
     Framewatch fps;
     Action<double> frameTimeSetter;
 
@@ -150,7 +149,7 @@ public sealed class MainExecutionManager : ExecutionManager
         serviceRegistrator.AddOrReplaceService<IVoxelPalette>(palette);
 
         VoxelBrickmap brickmap = new(numberOfChunks * 4, new VoxelBrickmapDefaultPersistenceModule());
-        BrickmapGenerator mapGenerator = new(brickmap, new(200, 200), 120);
+        BrickmapGenerator mapGenerator = new(brickmap, new(200, 200), 200);
         ChunkMap chunkMap = new ChunkMap(numberOfChunks.Xz, new(4), numberOfChunks.Y * 4, brickmap, mapGenerator);
 
         serviceRegistrator.AddOrReplaceService<IVoxelMap>(chunkMap);
@@ -160,7 +159,7 @@ public sealed class MainExecutionManager : ExecutionManager
 
         ComputeUtility.Initialize(windowService.Window.Content, "Graphics/Shaders/copy_tex8_shader.comp");
 
-        UI_Manager.Initialize(windowService.Window.Content);
+        UI_Manager.Initialize();
 
         
         
