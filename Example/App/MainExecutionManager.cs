@@ -32,8 +32,9 @@ using Voxand.Engine.Systems.Common;
 using Voxand.UI.ImGuiIntegration;
 using Voxand.Engine.Systems.Services.UI.ImGuiIntegration;
 using Voxand.Content;
+using Voxand.Engine.ExecutionControl;
 
-namespace Voxand.Engine.ExecutionControl;
+namespace Voxand.App;
 public sealed class MainExecutionManager : ExecutionManager
 {
     Vector3i numberOfChunks = new(128, 48, 128);
@@ -108,17 +109,14 @@ public sealed class MainExecutionManager : ExecutionManager
         }
     }
 
-    public MainExecutionManager(Window win)
+    public override void Load(Window win)
     {
         windowService = new WindowService(win);
         scriptManager = new ScriptManager();
         services = new ServiceRegistry();
         content = win.Content;
         EngineServices.Initialize(services);
-    }
 
-    public override void Load()
-    {
         //debugCallback = GLDebugCallback;
         //GL.Enable(EnableCap.DebugOutput);
         //GL.Enable(EnableCap.DebugOutputSynchronous);

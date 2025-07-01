@@ -23,9 +23,10 @@ public sealed class Window : GameWindow
     public ImGuiBackend ImGuiBackend { get; private set; }
     public bool IsMinimized { get; private set; }
 
-    public Window(GameWindowSettings windowSettings, NativeWindowSettings nativeWindowSettings)
+    public Window(GameWindowSettings windowSettings, NativeWindowSettings nativeWindowSettings, ExecutionManager executionManager)
         : base(windowSettings, nativeWindowSettings)
     {
+        ExecutionManager = executionManager ?? throw new ArgumentNullException(nameof(executionManager));
     }
 
     protected override void OnLoad()
@@ -45,8 +46,7 @@ public sealed class Window : GameWindow
 
         ImGuiBackend = new ImGuiBackend(this, Content);
 
-        ExecutionManager = new MainExecutionManager(this);
-        ExecutionManager.Load();
+        ExecutionManager.Load(this);
     }
 
     protected override void OnUnload()

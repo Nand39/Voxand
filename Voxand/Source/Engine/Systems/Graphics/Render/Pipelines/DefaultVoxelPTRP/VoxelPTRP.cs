@@ -9,8 +9,8 @@ using Voxand.Content;
 using Voxand.Engine.Systems.Graphics.Tools.ShaderServices;
 using Voxand.Engine.Systems.Graphics.Pipelines.Modules;
 using Voxand.Engine.Systems.Graphics.Tools;
-using Voxand.App.Voxels.Map;
 using Voxand.Engine.Systems.Services.Graphics;
+using Voxand.Engine.Systems.Services.Voxels;
 
 namespace Voxand.Engine.Systems.Graphics.Pipelines.DefaultVoxelPTRP;
 
@@ -42,7 +42,7 @@ public sealed class VoxelPTRP : RenderingPipeline, IRendererAntiAliasingUsage, I
             compositingModule.RenderTarget = value;
         }
     }
-    public VoxelPTRP(ContentManager content, Camera camera, ChunkMap map, RenderTarget output, Vector2i renderingResolution, out IRendererAntiAliasing antiAliasing, out IRendererPathTracing pathTracing)
+    public VoxelPTRP(ContentManager content, Camera camera, IVoxelMap map, RenderTarget output, Vector2i renderingResolution, out IRendererAntiAliasing antiAliasing, out IRendererPathTracing pathTracing)
     {
         lifetimeResources = new(); varyingRenderDataStorage = new();
 

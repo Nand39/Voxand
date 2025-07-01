@@ -6,7 +6,6 @@ using Voxand.Engine.Systems.Voxels;
 using Voxand.Helpers.ExtensionMethods;
 
 namespace Voxand.App.Voxels.Map;
-
 public class ChunkMap : IVoxelMap, IVoxelMapVerticalChunks, IDisposableExt
 {
     VoxelBrickmap voxelMap;
