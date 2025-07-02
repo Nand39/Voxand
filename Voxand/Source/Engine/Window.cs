@@ -14,6 +14,7 @@ using Voxand.Helpers;
 using Voxand.Helpers.Interop;
 using DisposableExt;
 using Voxand.Engine.Systems.General.ImGuiIntegration;
+using Voxand.Engine.Systems.Graphics.Tools.Utility;
 
 namespace Voxand;
 public sealed class Window : GameWindow
@@ -43,8 +44,9 @@ public sealed class Window : GameWindow
         string? AsmName = Assembly.GetExecutingAssembly().GetName().Name;
 
         Content = new ContentManager("Resources");
-
         ImGuiBackend = new ImGuiBackend(this, Content);
+
+        ComputeUtility.Initialize(Content, "Graphics/Shaders/copy_tex8_shader.comp");
 
         ExecutionManager.Load(this);
     }

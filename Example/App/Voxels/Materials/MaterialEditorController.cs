@@ -1,4 +1,4 @@
-﻿using Voxand.Engine.Systems.Common;
+﻿using Voxand.App.Services;
 using Voxand.Engine.Systems.Scripts;
 using Voxand.Engine.Systems.Services.Voxels;
 using Voxand.Engine.Systems.UI.Windows;
@@ -23,8 +23,8 @@ public class MaterialEditorController : Script
     }
     public override void Initialize()
     {
-        voxelPalette = EngineServices.GetService<IVoxelPalette>();
-        EngineServices.AddReplacementCallback<IVoxelPalette>((palette) => voxelPalette = palette);
+        voxelPalette = ServiceLocator.GetService<IVoxelPalette>();
+        ServiceLocator.AddReplacementCallback<IVoxelPalette>((palette) => voxelPalette = palette);
 
         voxelMaterialEditor.OnMaterialEdited += (material) => voxelPalette.SetMaterial(EditedMaterialIndex, material);
     }

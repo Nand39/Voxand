@@ -1,6 +1,5 @@
 ﻿using OpenTK.Mathematics;
-
-using Voxand.Engine.Systems.Common;
+using Voxand.App.Services;
 using Voxand.Engine.Systems.Graphics.Tools.UI;
 using Voxand.Engine.Systems.Scripts;
 using Voxand.Engine.Systems.Services.Voxels;
@@ -55,9 +54,9 @@ public class VoxelTool : Script
 
     public override void Initialize()
     {
-        LoadPlacementTechniques(EngineServices.GetService<IVoxelMap>());
+        LoadPlacementTechniques(ServiceLocator.GetService<IVoxelMap>());
 
-        EngineServices.AddReplacementCallback<IVoxelMap>(LoadPlacementTechniques);
+        ServiceLocator.AddReplacementCallback<IVoxelMap>(LoadPlacementTechniques);
 
         ActivePlacementTechniqueIndex = 0;
     }

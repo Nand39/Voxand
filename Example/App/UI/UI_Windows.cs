@@ -1,7 +1,6 @@
 ﻿using ImGuiNET;
 using OpenTK.Mathematics;
 using Voxand.App.Voxels.Editing;
-using Voxand.Engine.Systems.Common;
 using Voxand.Engine.Systems.General.ImGuiIntegration.Systems.DragAndDrop;
 using Voxand.Engine.Systems.General.ImGuiIntegration;
 using Voxand.Engine.Systems.Graphics.Tools.UI;
@@ -19,8 +18,9 @@ using Voxand.UI;
 using NVec2 = System.Numerics.Vector2;
 using NVec4 = System.Numerics.Vector4;
 using Voxand.Helpers.ExtensionMethods;
-using Voxand;
+using Voxand.App.Services;
 
+namespace Voxand.App.UI;
 public sealed class UI_PaletteWindow : UI_Window, IVoxelMaterialSelector
 {
     UI_Grid paletteGrid;
@@ -171,19 +171,19 @@ public sealed class UI_SettingsWindow : UI_Window
 
     public UI_SettingsWindow()
     {
-        antiAliasingUsage = EngineServices.GetService<IRendererAntiAliasingUsage>();
-        EngineServices.AddReplacementCallback<IRendererAntiAliasingUsage>((newAntiAliasing) =>
+        antiAliasingUsage = ServiceLocator.GetService<IRendererAntiAliasingUsage>();
+        ServiceLocator.AddReplacementCallback<IRendererAntiAliasingUsage>((newAntiAliasing) =>
         {
             antiAliasingUsage = newAntiAliasing;
             UseTAA = antiAliasingUsage.UseAntiAliasing;
         });
 
-        antiAliasingSettings = EngineServices.GetService<IRendererAntiAliasing>();
-        EngineServices.AddReplacementCallback<IRendererAntiAliasing>((newSettings) => antiAliasingSettings = newSettings);
+        antiAliasingSettings = ServiceLocator.GetService<IRendererAntiAliasing>();
+        ServiceLocator.AddReplacementCallback<IRendererAntiAliasing>((newSettings) => antiAliasingSettings = newSettings);
 
-        renderSettings = EngineServices.GetService<IRenderSettings>();
+        renderSettings = ServiceLocator.GetService<IRenderSettings>();
 
-        win = EngineServices.GetService<IWindowService>().Window;
+        win = ServiceLocator.GetService<IWindowService>().Window;
         win.Resize += (args) => SetRenderingResolution(args.Size, renderResolutionPercentage / 100);
     }
     protected override void Display()
@@ -224,8 +224,8 @@ public sealed class UI_DebugWindow : UI_Window
     VoxelStructure voxelStructure;
     public UI_DebugWindow()
     {
-        voxelStructure = EngineServices.GetService<IVoxelMap>().RawStructure;
-        EngineServices.AddReplacementCallback<IVoxelMap>((newMap) => voxelStructure = newMap.RawStructure);
+        voxelStructure = ServiceLocator.GetService<IVoxelMap>().RawStructure;
+        ServiceLocator.AddReplacementCallback<IVoxelMap>((newMap) => voxelStructure = newMap.RawStructure);
     }
     protected override void Display()
     {

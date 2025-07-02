@@ -32,6 +32,8 @@ using Voxand.App.Voxels.Editing;
 using Voxand.App.Voxels.Map.Generation;
 using Voxand.App.Voxels.Map;
 using Voxand.App.Voxels.Materials;
+using Voxand.App.Services;
+using Voxand.App.UI;
 
 namespace Voxand.App;
 public sealed class MainExecutionManager : ExecutionManager
@@ -114,7 +116,7 @@ public sealed class MainExecutionManager : ExecutionManager
         scriptManager = new ScriptManager();
         services = new ServiceRegistry();
         content = win.Content;
-        EngineServices.Initialize(services);
+        ServiceLocator.Initialize(services);
 
         //debugCallback = GLDebugCallback;
         //GL.Enable(EnableCap.DebugOutput);
@@ -154,10 +156,6 @@ public sealed class MainExecutionManager : ExecutionManager
 
         serviceRegistrator.AddOrReplaceService<IVoxelMap>(chunkMap);
         serviceRegistrator.AddOrReplaceService<IVoxelMapVerticalChunks>(chunkMap);
-
-
-
-        ComputeUtility.Initialize(windowService.Window.Content, "Graphics/Shaders/copy_tex8_shader.comp");
 
         UI_Manager.Initialize();
 
@@ -221,8 +219,8 @@ public sealed class MainExecutionManager : ExecutionManager
         serviceRegistrator.AddOrReplaceService(antiAliasing);
         serviceRegistrator.AddOrReplaceService<IRenderSettings>(renderer);
 
-        EngineServices.AddReplacementCallback<IRendererPathTracing>((newPathTracing) => pathTracing = newPathTracing);
-        EngineServices.AddReplacementCallback<IRendererAntiAliasing>((newAntiAliasing) => antiAliasing = newAntiAliasing);
+        ServiceLocator.AddReplacementCallback<IRendererPathTracing>((newPathTracing) => pathTracing = newPathTracing);
+        ServiceLocator.AddReplacementCallback<IRendererAntiAliasing>((newAntiAliasing) => antiAliasing = newAntiAliasing);
         
         
         UI_SettingsWindow renderSettingsWindow = new();
@@ -233,7 +231,7 @@ public sealed class MainExecutionManager : ExecutionManager
 
         viewer.recreateMapRequest += () =>
         {
-            EngineServices.TryGetService(out IVoxelMap map);
+            ServiceLocator.TryGetService(out IVoxelMap map);
             map.Dispose();
             VoxelBrickmap brickmap = new(numberOfChunks * 4, new VoxelBrickmapDefaultPersistenceModule());
             BrickmapGenerator mapGenerator = new(brickmap, new(200, 200), 120);
@@ -249,7 +247,7 @@ public sealed class MainExecutionManager : ExecutionManager
 
         try
         {
-            string styleJSON = content.ReadFile("Graphics/UI/ImGuiStyles/style.json");
+            string styleJSON = content.ReadFile("UI/ImGuiStyles/style.json");
             imGuiStyleLoader.SetJSON(styleJSON);
         }
         catch (Exception e)
@@ -283,8 +281,8 @@ public sealed class MainExecutionManager : ExecutionManager
     public override void Unload()
     {
         renderer.Dispose();
-        EngineServices.TryGetService<IVoxelMap>(out var map);
-        EngineServices.TryGetService<IVoxelPalette>(out var palette);
+        ServiceLocator.TryGetService<IVoxelMap>(out var map);
+        ServiceLocator.TryGetService<IVoxelPalette>(out var palette);
         map.Dispose();
         palette.Dispose();
         scriptManager.Dispose();

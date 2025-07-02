@@ -1,6 +1,6 @@
 ﻿using OpenTK.Mathematics;
 
-namespace Voxand.Engine.Systems.Services.Voxels;
+namespace Voxand.App.Voxels.Map;
 public interface IVoxelMapVerticalChunks
 {
     bool IsChunkLoaded(Vector2i position);

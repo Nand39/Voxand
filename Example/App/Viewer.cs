@@ -6,12 +6,13 @@ using Voxand.Engine.Systems.Voxels;
 using Voxand.Helpers;
 using Voxand.App.Voxels.Editing;
 using Voxand.Helpers.ExtensionMethods;
-using Voxand.Engine.Systems.Common;
 using Voxand.Engine.Systems.Services.General;
 using Voxand.Engine.Systems.Services.Voxels;
 using ImGuiNET;
 using Voxand.Helpers.UtilityTypes;
 using Voxand.Engine.Systems.General.ImGuiIntegration;
+using Voxand.App.Services;
+using Voxand.App.Voxels.Map;
 
 namespace Voxand.App;
 public class Viewer : Script
@@ -42,19 +43,19 @@ public class Viewer : Script
     public event Action<Vector3>? setSunDirectionRequest;
     public override void Initialize()
     {
-        windowService = EngineServices.GetService<IWindowService>();
-        voxelMap = EngineServices.GetService<IVoxelMap>();
-        voxelMapChunks = EngineServices.GetService<IVoxelMapVerticalChunks>();
-        palette = EngineServices.GetService<IVoxelPalette>();
+        windowService = ServiceLocator.GetService<IWindowService>();
+        voxelMap = ServiceLocator.GetService<IVoxelMap>();
+        voxelMapChunks = ServiceLocator.GetService<IVoxelMapVerticalChunks>();
+        palette = ServiceLocator.GetService<IVoxelPalette>();
         win = windowService.Window;
 
         win.Resize += (args) => screenCenter = args.Size / 2;
         HandleMapLoading();
 
-        EngineServices.AddReplacementCallback<ICamera>((camera) => Camera = camera);
-        EngineServices.AddReplacementCallback<IVoxelMap>((map) => voxelMap = map);
-        EngineServices.AddReplacementCallback<IVoxelMapVerticalChunks>((chunkMap) => voxelMapChunks = chunkMap);
-        EngineServices.AddReplacementCallback<IVoxelPalette>((palette) => this.palette = palette);
+        ServiceLocator.AddReplacementCallback<ICamera>((camera) => Camera = camera);
+        ServiceLocator.AddReplacementCallback<IVoxelMap>((map) => voxelMap = map);
+        ServiceLocator.AddReplacementCallback<IVoxelMapVerticalChunks>((chunkMap) => voxelMapChunks = chunkMap);
+        ServiceLocator.AddReplacementCallback<IVoxelPalette>((palette) => this.palette = palette);
 
         accumulatedScroll = new() { Interval = 0.999f }; // Account for imprecision
 

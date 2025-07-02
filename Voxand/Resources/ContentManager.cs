@@ -11,7 +11,7 @@ using GLAV.Helpers.Public.Exceptions;
 namespace Voxand.Content;
 public class ContentManager
 {
-    readonly string basePath;
+    public string BasePath;
 
     static ContentManager()
     {
@@ -20,7 +20,7 @@ public class ContentManager
 
     public ContentManager(string indepBasePath)
     {
-        basePath = PlatformFilePath(indepBasePath);
+        BasePath = PlatformFilePath(indepBasePath);
     }
 
     FileStream OpenStream(string path, FileMode mode, FileAccess access) => new FileStream(CompleteFilePath(path), mode, access);
@@ -150,7 +150,7 @@ public class ContentManager
     #endregion
 
     #region Formatting
-    public string CompleteFilePath(string indepPath) => Path.Combine(basePath, PlatformFilePath(indepPath));
+    public string CompleteFilePath(string indepPath) => Path.Combine(BasePath, PlatformFilePath(indepPath));
     public string PlatformFilePath(string indepPath) => Path.Combine(indepPath.Split('/'));
     #endregion
 }

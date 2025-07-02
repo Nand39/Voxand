@@ -16,4 +16,10 @@
     <ProjectReference Include="..\Voxand\Voxand.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="App\Resources\UI\ImGuiStyles\style.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

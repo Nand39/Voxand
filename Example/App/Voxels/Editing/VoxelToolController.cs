@@ -11,10 +11,10 @@ using Voxand.Helpers.ExtensionMethods;
 using Voxand.Helpers.UtilityTypes;
 using Voxand.Helpers;
 using Voxand.Engine.Systems.Services.General;
-using Voxand.Engine.Systems.Common;
 using Voxand.Engine.Systems.Services.Voxels;
 using Voxand.Engine.Systems.Services.UI.Windows;
 using Voxand.Engine.Systems.General.ImGuiIntegration;
+using Voxand.App.Services;
 
 namespace Voxand.App.Voxels.Editing;
 public class VoxelToolController : Script
@@ -43,13 +43,13 @@ public class VoxelToolController : Script
 
     public override void Initialize()
     {
-        windowService = EngineServices.GetService<IWindowService>();
-        voxelMap = EngineServices.GetService<IVoxelMap>();
+        windowService = ServiceLocator.GetService<IWindowService>();
+        voxelMap = ServiceLocator.GetService<IVoxelMap>();
         win = windowService.Window;
 
         automaticModeTimer = new IntervalCounter() { Interval = AutomaticModeDelay };
 
-        EngineServices.GetService<IVoxelMaterialSelector>().OnMaterialSelected += (index) => VoxelTool.ActiveMaterialIndex = index;
+        ServiceLocator.GetService<IVoxelMaterialSelector>().OnMaterialSelected += (index) => VoxelTool.ActiveMaterialIndex = index;
     }
 
     public override void Update()
