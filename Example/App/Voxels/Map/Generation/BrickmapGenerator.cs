@@ -11,9 +11,11 @@ namespace Voxand.App.Voxels.Map.Generation;
 public class BrickmapGenerator : MapGenerator
 {
     public VoxelStructure map;
-    NoiseAdapter noiseLarge, noiseSmall, mudNoise;
+    NoiseAdapter noiseLarge, noiseSmall;
     Vector2 cellSize;
+    Vector2 secondaryCellSize;
     int height;
+    const int SECONDARY_NOISE_FREQUENCY = 5;
     public Vector2 CellSize
     {
         get => cellSize;
@@ -22,6 +24,7 @@ public class BrickmapGenerator : MapGenerator
             if (cellSize != value)
             {
                 cellSize = value;
+                secondaryCellSize = (Vector2i)(cellSize / SECONDARY_NOISE_FREQUENCY);
                 RegenerateNoise();
             }
         }
@@ -37,8 +40,8 @@ public class BrickmapGenerator : MapGenerator
     {
         Vector2i gridSize = (Vector2i)((Vector2)map.Dimensions.Xz / cellSize) + Vector2i.One * 2;
         noiseLarge = new(gridSize, cellSize);
-        noiseSmall = new(gridSize * 3, cellSize / 5);
-        mudNoise = new(gridSize * 4, cellSize / 6);
+        gridSize = (Vector2i)((Vector2)map.Dimensions.Xz / secondaryCellSize) + Vector2i.One * 2;
+        noiseSmall = new(gridSize, secondaryCellSize);
     }
     public override void GenerateAll()
     {
@@ -92,14 +95,10 @@ public class BrickmapGenerator : MapGenerator
                 {
                     PlaceVoxel(brickValues, brickOccupancies, voxPos, 1);
                 }
-                float mudVal = mudNoise.Sample(new(voxPos.X, voxPos.Z));
-                if (mudVal > -0.2f)
+                height -= Util.Random.Next(0, 2);
+                for (; voxPos.Y < height; voxPos.Y++)
                 {
-                    height -= Util.Random.Next(0, 2);
-                    for (; voxPos.Y < height; voxPos.Y++)
-                    {
-                        PlaceVoxel(brickValues, brickOccupancies, voxPos, 2);
-                    }
+                    PlaceVoxel(brickValues, brickOccupancies, voxPos, 2);
                 }
             }
         }
