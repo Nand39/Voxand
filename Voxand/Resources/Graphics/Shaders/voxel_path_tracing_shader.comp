@@ -425,10 +425,7 @@ int raycast(vec3 origin, vec3 dir, out vec3 hitPosition, out ivec3 voxelHitPosit
 
 bool traverseBrick(uint bitmask0, uint bitmask1, vec3 startingPosition, ivec3 voxelPosition, vec3 dir, vec3 timeToCross, out ivec3 hitVoxel, inout int lastAxis, out float intersectionTime)
 {
-    vec3 nextIntersectionTime = vec3(
-        dir.x < 0 ? startingPosition.x - voxelPosition.x : voxelPosition.x + 1 - startingPosition.x,
-        dir.y < 0 ? startingPosition.y - voxelPosition.y : voxelPosition.y + 1 - startingPosition.y,
-        dir.z < 0 ? startingPosition.z - voxelPosition.z : voxelPosition.z + 1 - startingPosition.z);
+    vec3 nextIntersectionTime = mix(startingPosition - voxelPosition, voxelPosition + 1.0 - startingPosition, step(vec3(0.0), dir));
     nextIntersectionTime *= timeToCross;
 
     uint voxelIndex = (voxelPosition.y << 4) + (voxelPosition.z << 2) + voxelPosition.x;
@@ -442,9 +439,7 @@ bool traverseBrick(uint bitmask0, uint bitmask1, vec3 startingPosition, ivec3 vo
 
     while (true)
     {
-        lastAxis = nextIntersectionTime.x <= nextIntersectionTime.y ?
-        (nextIntersectionTime.x <= nextIntersectionTime.z ? 0 : 2) :
-        (nextIntersectionTime.y <= nextIntersectionTime.z ? 1 : 2);
+        lastAxis = indexOfMinVec3(nextIntersectionTime);
 
         int way = int(sign(dir[lastAxis]));
 
