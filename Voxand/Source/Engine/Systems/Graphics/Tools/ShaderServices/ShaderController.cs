@@ -11,54 +11,57 @@ public class ShaderController : IDisposableExt
     public ShaderInfo ShaderInfo { get; protected set; }
     public DisposeHelper DisposeHelper { get; }
 
-    FileSystemWatcher[] watchers;
-    string[] sourcePaths;
+    List<FileSystemWatcher> watchers;
+    (string codePath, bool embedded)[] codePaths;
 
-    public ShaderController(ContentManager content, params string[] sourcePaths)
+    public ShaderController(ContentManager content, params (string codePath, bool embedded)[] codePaths)
     {
-        Shader = content.LoadShader(sourcePaths);
+        Shader = content.LoadShader(codePaths);
         ShaderInfo = new ShaderInfo(Shader);
         DisposeHelper = new(this);
-        this.sourcePaths = sourcePaths;
+        this.codePaths = codePaths;
 
-        watchers = new FileSystemWatcher[sourcePaths.Length];
-        for (int i = 0; i < watchers.Length; i++)
+
+        watchers = [];
+        for (int i = 0; i < codePaths.Length; i++)
         {
-            string path = Path.GetFullPath(content.CompleteFilePath(sourcePaths[i]));
-            FileSystemWatcher watcher = new(Path.GetDirectoryName(path)!, Path.GetFileName(path));
+            if (codePaths[i].embedded)
+                continue;
 
-            watcher.NotifyFilter = NotifyFilters.LastAccess | NotifyFilters.LastWrite | NotifyFilters.FileName;
-            watcher.EnableRaisingEvents = true;
+            string path = Path.GetFullPath(content.CompleteFilePath(codePaths[i].codePath));
+            FileSystemWatcher watcher = new(Path.GetDirectoryName(path)!, Path.GetFileName(path))
+            {
+                NotifyFilter = NotifyFilters.LastAccess | NotifyFilters.LastWrite | NotifyFilters.FileName,
+                EnableRaisingEvents = true
+            };
 
             watcher.Changed += (sender, args) =>
             {
-                Console.WriteLine($"File CHANGED!");
                 GLRegistry.Instance.ScheduleAction(() =>
                 {
                     Console.WriteLine($"Reloading");
-                    Reload(content, this.sourcePaths);
+                    Reload(content, this.codePaths);
                 });
             };
             watcher.Renamed += (sender, args) =>
             {
-                Console.WriteLine($"File RENAMED!");
                 GLRegistry.Instance.ScheduleAction(() =>
                 {
                     Console.WriteLine($"Reloading");
-                    Reload(content, this.sourcePaths);
+                    Reload(content, this.codePaths);
                 });
             };
 
-            watchers[i] = watcher;
+            watchers.Add(watcher);
         }
     }
 
-    public void Reload(ContentManager content, params string[] sourcePaths)
+    public void Reload(ContentManager content, params (string codePath, bool embedded)[] codePaths)
     {
         Shader newShader;
         try
         {
-            newShader = content.LoadShader(sourcePaths);
+            newShader = content.LoadShader(codePaths);
         }
         catch (Exception ex)
         {

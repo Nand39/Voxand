@@ -201,8 +201,8 @@ public class ImGuiBackend : IDisposableExt
         vertexSpecification.Label = "ImGui Vertex Specification";
 
         shaderController = new ShaderController(content, 
-            "Graphics/Shaders/ImGui/imgui_vertex_shader.vert", 
-            "Graphics/Shaders/ImGui/imgui_fragment_shader.frag");
+            ("Voxand.Resources.Graphics.Shaders.ImGui.imgui_vertex_shader.vert", true), 
+            ("Voxand.Resources.Graphics.Shaders.ImGui.imgui_fragment_shader.frag", true));
         shaderController.Shader.Label = "ImGui Shader Program";
         
         CreateFontTexture();

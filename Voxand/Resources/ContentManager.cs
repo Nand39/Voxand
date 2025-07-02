@@ -7,6 +7,8 @@ using GLAV.Types;
 using Voxand.Helpers;
 using System.Runtime.CompilerServices;
 using GLAV.Helpers.Public.Exceptions;
+using System.Reflection;
+using System.Text;
 
 namespace Voxand.Content;
 public class ContentManager
@@ -25,7 +27,6 @@ public class ContentManager
 
     FileStream OpenStream(string path, FileMode mode, FileAccess access) => new FileStream(CompleteFilePath(path), mode, access);
 
-
     #region Basic read/write string
     public string ReadFile(string path)
     {
@@ -38,6 +39,16 @@ public class ContentManager
         using Stream stream = OpenStream(path, FileMode.OpenOrCreate, FileAccess.Write);
         using StreamWriter writer = new(stream);
         writer.Write(text);
+    }
+    #endregion
+
+    #region Embedded resources
+    public string ReadEmbedded(string name)
+    {
+        Assembly assembly = Assembly.GetExecutingAssembly();
+        using Stream stream = assembly.GetManifestResourceStream(name) ?? throw new InvalidOperationException($"Failed to open embedded resource stream for '{name}'.");
+        using StreamReader reader = new(stream);
+        return reader.ReadToEnd();
     }
     #endregion
 
@@ -95,20 +106,20 @@ public class ContentManager
     #endregion
 
     #region Shader
-    public Shader LoadShader(params string[] sourcePaths)
+    public Shader LoadShader(params (string codePath, bool embedded)[] codePaths)
     {
-        ShaderPart[] shaderAttachments = new ShaderPart[sourcePaths.Length];
+        ShaderPart[] shaderAttachments = new ShaderPart[codePaths.Length];
         for (int i = 0; i < shaderAttachments.Length; i++)
         {
             try
             {
-                shaderAttachments[i] = LoadShaderPart(sourcePaths[i]);
+                shaderAttachments[i] = LoadShaderPart(codePaths[i].codePath, codePaths[i].embedded);
             }
             catch (ShaderPartCompilationException ex)
             {
                 throw new ArgumentException(
-                    $"Failed to compile shader source code in {sourcePaths[i]}.\n" +
-                    $"Log: {ex.InfoLog}", ex);
+                    @$"Failed to compile shader code in '{codePaths[i]}'{(codePaths[i].embedded ? " (embedded)" : "")}.
+                    Log: {ex.InfoLog}", ex);
             }
         }
 
@@ -119,30 +130,38 @@ public class ContentManager
         }
         catch (ShaderLinkingException ex)
         {
-            throw new ShaderLinkingException(
-                @$"Failed to link shader.
-                Parts:
-                {string.Join(";\n", sourcePaths)}", ex.Message, ex);
+            StringBuilder exceptionMessage = new StringBuilder();
+            exceptionMessage.Append("Failed to link shader.\nParts:\n");
+            for (int i = 0; i < codePaths.Length; i++)
+            {
+                exceptionMessage.Append(codePaths[i].codePath);
+                if (codePaths[i].embedded)
+                    exceptionMessage.AppendLine(" (embedded)");
+                else
+                    exceptionMessage.Append("\n");
+            }
+
+            throw new ShaderLinkingException(exceptionMessage.ToString(), ex.Message, ex);
         }
     }
 
-    public ShaderPart LoadShaderPart(string sourcePath)
+    public ShaderPart LoadShaderPart(string codePath, bool embedded)
     {
-        string source = ReadFile(sourcePath);
+        string source = embedded ? ReadEmbedded(codePath) : ReadFile(codePath);
 
-        ShaderType? type = Util.IdentifyShaderSource(sourcePath);
+        ShaderType? type = Util.IdentifyShaderSource(codePath);
 
         if (type is null)
-            throw new ArgumentException($"Cannot infer shader type from code file extension. Path: {sourcePath}");
+            throw new ArgumentException($"Cannot infer shader type from code file extension. Path: {codePath}");
 
         try
         {
-            ShaderPart shaderPart = new ShaderPart(source, type.Value);
+            ShaderPart shaderPart = new(source, type.Value);
             return shaderPart;
         }
         catch (ShaderPartCompilationException ex)
         {
-            throw new ShaderPartCompilationException($"Failed to compile shader source code in {sourcePath}", ex.InfoLog, ex);
+            throw new ShaderPartCompilationException($"Failed to compile shader source code in {codePath}", ex.InfoLog, ex);
         }
     }
     #endregion

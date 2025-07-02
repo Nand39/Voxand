@@ -46,7 +46,7 @@ public sealed class Window : GameWindow
         Content = new ContentManager("Resources");
         ImGuiBackend = new ImGuiBackend(this, Content);
 
-        ComputeUtility.Initialize(Content, "Graphics/Shaders/copy_tex8_shader.comp");
+        ComputeUtility.Initialize(Content, ("Voxand.Resources.Graphics.Shaders.copy_tex8_shader.comp", true));
 
         ExecutionManager.Load(this);
     }

@@ -52,15 +52,15 @@ public sealed class VoxelPTRP : RenderingPipeline, IRendererAntiAliasingUsage, I
 
         varyingRenderDataStorage.Add(directIllumination_depthPT, indirectIlluminationPT, normalCompound_motionPT);
 
-        pathTracingShaderController = new(content, "Graphics/Shaders/voxel_path_tracing_shader.comp");
+        pathTracingShaderController = new(content, ("Voxand.Resources.Graphics.Shaders.voxel_path_tracing_shader.comp", true));
         pathTracingShaderController.Shader.Label = "* voxel PT shader";
 
-        TAAShaderController = new(content, "Graphics/Shaders/taa_shader.comp");
+        TAAShaderController = new(content, ("Voxand.Resources.Graphics.Shaders.taa_shader.comp", true));
         TAAShaderController.Shader.Label = "* TAA shader";
 
         compositingShaderController = new(content,
-            "Graphics/Shaders/voxel_compositing_shader.vert",
-            "Graphics/Shaders/voxel_compositing_shader.frag");
+            ("Voxand.Resources.Graphics.Shaders.voxel_compositing_shader.vert", true),
+            ("Voxand.Resources.Graphics.Shaders.voxel_compositing_shader.frag", true));
         compositingShaderController.Shader.Label = "* Compositing shader";
 
         voxelPathTracingModule = new VoxelPathTracingModule(

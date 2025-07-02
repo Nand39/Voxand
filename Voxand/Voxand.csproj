@@ -20,11 +20,42 @@
 
   <ItemGroup>
     <None Remove="Resources\ava6.png" />
+    <None Remove="Resources\Graphics\Shaders\copy_tex8_shader.comp" />
+    <None Remove="Resources\Graphics\Shaders\ImGui\imgui_fragment_shader.frag" />
+    <None Remove="Resources\Graphics\Shaders\ImGui\imgui_vertex_shader.vert" />
+    <None Remove="Resources\Graphics\Shaders\taa_shader.comp" />
     <None Remove="Resources\Graphics\Shaders\Test.comp" />
     <None Remove="Resources\Graphics\Shaders\TestFrag.frag" />
     <None Remove="Resources\Graphics\Shaders\voxelRender.frag" />
     <None Remove="Resources\Graphics\Shaders\voxelRender.vert" />
     <None Remove="Resources\Graphics\Shaders\voxelRenderFlat.frag" />
+    <None Remove="Resources\Graphics\Shaders\voxel_compositing_shader.frag" />
+    <None Remove="Resources\Graphics\Shaders\voxel_compositing_shader.vert" />
+    <None Remove="Resources\Graphics\Shaders\voxel_path_tracing_shader.comp" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\Graphics\Shaders\copy_tex8_shader.comp">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Resources\Graphics\Shaders\ImGui\imgui_fragment_shader.frag">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Resources\Graphics\Shaders\ImGui\imgui_vertex_shader.vert">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Resources\Graphics\Shaders\taa_shader.comp">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Resources\Graphics\Shaders\voxel_compositing_shader.frag">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Resources\Graphics\Shaders\voxel_compositing_shader.vert">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Resources\Graphics\Shaders\voxel_path_tracing_shader.comp">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
   </ItemGroup>
 
   <ItemGroup>
@@ -36,36 +67,6 @@
   <ItemGroup>
     <ProjectReference Include="..\Libs\DisposeExt\DisposeExt.csproj" />
     <ProjectReference Include="..\Libs\GLAV\GLAV.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Update="Resources\Graphics\Shaders\copy_tex8_shader.comp">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Resources\Graphics\Shaders\ImGui\imgui_fragment_shader.frag">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Resources\Graphics\Shaders\ImGui\imgui_vertex_shader.vert">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Resources\Graphics\Shaders\taa_shader.comp">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Resources\Graphics\Shaders\voxel_compositing_shader.frag">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Resources\Graphics\Shaders\voxel_compositing_shader.vert">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Resources\Graphics\Shaders\voxel_path_tracing_shader.comp">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Content\Graphics\Textures\map.jpg">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="Content\Graphics\Textures\map_hdr.hdr">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
   </ItemGroup>
 
   <ProjectExtensions><VisualStudio><UserProperties /></VisualStudio></ProjectExtensions>

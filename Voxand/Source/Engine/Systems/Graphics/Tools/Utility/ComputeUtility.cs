@@ -13,7 +13,7 @@ public class ComputeUtility
     ShaderController copyTex8Shader;
 
     ComputeUtility() { }
-    public static void Initialize(ContentManager content, string copyTex8ShaderPath)
+    public static void Initialize(ContentManager content, (string codePath, bool embedded) copyTex8ShaderPath)
     {
         Instance = new ComputeUtility()
         {

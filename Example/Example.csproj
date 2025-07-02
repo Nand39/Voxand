@@ -17,7 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="App\Resources\UI\ImGuiStyles\style.json">
+    <None Update="Resources\UI\ImGuiStyles\style.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>
