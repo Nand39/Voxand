@@ -42,6 +42,7 @@ public static class ImGuiInput
     public static bool IsAnyMouseButtonDragEnded() => (inputCache.Past.IsMouseButtonDragging & inputCache.State.IsMouseButtonDragging) != inputCache.Past.IsMouseButtonDragging;
     public static bool IsAnyMouseButtonDragChanged() => inputCache.Past.IsMouseButtonDragging != inputCache.State.IsMouseButtonDragging;
     public static Vector2 GetLastClickPosition(ImGuiMouseButton button) => inputCache.mouseClickPositions[(int)button];
+    public static bool IsInteractingWithUI() => ImGui.IsAnyItemActive() || ImGui.IsAnyItemHovered() || ImGui.IsWindowHovered(ImGuiHoveredFlags.AnyWindow);
 }
 
 [Flags]

@@ -14,6 +14,7 @@ using Voxand.Engine.Systems.Services.General;
 using Voxand.Engine.Systems.Common;
 using Voxand.Engine.Systems.Services.Voxels;
 using Voxand.Engine.Systems.Services.UI.Windows;
+using Voxand.Engine.Systems.General.ImGuiIntegration;
 
 namespace Voxand.App.Voxels.Editing;
 public class VoxelToolController : Script
@@ -84,7 +85,7 @@ public class VoxelToolController : Script
 
 
 
-        if (useCount > 0 && !ImGui.IsAnyItemActive() && !ImGui.GetIO().WantCaptureMouse && !ImGui.IsAnyItemHovered() && !ImGui.IsWindowHovered(ImGuiHoveredFlags.AnyWindow))
+        if (useCount > 0 && !ImGui.GetIO().WantCaptureMouse && !ImGuiInput.IsInteractingWithUI())
         {
             for (int i = 0; i < useCount; i++)
             {

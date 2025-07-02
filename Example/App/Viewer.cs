@@ -11,6 +11,7 @@ using Voxand.Engine.Systems.Services.General;
 using Voxand.Engine.Systems.Services.Voxels;
 using ImGuiNET;
 using Voxand.Helpers.UtilityTypes;
+using Voxand.Engine.Systems.General.ImGuiIntegration;
 
 namespace Voxand.App;
 public class Viewer : Script
@@ -59,7 +60,7 @@ public class Viewer : Script
 
         win.MouseWheel += (args) =>
         {
-            if (ImGui.IsAnyItemActive() || ImGui.IsAnyItemHovered() || ImGui.IsWindowHovered(ImGuiHoveredFlags.AnyWindow))
+            if (ImGuiInput.IsInteractingWithUI())
                 return;
 
 
@@ -109,15 +110,18 @@ public class Viewer : Script
             setSunDirectionRequest?.Invoke(sunDir);
         }
 
-        for (int i = 0; i < 10; i++)
+        if (!ImGui.IsAnyItemActive())
         {
-            Keys numKey = i == 9 ? Keys.D0 : (Keys.D1 + i);
-
-            if (win.KeyboardState.IsKeyPressed(numKey))
+            for (int i = 0; i < 10; i++)
             {
-                int index = VoxelToolHotbar[i];
-                if (index >= 0)
-                    VoxelTool.ActivePlacementTechniqueIndex = index;
+                Keys numKey = i == 9 ? Keys.D0 : (Keys.D1 + i);
+
+                if (win.KeyboardState.IsKeyPressed(numKey))
+                {
+                    int index = VoxelToolHotbar[i];
+                    if (index >= 0)
+                        VoxelTool.ActivePlacementTechniqueIndex = index;
+                }
             }
         }
     }
