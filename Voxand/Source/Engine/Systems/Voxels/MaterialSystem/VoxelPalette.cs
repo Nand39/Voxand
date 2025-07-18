@@ -22,7 +22,7 @@ public class VoxelPalette : IVoxelPalette, IDisposableExt
             gpuMaterialPalette.BindAsShaderStorage(BufferRangeTarget.ShaderStorageBuffer, value);
         }
     }
-    public DisposeHelper DisposeHelper { get; }
+    public DisposeState DisposeState { get; }
 
     public event Action<int, VoxelMaterial>? MaterialModified;
 
@@ -34,7 +34,7 @@ public class VoxelPalette : IVoxelPalette, IDisposableExt
         materialPalette = materials;
         Binding = binding;
 
-        DisposeHelper = new(this);
+        DisposeState = new(this);
     }
     public void SetMaterial(int index, VoxelMaterial newMaterial)
     {

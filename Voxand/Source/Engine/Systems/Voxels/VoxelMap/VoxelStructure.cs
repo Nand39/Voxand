@@ -4,21 +4,18 @@ using OpenTK.Mathematics;
 namespace Voxand.Engine.Systems.Voxels;
 public abstract class VoxelStructure : IDisposableExt
 {
-    public readonly Vector3i Dimensions;
-    readonly IVoxelMapPersistence persistenceModule;
-    public DisposeHelper DisposeHelper { get; }
+    protected Vector3i dimensions;
+    public Vector3i Dimensions => dimensions; 
+    public DisposeState DisposeState { get; }
 
-    public VoxelStructure(Vector3i dimensions, IVoxelMapPersistence persistenceModule)
+    public VoxelStructure(Vector3i dimensions)
     {
-        Dimensions = dimensions;
-        this.persistenceModule = persistenceModule;
-        DisposeHelper = new(this);
+        this.dimensions = dimensions;
+        DisposeState = new(this);
     }
     public abstract void SetVoxelValue(Vector3i position, uint value);
     public abstract (uint, bool) GetVoxelValue(Vector3i position);
     public abstract bool IsSolid(Vector3i position);
-    public void SaveMap(string mapName) => persistenceModule.Export(mapName);
-    public void LoadMap(string mapName) => persistenceModule.Import(mapName);
     public abstract RaycastResult Raycast(Vector3 origin, Vector3 dir);
     public abstract long GetMemoryUsage();
     public abstract long GetGraphicsMemoryUsage();

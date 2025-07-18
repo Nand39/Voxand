@@ -36,7 +36,7 @@ public class TexturedRenderTarget : RenderTarget, IDisposableExt
 {
     public Framebuffer framebuffer;
     public Vector2i Resolution { get; set; }
-    public DisposeHelper DisposeHelper { get; }
+    public DisposeState DisposeState { get; }
 
     /// <param name="resolution">
     /// This parameter will be used in <see cref="GL.Viewport(int, int, int, int)"/> 
@@ -52,7 +52,7 @@ public class TexturedRenderTarget : RenderTarget, IDisposableExt
         Resolution = resolution;
         framebuffer = new();
         framebuffer.Create(attachments);
-        DisposeHelper = new(this);
+        DisposeState = new(this);
     }
     public override void Use()
     {

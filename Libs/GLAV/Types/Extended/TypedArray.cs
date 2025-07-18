@@ -6,14 +6,14 @@ public class TypedArray<T> : IDisposableExt where T : struct
 {
     static int itemSize;
     internal Buffer Buffer { get; private protected set; }
-    public DisposeHelper DisposeHelper { get; }
+    public DisposeState DisposeState { get; }
 
     public int Length { get; private set; } 
 
     public string Label { get => Buffer.Label; set => Buffer.Label = value; }
 
     static unsafe TypedArray() => itemSize = sizeof(T);
-    TypedArray() => DisposeHelper = new(this);
+    TypedArray() => DisposeState = new(this);
 
     #region Allocation
     public TypedArray(BufferTarget target, int capacity, BufferUsageHint usageHint)
@@ -45,7 +45,7 @@ public class TypedArray<T> : IDisposableExt where T : struct
         set => Buffer.Store(ref value, index * itemSize);
     }
 
-    public void Store(Span<T> data, int offset) => Buffer.Store(data, offset * itemSize);
+    public void Store(Span<T> data, int index) => Buffer.Store(data, index * itemSize);
     public T[] Retrieve(int offset, int count) => Buffer.Retrieve<T>(offset * itemSize, count);
 
     public void BindAsShaderStorage(BufferRangeTarget target, int binding) => Buffer.BindAsShaderStorage(target, new(binding));

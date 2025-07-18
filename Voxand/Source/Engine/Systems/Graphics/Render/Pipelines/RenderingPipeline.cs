@@ -3,10 +3,10 @@
 namespace Voxand.Engine.Systems.Graphics.Pipelines;
 public abstract class RenderingPipeline : IDisposableExt
 {
-    public DisposeHelper DisposeHelper { get; }
+    public DisposeState DisposeState { get; }
     public RenderingPipeline()
     {
-        DisposeHelper = new(this);
+        DisposeState = new(this);
     }
     public abstract void Execute();
     void IDisposableExt.Free() => Free();

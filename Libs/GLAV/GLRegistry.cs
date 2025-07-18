@@ -1,13 +1,10 @@
-﻿using System.Runtime.CompilerServices;
-
-using OpenTK.Graphics.OpenGL4;
+﻿using OpenTK.Graphics.OpenGL4;
 
 using GLAV.Types;
 using OpenTK.Windowing.Desktop;
 using System.Collections.Concurrent;
 using Buffer = GLAV.Types.Buffer;
 using GLAV.Helpers.Internal;
-using System.Reflection.Metadata;
 
 namespace GLAV;
 public sealed class GLRegistry

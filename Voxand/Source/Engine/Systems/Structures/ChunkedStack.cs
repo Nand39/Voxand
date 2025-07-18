@@ -2,35 +2,49 @@
 public class ChunkedStack<T>
 {
     LinkedList<T[]> linkedList;
-    int chunkCapacity;
-    LinkedListNode<T[]> lastChunk;
+    int numChunksAllocated;
+    LinkedListNode<T[]> currentChunk;
+    int currentChunkIndex;
     int indexOfNext = 0;
 
+    public int ChunkCapacity { get; set; }
     public int Count { get; private set; } = 0;
     public bool Empty => Count == 0;
 
     public ChunkedStack(int chunkCapacity)
     {
-        this.chunkCapacity = chunkCapacity;
+        this.ChunkCapacity = chunkCapacity;
         T[] chunk = new T[chunkCapacity];
-        lastChunk = new(chunk);
+        currentChunk = new(chunk);
         linkedList = [];
-        linkedList.AddLast(lastChunk);
+        linkedList.AddLast(currentChunk);
+        numChunksAllocated = 1;
+        currentChunkIndex = 0;
     }
 
     public void Push(T item)
     {
-        if (indexOfNext == chunkCapacity)
+        if (indexOfNext == ChunkCapacity)
         {
-            T[] newChunk = new T[chunkCapacity];
-            newChunk[0] = item;
-            lastChunk = new(newChunk);
-            linkedList.AddLast(lastChunk);
+            currentChunkIndex++;
+            if (currentChunkIndex == numChunksAllocated)
+            {
+                T[] newChunkData = new T[ChunkCapacity];
+                newChunkData[0] = item;
+                currentChunk = new(newChunkData);
+                linkedList.AddLast(currentChunk);
+                numChunksAllocated++;
+            }
+            else
+            {
+                currentChunk = currentChunk.Next!;
+                currentChunk.Value[0] = item;
+            }
             indexOfNext = 1;
         }
         else
         {
-            lastChunk.Value[indexOfNext] = item;
+            currentChunk.Value[indexOfNext] = item;
             indexOfNext++;
         }
         Count++;
@@ -41,12 +55,20 @@ public class ChunkedStack<T>
         if (Count == 0)
             throw new InvalidOperationException("Chunked stack empty.");
 
-        T result = lastChunk.Value[indexOfNext - 1];
+        T result = currentChunk.Value[indexOfNext - 1];
 
         if (indexOfNext - 1 == 0)
         {
-            indexOfNext = chunkCapacity;
-            lastChunk = lastChunk.Previous ?? lastChunk;
+            if (currentChunkIndex > 0)
+            {
+                indexOfNext = ChunkCapacity;
+                currentChunk = currentChunk.Previous ?? currentChunk;
+                currentChunkIndex--;
+            }
+            else
+            {
+                indexOfNext = 0;
+            }
         }
         else
         {
@@ -54,5 +76,15 @@ public class ChunkedStack<T>
         }
         Count--;
         return result;
+    }
+
+    public IEnumerable<T[]> ReadChunks()
+    {
+        LinkedListNode<T[]> node = linkedList.First!;
+        for (int i = 0; i <= currentChunkIndex; i++)
+        {
+            yield return node.Value;
+            node = node.Next!;
+        }
     }
 }

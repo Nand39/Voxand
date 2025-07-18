@@ -12,11 +12,11 @@ public class VertexSpecification : IDisposableExt
 {
     VertexArray vao;
 
-    public DisposeHelper DisposeHelper { get; }
+    public DisposeState DisposeState { get; }
 
     public VertexSpecification()
     {
-        DisposeHelper = new(this);
+        DisposeState = new(this);
         vao = new();
         VertexArray.Unbind(); // Important to not implicitly capture the next bound EBO
     }

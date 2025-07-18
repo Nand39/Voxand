@@ -5,8 +5,8 @@ public class ScriptManager : IDisposableExt
     List<Script> scripts = [];
     Dictionary<Script, int> indexMap = [];
 
-    public DisposeHelper DisposeHelper { get; }
-    public ScriptManager() => DisposeHelper = new(this);
+    public DisposeState DisposeState { get; }
+    public ScriptManager() => DisposeState = new(this);
 
     public void AddScript(Script script)
     {

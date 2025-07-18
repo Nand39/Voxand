@@ -8,6 +8,9 @@ uniform sampler2D directIllum_depthTex;
 uniform sampler2D indirectIllumTex;
 uniform sampler2D normalCompound_motionTex;
 
+uniform float fogDensity = -0.0002;
+uniform vec3 fogColor = vec3(0.75, 0.9, 2.5);
+
 ivec2 targetTextureSize;
 
 const int blurKernelSize = 3;
@@ -15,8 +18,6 @@ const int blurKernelSize = 3;
 vec3 toneMap_IDKWHAT(vec3 color, float max_white_l);
 vec3 toneMap_ExtendedReinhard(vec3 color, float whitePoint);
 vec3 denoiseLuminance(ivec2 targetTexel);
-
-vec3 fogColor = vec3(0.75, 1.3, 1.9);
 
 void main() 
 {
@@ -27,10 +28,10 @@ void main()
 
     vec3 lum = directIllumDepth.xyz + indirectIllum.xyz;
 
-    float fogIntensity = clamp(directIllumDepth.w * 0.0001, 0, 0.8);
+    float fogIntensity = directIllumDepth.w < 0.0 ? 0.0 : clamp(1.0 - exp(directIllumDepth.w * fogDensity), 0.0, 0.96);
     lum = mix(lum, fogColor, fogIntensity);
 
-    vec3 toneMappedLum = toneMap_IDKWHAT(lum, 6);
+    vec3 toneMappedLum = toneMap_IDKWHAT(lum, 8);
     vec3 gammaCorrectedLum = vec3(pow(toneMappedLum.r, 0.4545), pow(toneMappedLum.g, 0.4545), pow(toneMappedLum.b, 0.4545));
 
     outColor = vec4(gammaCorrectedLum, 1);

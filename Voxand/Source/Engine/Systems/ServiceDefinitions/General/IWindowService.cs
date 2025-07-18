@@ -5,4 +5,5 @@ public interface IWindowService
 {
     Window Window { get; }
     CursorModeValue CursorMode { get; set; }
+    nint Win32Handle { get; }
 }

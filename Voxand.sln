@@ -16,7 +16,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GLAV", "Libs\GLAV\GLAV.cspr
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DisposeExt", "Libs\DisposeExt\DisposeExt.csproj", "{FC7A7E50-DAC9-4C38-AA49-19B047D9089E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Example", "Example\Example.csproj", "{814F2C6D-C4A0-4F39-B2DD-960BAD0C4607}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Demo", "Demo\Demo.csproj", "{814F2C6D-C4A0-4F39-B2DD-960BAD0C4607}"
 	ProjectSection(ProjectDependencies) = postProject
 		{42B988A6-262D-49A6-A264-42E03C408D81} = {42B988A6-262D-49A6-A264-42E03C408D81}
 	EndProjectSection

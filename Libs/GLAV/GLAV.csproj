@@ -25,7 +25,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\DisposeExt\DisposeExt.csproj" />
+    <ProjectReference Include="..\DisposeExt\DisposeExt.csproj"/>
   </ItemGroup>
 
 </Project>

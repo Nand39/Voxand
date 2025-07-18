@@ -7,6 +7,7 @@ using ImGuiNET;
 
 using Voxand.Engine.Systems.Voxels.VoxelMaterialServices;
 using Voxand.Helpers.UtilityTypes;
+using System.Runtime.InteropServices;
 
 namespace Voxand.Helpers;
 
@@ -246,5 +247,15 @@ public static class Util
             }
         }
     }
+    #endregion
+
+    #region Memory
+    public static unsafe nint AllocHInitialized(int size)
+    {
+        nint ptr = Marshal.AllocHGlobal(size);
+        MemClear(ptr, size);
+        return ptr;
+    }
+    public static unsafe void MemClear(nint ptr, int size) => new Span<byte>((void*)ptr, size).Clear();
     #endregion
 }

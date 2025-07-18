@@ -1,6 +1,8 @@
 ﻿using OpenTK.Graphics.OpenGL4;
 
 using DisposableExt;
+using System.Collections.Generic;
+using System.Drawing;
 
 namespace GLAV.Types.Extended;
 public unsafe class HalfList<T> : IDisposableExt where T : struct
@@ -8,7 +10,7 @@ public unsafe class HalfList<T> : IDisposableExt where T : struct
     public TypedArray<T> array;
     readonly BufferUsageHint usageHint;
     readonly BufferTarget originalBufferTarget;
-    public DisposeHelper DisposeHelper { get; } 
+    public DisposeState DisposeState { get; } 
 
     public readonly int itemSize;
     Func<int, int> growthFunction;
@@ -22,7 +24,7 @@ public unsafe class HalfList<T> : IDisposableExt where T : struct
         if (initialCapacity < 1)
             throw new ArgumentOutOfRangeException(nameof(initialCapacity));
 
-        DisposeHelper = new(this);
+        DisposeState = new(this);
 
         itemSize = sizeof(T);
         originalBufferTarget = target;
@@ -55,7 +57,7 @@ public unsafe class HalfList<T> : IDisposableExt where T : struct
         TypedArray<T> newArray = new(originalBufferTarget, newCapacity, usageHint);
         newArray.Label = array.Label;
         
-        array.Buffer.CopyTo(newArray.Buffer, 0, 0, array.Buffer.Size);
+        array.Buffer.CopyTo(newArray.Buffer, 0, 0, Count * itemSize);
 
         newArray.Buffer.ReplaceBindingsOf(array.Buffer);
 
@@ -65,6 +67,18 @@ public unsafe class HalfList<T> : IDisposableExt where T : struct
 
     public void BindAsShaderStorage(BufferRangeTarget target, int binding) => array.BindAsShaderStorage(target, binding);
     public void BindAsShaderStorage(BufferRangeTarget target, int binding, int start, int count) => array.BindAsShaderStorage(target, binding, start, count);
+    public void WriteOrAdd(Span<T> data, int index)
+    {
+        if (index > Count)
+            throw new ArgumentOutOfRangeException($"{nameof(index)} may not be greater than {nameof(Count)}. Only allowed to write over already added items or next to them.");
+
+        if (index + data.Length > Count)
+            Grow(growthFunction(Capacity));
+
+        Count = Math.Max(index + data.Length, Count);
+
+        array.Store(data, index);
+    }
 
     void IDisposableExt.Free()
     {

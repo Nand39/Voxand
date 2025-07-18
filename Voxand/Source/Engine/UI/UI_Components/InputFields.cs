@@ -2,7 +2,6 @@
 using OpenTK.Mathematics;
 
 namespace Voxand.UI.Components;
-
 public class FloatPicker(string label) : UI_Element
 {
     string label = label;

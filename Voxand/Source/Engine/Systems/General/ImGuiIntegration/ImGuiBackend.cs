@@ -29,7 +29,7 @@ public class ImGuiBackend : IDisposableExt
 
     NativeWindow window;
 
-    public DisposeHelper DisposeHelper { get; }
+    public DisposeState DisposeState { get; }
 
     Keys[] openTK_keys = (Keys[])Enum.GetValues(typeof(Keys));
 
@@ -164,7 +164,7 @@ public class ImGuiBackend : IDisposableExt
 
     public ImGuiBackend(NativeWindow win, ContentManager content)
     {
-        DisposeHelper = new(this);
+        DisposeState = new(this);
 
         window = win;
 
@@ -344,6 +344,7 @@ public class ImGuiBackend : IDisposableExt
     public void ImportImGuiTexture(Texture2D texture)
     {
         imGuiTextures[texture.Handle.id] = texture;
+        texture.DisposeState.OnDispose += (disposable) => imGuiTextures.Remove(texture.Handle.id);
     }
 
     int numVertB = 0;
@@ -408,12 +409,12 @@ public class ImGuiBackend : IDisposableExt
 
         ImGuiIOPtr io = ImGui.GetIO();
         Matrix4 imGuiTransform = Matrix4.CreateOrthographicOffCenter(
-            0.0f,
-            io.DisplaySize.X,
-            io.DisplaySize.Y,
-            0.0f,
-            -1.0f,
-            1.0f);
+            left: 0.0f,
+            right: io.DisplaySize.X,
+            bottom: io.DisplaySize.Y,
+            top: 0.0f,
+            depthNear: -1.0f,
+            depthFar: 1.0f);
 
         shaderController.SetUniform("projection_matrix", imGuiTransform);
         shaderController.SetUniform("in_fontTexture", 0);
@@ -545,4 +546,6 @@ public class ImGuiBackend : IDisposableExt
         shaderController.Dispose();
         fontTexture.Dispose();
     }
+
+    ~ImGuiBackend() => this.Dispose();
 }

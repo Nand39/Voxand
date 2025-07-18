@@ -1,35 +1,45 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System.Collections;
+using System.Runtime.CompilerServices;
 
 namespace DisposableExt;
-public interface IDisposableExt
+public interface IDisposableExt : IDisposable
 {
-    public DisposeHelper DisposeHelper { get; }
-    public void Dispose()
+    DisposeState DisposeState { get; }
+
+    void IDisposable.Dispose()
     {
-        lock (DisposeHelper.Locker)
-        {
-            if (!DisposeHelper.Disposed)
-            {
-                DisposeHelper.MarkAndNotify();
-                Free();
-            }
-        }
+        if (DisposeState.TryMarkDisposedAndNotify())
+            Free();
     }
+
     protected void Free();
 }
-public class DisposeHelper(IDisposableExt target)
+
+public class DisposeState(IDisposableExt target)
 {
     IDisposableExt disposable = target;
+    internal int disposeState = 0;
+
+    public bool Disposed => disposeState == 1;
     public event Action<IDisposableExt>? OnDispose;
-    public bool Disposed { get; protected set; } = false;
-    public object Locker { get; } = new();
-    public void MarkAndNotify()
+    
+    internal bool TryMarkDisposedAndNotify()
     {
-        Disposed = true;
-        OnDispose?.Invoke(disposable);
+        if (Interlocked.Exchange(ref disposeState, 1) == 0)
+        {
+            OnDispose?.Invoke(disposable);
+            return true;
+        }
+        return false;
     }
 }
+
 public static class ImplicitCastExtension
 {
-    [MethodImpl(MethodImplOptions.AggressiveInlining)] public static void Dispose(this IDisposableExt obj) => obj.Dispose();
+    /// <summary>
+    /// Allows for implicit casting of concrete types to <see cref="IDisposableExt"/> to call its explicitly implemented <see cref="IDisposable.Dispose"/> and improve readability.
+    /// <br/>Before: ((<see cref="IDisposableExt"/>)obj).Dispose()<br/> After: obj.Dispose()
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void Dispose(this IDisposableExt obj) => obj.Dispose();
 }

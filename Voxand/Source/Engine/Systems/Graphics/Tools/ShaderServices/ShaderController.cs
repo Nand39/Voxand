@@ -9,7 +9,7 @@ public class ShaderController : IDisposableExt
 {
     public Shader Shader { get; protected set; }
     public ShaderInfo ShaderInfo { get; protected set; }
-    public DisposeHelper DisposeHelper { get; }
+    public DisposeState DisposeState { get; }
 
     List<FileSystemWatcher> watchers;
     (string codePath, bool embedded)[] codePaths;
@@ -18,7 +18,7 @@ public class ShaderController : IDisposableExt
     {
         Shader = content.LoadShader(codePaths);
         ShaderInfo = new ShaderInfo(Shader);
-        DisposeHelper = new(this);
+        DisposeState = new(this);
         this.codePaths = codePaths;
 
 

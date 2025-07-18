@@ -11,10 +11,12 @@ using GLAV;
 using Voxand.Content;
 using Voxand.Engine.ExecutionControl;
 using Voxand.Helpers;
-using Voxand.Helpers.Interop;
 using DisposableExt;
 using Voxand.Engine.Systems.General.ImGuiIntegration;
 using Voxand.Engine.Systems.Graphics.Tools.Utility;
+using Voxand.Helpers.Interop.Win32;
+using OpenTK.Windowing.GraphicsLibraryFramework;
+using System.Text;
 
 namespace Voxand;
 public sealed class Window : GameWindow
@@ -22,6 +24,7 @@ public sealed class Window : GameWindow
     public ExecutionManager ExecutionManager { get; private set; }
     public ContentManager Content { get; private set; }
     public ImGuiBackend ImGuiBackend { get; private set; }
+    public GLRegistry GLRegistry { get; private set; }
     public bool IsMinimized { get; private set; }
 
     public Window(GameWindowSettings windowSettings, NativeWindowSettings nativeWindowSettings, ExecutionManager executionManager)
@@ -34,6 +37,7 @@ public sealed class Window : GameWindow
     {
         AppDomain.CurrentDomain.UnhandledException += OnException;
         GLRegistry.Initialize(Context);
+        GLRegistry = GLRegistry.Instance;
         
         CenterWindow();
         IsVisible = true;
@@ -73,12 +77,32 @@ public sealed class Window : GameWindow
         Context.SwapBuffers();
         base.OnRenderFrame(args);
     }
-    void OnException(object sender, UnhandledExceptionEventArgs args)
+    unsafe void OnException(object sender, UnhandledExceptionEventArgs args)
     {
-        Console.WriteLine("oops :/");
+        Console.Error.WriteLine("oops :/");
         Exception ex = (args.ExceptionObject as Exception)!;
-        NativeFuncs.Win.MessageBox(0, $"Voxand has crashed lmao\n{ex.Message}\nStack trace:\n{ex.StackTrace ?? "!bad luck, no stack trace"}", "oops", 0x00000000u);
+
+        StringBuilder errorMessage = new StringBuilder();
+        errorMessage.AppendLine($"Voxand encountered a critical error.");
+        errorMessage.AppendLine("");
+        errorMessage.AppendLine(ex.Message);
+        errorMessage.AppendLine("");
+        if (!string.IsNullOrWhiteSpace(ex.StackTrace))
+        {
+            errorMessage.AppendLine("Stack trace:");
+            errorMessage.AppendLine(ex.StackTrace);
+        }
+        else
+        {
+            errorMessage.AppendLine("No stack trace available.");
+        }
+
+        nint win32Window = GLFW.GetWin32Window(WindowPtr);
+
+        Win32.MessageBox(win32Window, errorMessage.ToString(), "oops", 0x00000010u);
+        
         Close();
+
         Environment.Exit(ex.HResult);
     }
     protected override void OnResize(ResizeEventArgs args)

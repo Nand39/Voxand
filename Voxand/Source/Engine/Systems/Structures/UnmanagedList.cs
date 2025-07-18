@@ -1,30 +1,36 @@
-﻿using System.Runtime.InteropServices;
+﻿using DisposableExt;
+using System.Runtime.InteropServices;
 
 namespace Voxand.Engine.Systems.Structures;
-public unsafe class UnmanagedList<T> : IDisposable where T : struct
+public unsafe class UnmanagedList<T> : IDisposableExt where T : struct
 {
     T* arrayPtr;
-    bool disposed = false;
     int size;
 
     public readonly int ItemSize;
     public int Capacity { get; protected set; } = 0;
     public int Count { get; protected set; } = 0;
 
+    public DisposeState DisposeState { get; }
+
+    Func<int, int> growthFunction;
+
     public T* this[int index]
     {
         get => arrayPtr + index;
         set => arrayPtr[index] = *value;
     }
-    public UnmanagedList(int initialCapacity)
+    public UnmanagedList(int initialCapacity, Func<int, int> growthFunction)
     {
         if (initialCapacity < 1)
-            throw new ArgumentOutOfRangeException(nameof(initialCapacity));
+            throw new ArgumentOutOfRangeException(nameof(initialCapacity), initialCapacity, $"{initialCapacity} may not be less than one item.");
         Capacity = initialCapacity;
         ItemSize = sizeof(T);
         size = initialCapacity * ItemSize;
         GC.AddMemoryPressure(size);
         arrayPtr = (T*)Marshal.AllocHGlobal(size);
+        this.growthFunction = growthFunction;
+        DisposeState = new(this);
     }
 
     public int Add(T item)
@@ -32,18 +38,28 @@ public unsafe class UnmanagedList<T> : IDisposable where T : struct
         int itemCount = Count;
         if (itemCount + 1 > Capacity)
         {
-            Grow(GetHigherCapacity());
+            Grow(growthFunction(Capacity));
         }
 
         arrayPtr[itemCount] = item;
         Count++;
         return itemCount;
     }
-    public void TrimExcess()
+
+    public void WriteOrAdd(Span<T> data, int index)
     {
-        if (Capacity == Count) return;
-        Shrink(Count);
+        if (index > Count)
+            throw new ArgumentOutOfRangeException($"{nameof(index)} may not be greater than {nameof(Count)}. Only allowed to write over already added items or next to them.");
+
+        if (index + data.Length > Count)
+            Grow(growthFunction(Capacity));
+
+        Count = Math.Max(index + data.Length, Count);
+
+        Span<T> destination = new(arrayPtr + index, data.Length);
+        data.CopyTo(destination);
     }
+
     void Grow(int higherCapacity)
     {
         if (higherCapacity <= Capacity)
@@ -61,29 +77,13 @@ public unsafe class UnmanagedList<T> : IDisposable where T : struct
         size = newSize;
         arrayPtr = newArrayPtr;
     }
-    void Shrink(int lowerCapacity)
-    {
-        if (lowerCapacity >= Capacity)
-            throw new ArgumentOutOfRangeException($"Cannot reallocate list: {nameof(lowerCapacity)} must be lesser than {nameof(Capacity)}");
 
-        int newSize = lowerCapacity * ItemSize;
-        size = Capacity * ItemSize;
-        int d_size = size - newSize;
-        Capacity = lowerCapacity;
-        size = newSize;
-
-        T* newArrayPtr = (T*)Marshal.AllocHGlobal(newSize);
-        Buffer.MemoryCopy(arrayPtr, newArrayPtr, newSize, newSize);
-        Marshal.FreeHGlobal((nint)arrayPtr);
-        GC.RemoveMemoryPressure(d_size);
-    }
-    int GetHigherCapacity() => Capacity < 1000 ? (int)MathF.Ceiling((2 - Capacity * 0.0005f) * Capacity) : Capacity + 500;
-    public void Dispose()
+    public void Free()
     {
-        if (disposed) return;
         Marshal.FreeHGlobal((nint)arrayPtr);
         GC.RemoveMemoryPressure(Capacity * ItemSize);
         GC.SuppressFinalize(this);
     }
-    ~UnmanagedList() => Dispose();
+
+    ~UnmanagedList() => this.Dispose();
 }

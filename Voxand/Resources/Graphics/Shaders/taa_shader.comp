@@ -68,7 +68,7 @@ void main()
     if (any(lessThanEqual(reprojectionUV, vec2(0))) || any(greaterThanEqual(reprojectionUV, vec2(1))))
     {
         color = lumDepthNew;
-        color.w = -1;
+        color.w = -color.w;
     }
     else 
     {

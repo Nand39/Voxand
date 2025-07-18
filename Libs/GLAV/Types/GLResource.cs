@@ -9,8 +9,8 @@ namespace GLAV.Types;
 public abstract class GLResource : IDisposableExt
 {
     public GLResourceHandle Handle = new();
-    public DisposeHelper DisposeHelper { get; }
-    public GLResource() => DisposeHelper = new(this); 
+    public DisposeState DisposeState { get; }
+    public GLResource() => DisposeState = new(this); 
     public string Label
     {
         get

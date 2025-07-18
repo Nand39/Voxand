@@ -2,13 +2,13 @@
 public class DisposalList : IDisposableExt
 {
     List<IDisposableExt> resources = [];
-    public DisposeHelper DisposeHelper { get; }
-    public DisposalList() => DisposeHelper = new(this);
+    public DisposeState DisposeState { get; }
+    public DisposalList() => DisposeState = new(this);
     public void Add(IDisposableExt resource)
     {
         ArgumentNullException.ThrowIfNull(resource);
         resources.Add(resource);
-        resource.DisposeHelper.OnDispose += Remove;
+        resource.DisposeState.OnDispose += Remove;
     }
     public void Add(params IDisposableExt[] resources)
     {
@@ -18,7 +18,7 @@ public class DisposalList : IDisposableExt
     public void Remove(IDisposableExt resource)
     {
         resources.Remove(resource);
-        resource.DisposeHelper.OnDispose -= Remove;
+        resource.DisposeState.OnDispose -= Remove;
     }
     public void Remove(params IDisposableExt[] resources)
     {

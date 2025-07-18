@@ -20,4 +20,6 @@ public class WindowService : IWindowService
         }
     }
     CursorModeValue cursorMode;
+
+    public unsafe nint Win32Handle => GLFW.GetWin32Window(Window.WindowPtr);
 }
