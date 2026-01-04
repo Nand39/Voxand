@@ -1,6 +1,7 @@
 ﻿using System.Runtime.InteropServices;
 
 namespace Voxand.Helpers.Interop.Win32.FileSystemDialog;
+
 public unsafe static class FileSystemDialogAPI
 {
 
@@ -12,7 +13,7 @@ public unsafe static class FileSystemDialogAPI
 
     const string defaultFilter = "All Files (*.*)\0*.*\0\0";
 
-    internal static FileDialogParameters OpenFile(string title, string initialDirectory, nint windowHandle, OpenFileNameFlags flags, string? filter, out bool status)
+    internal static FileDialogParameters OpenFile(string title, string initialDirectory, void* windowHandle, OpenFileNameFlags flags, string? filter, out bool status)
     {
         FileDialogParameters dialogParams = new();
         dialogParams.WindowOwner = windowHandle;
@@ -25,7 +26,7 @@ public unsafe static class FileSystemDialogAPI
         return dialogParams;
     }
 
-    internal static FileDialogParameters SaveFile(string title, string initialDirectory, nint windowHandle, OpenFileNameFlags flags, string? defaultFileName, string? defaultExtension, string? filter, out bool status)
+    internal static FileDialogParameters SaveFile(string title, string initialDirectory, void* windowHandle, OpenFileNameFlags flags, string? defaultFileName, string? defaultExtension, string? filter, out bool status)
     {
         FileDialogParameters dialogParams = new();
 

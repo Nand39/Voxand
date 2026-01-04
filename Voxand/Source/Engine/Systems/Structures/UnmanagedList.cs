@@ -2,7 +2,8 @@
 using System.Runtime.InteropServices;
 
 namespace Voxand.Engine.Systems.Structures;
-public unsafe class UnmanagedList<T> : IDisposableExt where T : struct
+
+public unsafe class UnmanagedList<T> : IDisposableExt where T : unmanaged
 {
     T* arrayPtr;
     int size;
@@ -28,7 +29,7 @@ public unsafe class UnmanagedList<T> : IDisposableExt where T : struct
         ItemSize = sizeof(T);
         size = initialCapacity * ItemSize;
         GC.AddMemoryPressure(size);
-        arrayPtr = (T*)Marshal.AllocHGlobal(size);
+        arrayPtr = (T*)NativeMemory.Alloc((nuint)initialCapacity, (nuint)sizeof(T));
         this.growthFunction = growthFunction;
         DisposeState = new(this);
     }
@@ -63,25 +64,31 @@ public unsafe class UnmanagedList<T> : IDisposableExt where T : struct
     void Grow(int higherCapacity)
     {
         if (higherCapacity <= Capacity)
-            throw new ArgumentOutOfRangeException($"Cannot reallocate list: {nameof(higherCapacity)} must be greater than {nameof(Capacity)}");
+            throw new ArgumentException("New capacity must be greater than old capacity.", nameof(higherCapacity));
 
         int newSize = higherCapacity * ItemSize;
         int d_size = newSize - size;
 
-        T* newArrayPtr = (T*)Marshal.AllocHGlobal(newSize);
-        Buffer.MemoryCopy(arrayPtr, newArrayPtr, newSize, size);
-        Marshal.FreeHGlobal((nint)arrayPtr);
+        T* newArrayPtr = (T*)NativeMemory.Realloc(arrayPtr, (nuint)newSize);
+
+        if (newArrayPtr is null)
+            throw new OutOfMemoryException();
+
         GC.AddMemoryPressure(d_size);
-        
+
         Capacity = higherCapacity;
         size = newSize;
         arrayPtr = newArrayPtr;
     }
 
-    public void Free()
+    void IDisposableExt.Free()
     {
-        Marshal.FreeHGlobal((nint)arrayPtr);
-        GC.RemoveMemoryPressure(Capacity * ItemSize);
+        if (arrayPtr is not null)
+        {
+            NativeMemory.Free(arrayPtr);
+            GC.RemoveMemoryPressure((long)Capacity * ItemSize);
+            arrayPtr = null;
+        }
         GC.SuppressFinalize(this);
     }
 

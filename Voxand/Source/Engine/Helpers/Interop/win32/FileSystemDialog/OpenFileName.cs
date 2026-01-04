@@ -3,18 +3,18 @@
 namespace Voxand.Helpers.Interop.Win32.FileSystemDialog;
 
 [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
-internal struct OpenFileName
+internal unsafe struct OpenFileName
 {
     public int lStructSize;
-    public IntPtr hwndOwner;
-    public IntPtr hInstance;
+    public void* hwndOwner;
+    public void* hInstance;
     public string lpstrFilter;
     public string lpstrCustomFilter;
     public int nMaxCustFilter;
     public int nFilterIndex;
-    public IntPtr lpstrFile;
+    public void* lpstrFile;
     public int nMaxFile;
-    public IntPtr lpstrFileTitle;
+    public void* lpstrFileTitle;
     public int nMaxFileTitle;
     public string lpstrInitialDir;
     public string lpstrTitle;
@@ -22,10 +22,10 @@ internal struct OpenFileName
     public short nFileOffset;
     public short nFileExtension;
     public string lpstrDefExt;
-    public IntPtr lCustData;
-    public IntPtr lpfnHook;
+    public void* lCustData;
+    public void* lpfnHook;
     public string lpTemplateName;
-    public IntPtr pvReserved;
+    public void* pvReserved;
     public int dwReserved;
     public int FlagsEx;
 }

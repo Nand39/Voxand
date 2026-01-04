@@ -1,13 +1,10 @@
-﻿using System.Runtime.CompilerServices;
-
+﻿using ImGuiNET;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
-
-using ImGuiNET;
-
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using Voxand.Engine.Systems.Voxels.VoxelMaterialServices;
 using Voxand.Helpers.UtilityTypes;
-using System.Runtime.InteropServices;
 
 namespace Voxand.Helpers;
 
@@ -16,7 +13,7 @@ public static class Util
     public const float BYTE_NORMALIZE = 1f / 255f;
     public const float SQRT_TWO = 1.414213f;
     public const float DEG2RAD = MathF.PI / 180;
-    
+
     public static readonly Random Random = new();
     public static readonly int ProcessorCount = Environment.ProcessorCount;
     public static Vector2i ClientSize;
@@ -250,12 +247,12 @@ public static class Util
     #endregion
 
     #region Memory
-    public static unsafe nint AllocHInitialized(int size)
+    public static unsafe void* AllocHInitialized(int size)
     {
-        nint ptr = Marshal.AllocHGlobal(size);
+        void* ptr = NativeMemory.Alloc((nuint)size);
         MemClear(ptr, size);
         return ptr;
     }
-    public static unsafe void MemClear(nint ptr, int size) => new Span<byte>((void*)ptr, size).Clear();
+    public static unsafe void MemClear(void* ptr, int size) => new Span<byte>(ptr, size).Clear();
     #endregion
 }

@@ -1,10 +1,10 @@
-﻿using System.Runtime.InteropServices;
+﻿using DisposableExt;
+using System.Runtime.InteropServices;
 using System.Text;
 
-using DisposableExt;
-
 namespace Voxand.Helpers.Interop.Win32.FileSystemDialog;
-internal class FileDialogParameters : IDisposableExt
+
+internal unsafe class FileDialogParameters : IDisposableExt
 {
     OpenFileName openFileName;
 
@@ -32,13 +32,13 @@ internal class FileDialogParameters : IDisposableExt
 
     public ref OpenFileName InnerStruct => ref openFileName;
 
-    public nint WindowOwner
+    public void* WindowOwner
     {
         get => openFileName.hwndOwner;
         set => openFileName.hwndOwner = value;
     }
 
-    public nint Instance
+    public void* Instance
     {
         get => openFileName.hInstance;
         set => openFileName.hInstance = value;
@@ -104,13 +104,13 @@ internal class FileDialogParameters : IDisposableExt
         set => openFileName.lpstrDefExt = value;
     }
 
-    public nint CustomData
+    public void* CustomData
     {
         get => openFileName.lCustData;
         set => openFileName.lCustData = value;
     }
 
-    public nint HookFunction
+    public void* HookFunction
     {
         get => openFileName.lpfnHook;
         set => openFileName.lpfnHook = value;
@@ -132,10 +132,10 @@ internal class FileDialogParameters : IDisposableExt
     {
         get
         {
-            if (openFileName.lpstrFile == nint.Zero)
+            if (openFileName.lpstrFile is null)
                 return string.Empty;
 
-            return Marshal.PtrToStringUni(openFileName.lpstrFile) ?? string.Empty;
+            return Marshal.PtrToStringUni((nint)openFileName.lpstrFile) ?? string.Empty;
         }
         set
         {
@@ -143,8 +143,8 @@ internal class FileDialogParameters : IDisposableExt
             {
                 byte[] fileBytes = Encoding.Unicode.GetBytes(value);
                 int length = Math.Min(fileBytes.Length, (MaxPathLength - 1) * sizeof(char));
-                Marshal.Copy(fileBytes, 0, openFileName.lpstrFile, length);
-                Util.MemClear(openFileName.lpstrFile + length, fileBytes.Length * sizeof(byte));
+                Marshal.Copy(fileBytes, 0, (nint)openFileName.lpstrFile, length);
+                Util.MemClear((void*)(((nint)openFileName.lpstrFile) + length), fileBytes.Length * sizeof(byte));
             }
             else
             {
@@ -157,25 +157,25 @@ internal class FileDialogParameters : IDisposableExt
     {
         get
         {
-            if (openFileName.lpstrFileTitle == IntPtr.Zero)
+            if (openFileName.lpstrFileTitle is null)
                 return string.Empty;
 
-            return Marshal.PtrToStringUni(openFileName.lpstrFileTitle) ?? string.Empty;
+            return Marshal.PtrToStringUni((nint)openFileName.lpstrFileTitle) ?? string.Empty;
         }
     }
 
     void IDisposableExt.Free()
     {
-        if (openFileName.lpstrFile != nint.Zero)
+        if (openFileName.lpstrFile is not null)
         {
-            Marshal.FreeHGlobal(openFileName.lpstrFile);
-            openFileName.lpstrFile = nint.Zero;
+            Marshal.FreeHGlobal((nint)openFileName.lpstrFile);
+            openFileName.lpstrFile = null;
         }
 
-        if (openFileName.lpstrFileTitle != nint.Zero)
+        if (openFileName.lpstrFileTitle is not null)
         {
-            Marshal.FreeHGlobal(openFileName.lpstrFileTitle);
-            openFileName.lpstrFileTitle = nint.Zero;
+            Marshal.FreeHGlobal((nint)openFileName.lpstrFileTitle);
+            openFileName.lpstrFileTitle = null;
         }
     }
 
